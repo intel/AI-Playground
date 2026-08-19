@@ -645,6 +645,15 @@ export abstract class LongLivedPythonApiService implements ApiService {
 
     try {
       this.appLogger.info(` trying to start ${this.name} python API`, this.name)
+      // Guard against starting on a half-provisioned environment. Some backends
+      // expose a health endpoint that comes up even when heavy runtime deps are
+      // missing (e.g. the TTS Flask server starts without torch, which is only
+      // imported lazily at model-load time). Without this check listenServerReady
+      // would report "running", runStartup would force isSetUp = true, and the
+      // real failure would surface much later as an opaque ModuleNotFoundError.
+      // Throwing here routes it through the catch below as a clean startup
+      // failure the setup wizard can offer to reinstall.
+      await this.assertReadyToStart()
       const trackedProcess = await this.spawnAPIProcess()
       this.encapsulatedProcess = trackedProcess.process
       this.pipeProcessLogs(trackedProcess.process)
@@ -764,6 +773,30 @@ export abstract class LongLivedPythonApiService implements ApiService {
       timestamp,
       duration,
       pipFreezeOutput,
+    }
+  }
+
+  /**
+   * Pre-start environment check, run inside runStartup() before the process is
+   * spawned. A backend's health endpoint can come up on a half-provisioned
+   * environment (e.g. the TTS Flask server boots without torch, which is only
+   * imported lazily at model-load time), which would let listenServerReady
+   * report "running" and force isSetUp = true — masking a broken install until
+   * a much later, opaque runtime error. Verifying the backend is actually set
+   * up first turns that into a clean startup failure the setup wizard / backend
+   * management screen surface as "needs reinstall". serviceIsSetUp() is each
+   * backend's own authoritative provisioning check (the same one used to decide
+   * whether to auto-start at boot), so a false result here means the app already
+   * considers the backend not installed. Subclasses may override to add a more
+   * specific message.
+   */
+  protected async assertReadyToStart(): Promise<void> {
+    const ready = await this.serviceIsSetUp()
+    if (!ready) {
+      this.isSetUp = false
+      throw new Error(
+        `The ${this.name} environment is not fully installed. Reinstall this component to finish provisioning it before starting.`,
+      )
     }
   }
 

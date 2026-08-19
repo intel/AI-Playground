@@ -15,15 +15,29 @@ vi.stubGlobal('window', {
 
 import { createTelegramAdapter } from '../../../src/assets/js/store/channels/telegramAdapter'
 import { createSlackAdapter } from '../../../src/assets/js/store/channels/slackAdapter'
+import { createLocalWebAdapter } from '../../../src/assets/js/store/channels/localWebAdapter'
 import type { RawPart } from '../../../src/assets/js/store/channels/adapter'
 
 describe('channel adapters', () => {
   const telegram = createTelegramAdapter()
   const slack = createSlackAdapter()
+  const localWeb = createLocalWebAdapter()
 
   it('expose their kind', () => {
     expect(telegram.kind).toBe('telegram')
     expect(slack.kind).toBe('slack')
+    expect(localWeb.kind).toBe('local-web')
+  })
+
+  it('local web routes sends through the generic local-web channel', async () => {
+    sendMock.mockClear()
+    sendMock.mockResolvedValueOnce({ success: true })
+    await localWeb.reply('Here is your haiku')
+    expect(sendMock).toHaveBeenCalledWith(
+      'local-web',
+      'reply',
+      expect.objectContaining({ text: 'Here is your haiku' }),
+    )
   })
 
   it('format italic per-channel', () => {
@@ -47,6 +61,49 @@ describe('channel adapters', () => {
     expect(sl).not.toContain('<blockquote>')
     // Slack reasoning is quoted with `> 💭`
     expect(sl).toContain('> 💭')
+  })
+
+  it('local web stops the typing indicator when the turn ends', async () => {
+    // Regression: the disposer was a no-op, so a turn that produced no output left
+    // the browser showing the typing dots for good.
+    sendMock.mockClear()
+    const stop = localWeb.startTypingHeartbeat('typing')
+    expect(sendMock).toHaveBeenCalledWith('local-web', 'typing', { action: 'typing' })
+    stop()
+    expect(sendMock).toHaveBeenLastCalledWith('local-web', 'typing', { action: 'stop' })
+  })
+
+  it('local web settles a keyboard prompt with editMessage, not a plain reply', async () => {
+    // The page keys off this action to retire the buttons; sending it as a reply
+    // left an answered prompt tappable, re-firing its callback.
+    sendMock.mockClear()
+    sendMock.mockResolvedValueOnce({ success: true })
+    await localWeb.editKeyboardMessage({ ts: '1', channel: 'local-web' }, 'Confirmed.')
+    expect(sendMock).toHaveBeenCalledWith('local-web', 'editMessage', { text: 'Confirmed.' })
+  })
+
+  it('local web renders the image preset + prompt (draft and final)', () => {
+    // Regression: the generic tool marker skips image tools (Telegram renders
+    // them specially), so without a dedicated image renderer the browser only
+    // got the finished photo — never the "Generating using preset … <prompt>"
+    // line the desktop app shows.
+    const parts: RawPart[] = [
+      {
+        type: 'tool-comfyUI',
+        state: 'input-available',
+        input: { workflow: 'Line Art', prompt: 'a friendly lizard on a surfboard' },
+      },
+    ]
+    const draft = localWeb.formatDraft(parts)
+    expect(draft).toContain('Line Art')
+    expect(draft).toContain('a friendly lizard on a surfboard')
+    expect(draft).toContain('Generating')
+
+    const doneParts: RawPart[] = [{ ...parts[0], state: 'output-available' }]
+    const final = localWeb.formatFinal(doneParts)
+    expect(final).toContain('Line Art')
+    expect(final).toContain('a friendly lizard on a surfboard')
+    expect(final).toContain('Generated')
   })
 
   it('telegram keyboard returns a messageId ref and edits in place', async () => {

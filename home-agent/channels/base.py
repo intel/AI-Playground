@@ -14,6 +14,7 @@ without sharing a base class.
 
 from __future__ import annotations
 
+import logging
 import re
 import threading
 from collections.abc import Iterable
@@ -21,6 +22,8 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from .types import ChannelKind, QueueItem, SendResult
+
+logger = logging.getLogger(__name__)
 
 
 @runtime_checkable
@@ -126,9 +129,11 @@ class ChannelBase:
     def persist_identity(self, value: str) -> None:
         try:
             self._identity_file.write_text(value)
-        except Exception:
+        except Exception as exc:
             # Best-effort: filesystem issues should not crash the bot.
-            pass
+            logger.warning(
+                "Could not persist identity to %s: %s", self._identity_file, exc
+            )
 
     # ── Lifecycle helpers ────────────────────────────────────────────────
     def is_running(self) -> bool:

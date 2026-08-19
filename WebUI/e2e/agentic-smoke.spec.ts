@@ -4,8 +4,8 @@ import { MainPage } from './pages/MainPage'
 // Quick agentic smoke — the reference flow for `npm run e2e:fast`. Installs backends,
 // switches to the agentic chat preset, then runs two turns: a text turn ("write a
 // haiku") and an image turn ("turn it into an image"). This is the cheap gate; the
-// full four-generation agentic flow (image → edit → video) lives in
-// install-backends.spec.ts and runs in `npm run e2e:full`.
+// full agentic flow (image → edit → video) lives in
+// assistant-media-flow.spec.ts and runs in `npm run e2e:full`.
 //
 // The chat backend is pinned explicitly and the smoke runs once per backend: the
 // "Assistant" preset otherwise uses whichever backend happens to be running, which has
@@ -53,6 +53,11 @@ test.describe('Agentic smoke', () => {
 
       await test.step('Prompt 1: write a haiku → expect a text reply', async () => {
         await app.main.sendPrompt(PROMPTS.haiku)
+        // First use of the pinned chat model pulls it via the download dialog; the
+        // turn stays "busy" until it's confirmed, so resolve it before waiting for
+        // idle (otherwise a fresh machine hangs here until TEXT_TIMEOUT). No-op when
+        // the model is already on disk; skips cleanly if it's gated/unavailable.
+        await app.resolveModelDownloadOrSkip(`the ${backend.name} chat model`)
         // Waits for the turn to go idle, then asserts the actual reply text is on
         // screen — not just the end of the reasoning trace.
         await app.main.waitForAssistantAnswer()

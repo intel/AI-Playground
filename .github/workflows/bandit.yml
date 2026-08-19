@@ -10,12 +10,38 @@ on:
       - main
       - dev
 
+permissions:
+  contents: read
+
 jobs:
   analyze:
     runs-on: ubuntu-latest
     permissions:
-      # required for all workflows
+      contents: read
+      actions: read
       security-events: write
     steps:
-      - name: Perform Bandit Analysis
-        uses: PyCQA/bandit-action@v1
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      # Version pinned to match `npm run lint:bandit` (WebUI/package.json).
+      - name: Install Bandit
+        run: pip install 'bandit[sarif,toml]==1.9.4'
+
+      # `|| true` so findings surface in the Security tab instead of failing the
+      # job, matching the behaviour of the PyCQA/bandit-action this replaced.
+      # Scope lives in bandit.yaml, shared with `npm run lint:bandit`.
+      - name: Run Bandit
+        run: bandit -c bandit.yaml -r . -f sarif -o results.sarif || true
+
+      - name: Upload Bandit results to GitHub Security tab
+        # Fork PRs get a read-only GITHUB_TOKEN, so SARIF upload can never succeed there.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results.sarif

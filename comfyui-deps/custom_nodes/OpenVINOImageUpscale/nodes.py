@@ -86,8 +86,8 @@ def _candidate_model_roots() -> list[Path]:
 
         for root in folder_paths.get_folder_paths("upscale_models"):
             roots.append(Path(root))
-    except Exception:
-        pass
+    except Exception as exc:
+        log.debug("ComfyUI upscale_models folder paths unavailable: %s", exc)
 
     here = Path(__file__).resolve()
     for parent in [here.parent, *here.parents]:
@@ -153,8 +153,8 @@ def _resolve_model_file(model_ref: str) -> Path:
             resolved_path = Path(resolved)
             if resolved_path.is_file():
                 return resolved_path
-    except Exception:
-        pass
+    except Exception as exc:
+        log.debug("folder_paths lookup failed for %s: %s", normalized_ref, exc)
 
     # Some shipped paths use `repo---name/file` (Comfy-Org repackaged style)
     # but the on-disk layout flips the first two segments to a `repo/name`
@@ -296,8 +296,8 @@ def _load_compiled_model(
     blob_cache.mkdir(parents=True, exist_ok=True)
     try:
         core.set_property({"CACHE_DIR": str(blob_cache)})
-    except Exception:  # pragma: no cover - older OpenVINO builds
-        pass
+    except Exception as exc:  # pragma: no cover - older OpenVINO builds
+        log.debug("OpenVINO CACHE_DIR not supported by this build: %s", exc)
     model = core.read_model(model=str(ir_path))
     if needs_static:
         log.info(

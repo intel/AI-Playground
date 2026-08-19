@@ -102,6 +102,20 @@ export type ChannelAdapter = {
    *  every 4 s; Slack adds / removes a reaction on the inbound message. */
   startTypingHeartbeat: (action: string, meta?: InboundMeta) => () => void
   createDraftStream: (meta?: InboundMeta) => DraftStream
+  /** Replay a conversation's full message transcript to the channel surface.
+   *  Only channels with no persistent history of their own implement this — the
+   *  LAN web page starts blank on every (re)connect, so loading a chat has to
+   *  repaint it. Telegram/Slack keep history natively and leave this undefined. */
+  replayHistory?: (
+    messages: {
+      role: 'user' | 'assistant'
+      text: string
+      images?: string[]
+      videos?: { base64: string; filename: string }[]
+      documents?: { base64: string; filename: string }[]
+    }[],
+    meta?: InboundMeta,
+  ) => Promise<ChannelSendResult>
 
   // ── Formatting hooks (channel-native output) ───────────────────────────
   /** Convert assistant markdown to channel-native rich text. */

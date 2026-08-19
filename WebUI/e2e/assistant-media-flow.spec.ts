@@ -18,8 +18,10 @@ const PROMPTS = {
     'Lets bring this image to life. Animate this using LTX.2.3 i2v image to video. Have him waving hi and saying Hey Dudes, then jumping back into a cool pose that is consistent with his surfer, goofy character',
 }
 
-test.describe('Backend installation', () => {
-  test('installs backends, then runs the agentic image → edit → video flow', async ({ app }) => {
+test.describe('Assistant — agentic media flow', () => {
+  test('installs backends, then the assistant runs the image → edit → video flow', async ({
+    app,
+  }) => {
     // Install + 4 real generations (incl. a video) far exceed the default timeout.
     test.setTimeout(45 * 60_000)
 

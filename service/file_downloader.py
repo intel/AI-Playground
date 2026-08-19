@@ -8,6 +8,9 @@ from threading import Thread
 import requests
 from exceptions import DownloadException
 
+# (connect, read); read applies per chunk, so large files are unaffected.
+_DOWNLOAD_TIMEOUT = (10, 60)
+
 
 class FileDownloader:
     on_download_progress: Callable[[str, int, int, int], None] = None
@@ -70,10 +73,11 @@ class FileDownloader:
                 url,
                 stream=True,
                 headers={"Range": f"bytes={start_pos}-"},
+                timeout=_DOWNLOAD_TIMEOUT,
             )
             fw = open(file_path, "ab")
         else:
-            response = requests.get(url, stream=True)
+            response = requests.get(url, stream=True, timeout=_DOWNLOAD_TIMEOUT)
             fw = open(file_path, "wb")
 
         return response, fw

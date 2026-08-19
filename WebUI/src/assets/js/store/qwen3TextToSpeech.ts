@@ -6,7 +6,10 @@ import { useBackendServices } from './backendServices'
 import { useModels } from './models'
 import { useDialogStore } from './dialogs'
 import * as toast from '@/assets/js/toast'
+import { createAppError } from '../errors/appError'
 import { qwen3TtsFetch } from '@/lib/loopbackAuth'
+import { resolveTtsSpeakerLabel } from '@/lib/ttsSpeakerLabel'
+import { randomVoiceSeed, seedForVoice, stableVoiceSeed } from '@/lib/ttsVoiceSeed'
 import { QWEN3_TTS_MODEL_REPOS } from '@/assets/js/qwen3TtsConstants'
 import type {
   Qwen3TtsApiResponse,
@@ -30,6 +33,9 @@ export const useQwen3TextToSpeech = defineStore(
     /** Free-form voice description used when `mode === 'voice_design'` and no per-call
      *  `instruct` is supplied (e.g. the direct-synthesis TTS preset). */
     const defaultInstruct = ref<string>('')
+    /** Name of the saved voice currently selected in settings. Empty when a preset
+     *  speaker is active. Independent of `defaultSpeaker`, which is only a preset id. */
+    const defaultVoiceName = ref<string>('')
 
     /** User-created named voice directions, reusable from settings, chat, and the agent. */
     const savedVoices = ref<Qwen3TtsSavedVoice[]>([])
@@ -97,7 +103,23 @@ export const useQwen3TextToSpeech = defineStore(
       // called by ensureModelLoaded()/synthesize() so we only fetch the model the
       // user actually needs — not both. Starting the service does not download.
       if (info.status !== 'running') {
-        await backendServices.startService('qwen3-tts-backend')
+        const startStatus = await backendServices.startService('qwen3-tts-backend')
+        // The startup guard (LongLivedPythonApiService.assertReadyToStart) rejects
+        // a half-provisioned env (e.g. torch missing) with a 'failed' status
+        // instead of a fake-healthy server. Surface that here as an actionable
+        // reinstall message — otherwise we'd POST to /api/load against a backend
+        // that never started and report an opaque connection error.
+        if (startStatus !== 'running') {
+          const details = backendServices.getServiceErrorDetails('qwen3-tts-backend')
+          const hint = details?.stderr ? ` (${details.stderr.split('\n')[0].trim()})` : ''
+          throw createAppError({
+            category: 'inference',
+            code: 'inference/tts-failed',
+            userMessage:
+              `Text To Speech failed to start — its environment may be incomplete. ` +
+              `Reinstall it from Settings → Installation Management, then try again.${hint}`,
+          })
+        }
       }
       const running = backendServices.info.find((s) => s.serviceName === 'qwen3-tts-backend')
       const baseUrl = running?.baseUrl
@@ -169,17 +191,45 @@ export const useQwen3TextToSpeech = defineStore(
       let mode = args.mode ?? defaultMode.value
       let language = args.language ?? defaultLanguage.value
       let instruct = args.instruct
-      const speaker = args.speaker ?? defaultSpeaker.value
       // A named voice is a saved voice_design description; it wins over mode/instruct.
+      let saved = args.voiceName ? resolveVoice(args.voiceName) : undefined
       if (args.voiceName) {
-        const saved = resolveVoice(args.voiceName)
         if (!saved) {
           throw new Error(`No saved Text To Speech voice named "${args.voiceName}"`)
         }
         mode = 'voice_design'
         instruct = saved.instruct
         if (saved.language) language = saved.language
+      } else if (mode === 'voice_design' && defaultVoiceName.value) {
+        // Settings-driven path (TTS preset / "Speak"): the active voice is the one
+        // selected in settings, so it supplies the seed that keeps it recognisable.
+        saved = resolveVoice(defaultVoiceName.value)
       }
+      // For voice_design fall back to the saved description when the caller omits one.
+      const resolvedInstruct =
+        instruct ?? (mode === 'voice_design' ? defaultInstruct.value : undefined)
+      // Voice-design ignores the preset speaker id; label with the saved voice name
+      // instead of the leftover custom_voice default.
+      const speaker = resolveTtsSpeakerLabel({
+        mode,
+        voiceName:
+          args.voiceName?.trim() || (mode === 'voice_design' ? defaultVoiceName.value.trim() : ''),
+        instruct: resolvedInstruct,
+        savedVoices: savedVoices.value,
+        speaker: args.speaker,
+        defaultSpeaker: defaultSpeaker.value,
+      })
+      // Voice design samples a speaker from the description, so an unseeded run
+      // invents a new person every time. Pin the saved voice's seed (falling back
+      // to one derived from its description) so a saved voice stays itself across
+      // separate generations. Preset speakers already have a fixed timbre, so they
+      // keep their natural prosody variation.
+      const seed =
+        mode === 'voice_design' && saved
+          ? seedForVoice(saved)
+          : mode === 'voice_design' && resolvedInstruct
+            ? stableVoiceSeed('', resolvedInstruct)
+            : undefined
       // Only the model for the resolved mode is required.
       await ensureModelInstalled(mode)
       const baseUrl = await ensureBackendRunning()
@@ -187,9 +237,9 @@ export const useQwen3TextToSpeech = defineStore(
         text: args.text,
         language,
         speaker,
-        // For voice_design fall back to the saved description when the caller omits one.
-        instruct: instruct ?? (mode === 'voice_design' ? defaultInstruct.value : undefined),
+        instruct: resolvedInstruct,
         mode,
+        seed,
       }
       const response = await qwen3TtsFetch(`${baseUrl}/api/synthesize`, {
         method: 'POST',
@@ -200,7 +250,8 @@ export const useQwen3TextToSpeech = defineStore(
       if (!response.ok || payload.code !== 0 || !payload.data) {
         throw new Error(payload.message ?? `Text To Speech synthesis failed (${response.status})`)
       }
-      return payload.data
+      // Sidecar echoes `speaker`; keep the resolved label if it ever diverges.
+      return { ...payload.data, speaker }
     }
 
     /** Persist WAV bytes under Documents/AI-Playground/audio and return the absolute path. */
@@ -226,7 +277,26 @@ export const useQwen3TextToSpeech = defineStore(
       if (args.speaker) defaultSpeaker.value = args.speaker
       if (args.language) defaultLanguage.value = args.language
       if (args.mode) defaultMode.value = args.mode
+      if (args.mode === 'custom_voice') defaultVoiceName.value = ''
       toast.success('Updated default Text To Speech voice settings for this session')
+    }
+
+    /** Select a saved voice as the active voice_design default. */
+    function applySavedVoice(name: string): boolean {
+      const voice = resolveVoice(name)
+      if (!voice) return false
+      defaultMode.value = 'voice_design'
+      defaultInstruct.value = voice.instruct
+      defaultVoiceName.value = voice.name
+      if (voice.language) defaultLanguage.value = voice.language
+      return true
+    }
+
+    /** Select a built-in preset speaker (custom_voice mode). */
+    function applyPresetSpeaker(speaker: Qwen3TtsSpeakerId): void {
+      defaultMode.value = 'custom_voice'
+      defaultSpeaker.value = speaker
+      defaultVoiceName.value = ''
     }
 
     /** Create or update a named voice direction (matched case-insensitively by name). */
@@ -234,16 +304,44 @@ export const useQwen3TextToSpeech = defineStore(
       const name = voice.name.trim()
       const instruct = voice.instruct.trim()
       if (!name || !instruct) return
-      const entry: Qwen3TtsSavedVoice = { name, instruct, language: voice.language }
       const idx = savedVoices.value.findIndex((v) => v.name.toLowerCase() === name.toLowerCase())
+      const existing = idx >= 0 ? savedVoices.value[idx] : undefined
+      // Pin a seed so the voice sounds the same every time it is used. Keep the
+      // existing one when only re-saving the same description; a rewritten
+      // description is a different voice, so it gets a fresh seed.
+      const seed =
+        voice.seed ??
+        (existing && existing.instruct.trim() === instruct
+          ? seedForVoice(existing)
+          : stableVoiceSeed(name, instruct))
+      const entry: Qwen3TtsSavedVoice = { name, instruct, language: voice.language, seed }
       if (idx >= 0) savedVoices.value.splice(idx, 1, entry)
       else savedVoices.value.push(entry)
+      // Keep an active selection of this voice in sync with the edited description.
+      if (defaultVoiceName.value.toLowerCase() === name.toLowerCase()) {
+        defaultInstruct.value = instruct
+      }
+    }
+
+    /**
+     * Give a saved voice a new random seed — i.e. draw a different speaker for the
+     * same description. The escape hatch when the pinned voice sounds wrong (too
+     * slow, wrong gender, odd prosody) instead of it silently changing on its own.
+     */
+    function rerollVoiceSeed(name: string): number | undefined {
+      const idx = savedVoices.value.findIndex(
+        (v) => v.name.toLowerCase() === name.trim().toLowerCase(),
+      )
+      if (idx < 0) return undefined
+      const seed = randomVoiceSeed()
+      savedVoices.value.splice(idx, 1, { ...savedVoices.value[idx], seed })
+      return seed
     }
 
     function deleteVoice(name: string): void {
-      savedVoices.value = savedVoices.value.filter(
-        (v) => v.name.toLowerCase() !== name.trim().toLowerCase(),
-      )
+      const n = name.trim().toLowerCase()
+      savedVoices.value = savedVoices.value.filter((v) => v.name.toLowerCase() !== n)
+      if (defaultVoiceName.value.toLowerCase() === n) defaultVoiceName.value = ''
     }
 
     function resolveVoice(name: string): Qwen3TtsSavedVoice | undefined {
@@ -270,6 +368,7 @@ export const useQwen3TextToSpeech = defineStore(
       defaultLanguage,
       defaultMode,
       defaultInstruct,
+      defaultVoiceName,
       savedVoices,
       isFeatureEnabled,
       synthesize,
@@ -281,7 +380,10 @@ export const useQwen3TextToSpeech = defineStore(
       isModelInstalled,
       isBackendSetUp,
       applyUserVoicePreference,
+      applySavedVoice,
+      applyPresetSpeaker,
       saveVoice,
+      rerollVoiceSeed,
       deleteVoice,
       resolveVoice,
     }
@@ -289,7 +391,14 @@ export const useQwen3TextToSpeech = defineStore(
   {
     persist: {
       storage: demoAwareStorage,
-      pick: ['defaultSpeaker', 'defaultLanguage', 'defaultMode', 'defaultInstruct', 'savedVoices'],
+      pick: [
+        'defaultSpeaker',
+        'defaultLanguage',
+        'defaultMode',
+        'defaultInstruct',
+        'defaultVoiceName',
+        'savedVoices',
+      ],
     },
   },
 )

@@ -194,6 +194,57 @@ export class SpecificSettingsPage {
     ).toBeVisible({ timeout: 5_000 })
   }
 
+  /**
+   * The "Voice" picker row in the Text-to-Speech settings (SettingsTts.vue). Anchored
+   * on a label whose text is exactly "Voice", so it can't drift onto the neighbouring
+   * "Your voices" list or the two "Language" rows.
+   */
+  private ttsVoiceTrigger(mode: ChatMode): Locator {
+    return this.panel(mode)
+      .locator('div.grid')
+      .filter({ has: this.page.getByText('Voice', { exact: true }) })
+      .getByRole('button')
+  }
+
+  /**
+   * Select an entry from the "Voice" picker — a built-in speaker (listed as
+   * "Ryan — English") or a saved one ("Tammy (your voice)"). Pass a regex to match a
+   * prefix. Requires the settings sidebar open with the "Text to Speech" preset active.
+   */
+  async selectTtsVoice(label: string | RegExp, mode: ChatMode = 'Chat'): Promise<void> {
+    const trigger = this.ttsVoiceTrigger(mode)
+    await trigger.click()
+    const menu = this.page.getByRole('menu')
+    await menu.getByRole('menuitem', { name: label }).first().click()
+    await menu.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {})
+    await expect(trigger).toContainText(label, { timeout: 15_000 })
+  }
+
+  /**
+   * Remove a saved TTS voice if it is listed, so a run that shares persisted app state
+   * with an earlier one still *creates* the voice rather than re-saving it. No-op when
+   * the voice isn't there.
+   */
+  async deleteTtsVoiceIfPresent(name: string, mode: ChatMode = 'Chat'): Promise<void> {
+    const row = this.panel(mode).locator('li').filter({ hasText: name })
+    if ((await row.count()) === 0) return
+    await row.first().getByRole('button', { name: 'Remove' }).click()
+    await expect(row, `saved voice "${name}" should be gone after Remove`).toHaveCount(0)
+  }
+
+  /**
+   * Re-roll a saved TTS voice: draw a different speaker for the same description by
+   * giving the voice a new seed (SettingsTts.vue → `rerollVoiceSeed`). The counterpart
+   * of the pinned seed — proof that the seed is what fixes the voice, since audio
+   * synthesized after a re-roll must differ from audio synthesized before it.
+   * Requires the settings sidebar open with the "Text to Speech" preset active.
+   */
+  async rerollTtsVoice(name: string, mode: ChatMode = 'Chat'): Promise<void> {
+    const row = this.panel(mode).locator('li').filter({ hasText: name })
+    await expect(row, `saved voice "${name}" should be listed under "Your voices"`).toHaveCount(1)
+    await row.getByRole('button', { name: 'Re-roll' }).click()
+  }
+
   /** Close the sidebar via its (responsive) Close button, scoped to the sidebar
    *  region so it can't match the header's window-close (X) button. */
   async close(mode: ChatMode = 'Chat'): Promise<void> {

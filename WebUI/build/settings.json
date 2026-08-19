@@ -5,5 +5,5 @@
   "isDemoModeEnabled": false,
   "openvinoImageGenDevices": ["CPU", "GPU"],
   "isHomeAgentEnabled": true,
-  "isQwen3TtsEnabled": false
+  "isQwen3TtsEnabled": true
 }

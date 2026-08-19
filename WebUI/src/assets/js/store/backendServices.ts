@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import z from 'zod'
 import { demoAwareStorage } from '../demoAwareStorage'
+import { invalidateBackendAuthToken } from '@/lib/loopbackAuth'
 
 const backends = [
   'ai-backend',
@@ -471,6 +472,12 @@ export const useBackendServices = defineStore(
           ovmsKvCachePrecision: effectiveOvmsKvCachePrecision.value,
         })
       }
+      // A spawn regenerates the service's loopback token, so anything the renderer
+      // cached for it is now stale. Drop it here — the per-fetch 401 retry recovers
+      // either way, but only after the first call to the restarted service has been
+      // rejected (e.g. TTS: restart after a model download → `POST /api/load` 401,
+      // refresh, retry). Invalidating up front removes that wasted round-trip.
+      invalidateBackendAuthToken(serviceName)
       return window.electronAPI.startService(serviceName)
     }
 

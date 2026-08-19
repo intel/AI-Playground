@@ -26,6 +26,16 @@ function invalidate(serviceName: BackendServiceName) {
 }
 
 /**
+ * Drop the cached token for a service. Every spawn regenerates the service's
+ * `AIPG_LOOPBACK_TOKEN`, so whoever (re)starts a service should call this: the
+ * per-fetch 401 retry below would recover anyway, but only after burning a
+ * guaranteed-rejected request on the first call after the restart.
+ */
+export function invalidateBackendAuthToken(serviceName: BackendServiceName): void {
+  invalidate(serviceName)
+}
+
+/**
  * Wraps `fetch` for the ai-backend (Flask) service, attaching the loopback
  * auth token via the `X-AIPG-Auth` request header.
  *

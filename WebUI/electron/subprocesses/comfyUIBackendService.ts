@@ -245,6 +245,14 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   // disabled -> device_count() == 0).
   private usableXpuConfirmed: boolean | null = null
 
+  // Single-flight guard for the XPU probe. The main-process apiServiceRegistry
+  // and the renderer backendServices store both call detectDevices() on this
+  // same instance within ~100ms of boot; without this guard each would launch
+  // its own multi-second torch-2.13 XPU probe, and a probe that transiently
+  // saw 0 devices (cold SYCL / Level Zero cache build, timing) could stickily
+  // downgrade the shared instance to CPU. Concurrent callers await this one run.
+  private xpuProbeInFlight: Promise<void> | null = null
+
   // Per-launch loopback auth token, regenerated on every spawn. Consumed by
   // the bundled `aipg-auth` ComfyUI custom_node middleware which rejects any
   // request without a matching Bearer header / ?token= query / session cookie.
@@ -1548,20 +1556,38 @@ except Exception as e:
     this.updateStatus()
   }
 
+  // Single-flight wrapper around the torch.xpu probe (see xpuProbeInFlight).
+  // Concurrent callers await the same run instead of launching competing
+  // (slow, torch-2.13) probe subprocesses; this also serializes spawnAPIProcess()
+  // against an in-flight detectDevices().
   private async detectXpuDevicesWithTorch(): Promise<void> {
-    let allDevices: Device[] = []
+    if (this.xpuProbeInFlight) {
+      return this.xpuProbeInFlight
+    }
+    this.xpuProbeInFlight = this.runXpuProbe()
     try {
-      const pythonScript = `
+      await this.xpuProbeInFlight
+    } finally {
+      this.xpuProbeInFlight = null
+    }
+  }
+
+  private async runXpuProbe(): Promise<void> {
+    // Single probe: enumerate every XPU device in one torch subprocess instead
+    // of launching torch up to 10 times with per-device level_zero selectors.
+    // Ten cold torch-2.13 loads back-to-back was the dominant startup cost (and
+    // the source of the phantom "9 GPUs" logs, since the old loop used the loop
+    // index as the device id). torch device index i maps to level_zero:i under
+    // the COMPOSITE hierarchy, so the emitted ids stay valid for the
+    // ONEAPI_DEVICE_SELECTOR built at spawn time.
+    const pythonScript = `
 import sys
 
 try:
     import torch
     # Intel-torch builds that predate native XPU (torch < 2.5) only register the
-    # torch.xpu backend after intel_extension_for_pytorch is imported. Without
-    # this, torch.xpu.device_count() returns 0 on those builds and the GPU is
-    # wrongly reported as absent (device dropdown falls back to "Auto"). On
-    # native-XPU torch the import is unnecessary and its absence is non-fatal, so
-    # both supported ComfyUI variants enumerate the Intel GPU consistently.
+    # torch.xpu backend after intel_extension_for_pytorch is imported. On
+    # native-XPU torch the import is unnecessary and its absence is non-fatal.
     try:
         import intel_extension_for_pytorch  # noqa: F401
     except Exception:
@@ -1571,10 +1597,11 @@ try:
         print("Error detecting XPU devices: torch has no xpu backend")
         sys.exit(1)
 
-    # Try to get the number of XPU devices
     device_count = torch.xpu.device_count()
+    # Sentinel so the TS side can tell "torch loaded cleanly and saw 0 devices"
+    # (a definitive negative) apart from a probe that never produced output.
+    print(f"DEVICE_COUNT={device_count}")
 
-    # For each device, get its name (and UUID when the build exposes it) and print it
     for i in range(device_count):
         try:
             device_name = torch.xpu.get_device_name(i)
@@ -1589,60 +1616,92 @@ except Exception as e:
     print(f"Error detecting XPU devices: {str(e)}")
     sys.exit(1)
 `
-      let i = 0
-      let lastDeviceList: Device[] = []
-      const pythonBinary = this.getPythonBinaryPath()
-      while ((lastDeviceList.length > 0 || i == 0) && i < 10) {
-        const env = { ...this.getCommonEnvVars(), ...levelZeroDeviceSelectorEnv(String(i)) }
-        this.appLogger.info(
-          `Detecting level_zero devices with ONEAPI_DEVICE_SELECTOR=${env.ONEAPI_DEVICE_SELECTOR}`,
-          this.name,
-        )
-        const result = await spawnProcessAsync(
-          pythonBinary,
-          ['-c', pythonScript],
-          (d) => this.appLogger.info(d, this.name),
-          env,
-        )
-        this.appLogger.info(`Device detection result: ${result}`, this.name)
+    // Generous timeout: a first-run SYCL / Level Zero cache build can make the
+    // very first torch.xpu call take tens of seconds on torch 2.13.
+    const XPU_PROBE_TIMEOUT_MS = 120_000
+    const pythonBinary = this.getPythonBinaryPath()
+    const env = this.getCommonEnvVars()
 
-        const devices: Device[] = []
-        const lines = result
-          .split('\n')
-          .map((l) => l.trim())
-          .filter((line) => line !== '')
-
-        for (const line of lines) {
-          if (line.startsWith('Error detecting XPU devices:')) {
-            console.error(line)
-            continue
-          }
-
-          const parts = line.split('|', 3)
-          if (parts.length >= 2) {
-            const id = `${i}`
-            const name = parts[1]
-
-            devices.push({ id, name, uuid: normalizeDeviceUuid(parts[2]) })
-          }
-        }
-        i = i + 1
-        lastDeviceList = devices
-        allDevices = allDevices.concat(lastDeviceList)
-      }
+    let result: string
+    try {
+      this.appLogger.info('Detecting XPU devices with torch.xpu (single probe)', this.name)
+      result = await spawnProcessAsync(
+        pythonBinary,
+        ['-c', pythonScript],
+        (d) => this.appLogger.info(d, this.name),
+        env,
+        undefined,
+        XPU_PROBE_TIMEOUT_MS,
+      )
     } catch (error) {
-      console.error('Error detecting level_zero devices:', error)
+      // Transient failure: the torch subprocess errored, exited non-zero, or
+      // timed out. This is NOT proof the GPU is absent, so do not stickily
+      // downgrade the shared instance to CPU or clear a prior positive
+      // confirmation — leave usableXpuConfirmed/comfyUiVariant as-is so a later
+      // probe (or the spawnAPIProcess gate) can retry against the same GPU.
+      this.appLogger.warn(
+        `XPU device probe failed transiently (leaving variant unchanged, will retry before spawn): ${error}`,
+        this.name,
+        true,
+      )
+      this.updateStatus()
+      return
     }
+
+    this.appLogger.info(`Device detection result: ${result}`, this.name)
+
+    const allDevices: Device[] = []
+    // Parsed value of the `DEVICE_COUNT=<n>` sentinel the probe prints right after
+    // torch.xpu.device_count(). null = sentinel absent/unparseable, which means the
+    // torch call never got far enough to report a count (truncated/garbled output)
+    // and must be treated as a transient failure, not a definitive zero.
+    let deviceCount: number | null = null
+    const lines = result
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((line) => line !== '')
+    for (const line of lines) {
+      if (line.startsWith('DEVICE_COUNT=')) {
+        const n = Number.parseInt(line.slice('DEVICE_COUNT='.length), 10)
+        if (Number.isInteger(n) && n >= 0) deviceCount = n
+        continue
+      }
+      if (line.startsWith('Error detecting XPU devices:')) {
+        console.error(line)
+        continue
+      }
+      const parts = line.split('|', 3)
+      if (parts.length >= 2) {
+        allDevices.push({ id: parts[0], name: parts[1], uuid: normalizeDeviceUuid(parts[2]) })
+      }
+    }
+
     this.appLogger.info(`detected devices: ${JSON.stringify(allDevices, null, 2)}`, this.name)
     if (allDevices.length === 0) {
-      // torch.xpu.device_count() returned 0 — Level Zero loader is present but the
-      // Intel GPU driver can't enumerate any devices (missing intel-level-zero-gpu,
-      // wrong permissions on /dev/dri/renderD128, or driver mismatch). Running as
-      // XPU variant with 0 devices would crash ComfyUI; fall back to CPU instead.
+      if (deviceCount !== 0) {
+        // Exit 0 but no valid `DEVICE_COUNT=0` sentinel (missing/garbled output, or a
+        // reported count with no enumerable devices). This is NOT proof the GPU is
+        // absent, so treat it like the catch above: leave usableXpuConfirmed /
+        // comfyUiVariant unchanged so a later probe / the spawn gate can retry.
+        this.appLogger.warn(
+          `XPU probe exited cleanly but reported no usable DEVICE_COUNT=0 sentinel ` +
+            `(deviceCount=${deviceCount}); treating as transient, leaving variant unchanged.`,
+          this.name,
+          true,
+        )
+        this.updateStatus()
+        return
+      }
+      // The probe ran cleanly (exit 0) and torch.xpu positively reported zero devices
+      // (DEVICE_COUNT=0) — a *definitive* negative: the Level Zero loader is present
+      // but no usable Intel GPU (missing intel-level-zero-gpu, Resizable BAR disabled
+      // → device_count() == 0, wrong /dev/dri permissions, or driver mismatch).
+      // Running as the XPU variant with 0 devices would crash ComfyUI; fall back to
+      // CPU. (A transient probe failure is handled above and does NOT reach here.)
       this.appLogger.warn(
-        '[comfyui-variant] torch.xpu found 0 XPU devices — Intel GPU not accessible via Level Zero. ' +
-          'Falling back to CPU. Check: (1) intel-level-zero-gpu package installed, ' +
-          '(2) user is in the "render" group, (3) /dev/dri/renderD128 permissions.',
+        '[comfyui-variant] torch.xpu found 0 XPU devices — Intel GPU not accessible. ' +
+          'Falling back to CPU. Check: (1) intel-level-zero-gpu package installed (Linux), ' +
+          '(2) Resizable BAR enabled, (3) user in the "render" group / /dev/dri/renderD128 permissions (Linux).',
         this.name,
         true,
       )
@@ -1652,8 +1711,11 @@ except Exception as e:
       this.updateStatus()
       return
     }
-    // A device probe positively confirmed at least one usable XPU device, so it
-    // is safe for spawnAPIProcess() to launch as the XPU variant.
+    // >=1 usable device. Explicitly restore the XPU variant: a concurrent probe
+    // that transiently saw 0 could have flipped comfyUiVariant to 'cpu' before
+    // this positive result landed, and without restoring it spawnAPIProcess()
+    // would still append --cpu on a perfectly good GPU.
+    this.comfyUiVariant = 'xpu'
     this.usableXpuConfirmed = true
     // Best-effort (see detectCudaDevicesWithTorch): don't let default-device
     // resolution errors blank an already-detected device list.
@@ -1742,25 +1804,22 @@ except Exception as e:
     // previous ComfyUI process is no longer reusable.
     this.loopbackAuthToken = randomBytes(32).toString('hex')
 
-    // Defensive XPU usability guard. `comfyUiVariant` can be 'xpu' here either
-    // from a stale aipg-variant.json marker or from the transient window inside
-    // detectDevices(), which sets the variant to 'xpu' synchronously and only
-    // flips it to 'cpu' after its multi-second torch.xpu probe completes. Two
+    // Defensive XPU usability guard (both Windows and Linux). `comfyUiVariant`
+    // can be 'xpu' here either from a stale aipg-variant.json marker or from the
+    // transient window inside detectDevices(), which sets the variant to 'xpu'
+    // synchronously before its multi-second torch.xpu probe completes. Two
     // startup orchestrators (the main-process apiServiceRegistry and the
     // renderer backendServices store) call detectDevices()/start() concurrently
     // on the same instance, so a spawn can observe 'xpu' before any probe has
-    // confirmed a usable device. On a machine whose Intel GPU is not actually
-    // usable (e.g. Resizable BAR disabled -> torch.xpu.device_count() == 0),
-    // launching as XPU makes ComfyUI "assume Nvidia" and crash with
-    // "Torch not compiled with CUDA enabled". Only run as XPU once a probe has
-    // positively confirmed at least one device; otherwise fall back to CPU.
-    // Runs before the stale-ipex cleanup below so the CPU fallback also strips
-    // any leftover ipex_to_cuda injection from a previous XPU install.
-    if (
-      process.platform === 'linux' &&
-      this.comfyUiVariant === 'xpu' &&
-      this.usableXpuConfirmed !== true
-    ) {
+    // confirmed a usable device. Await a confirming probe first — it is
+    // single-flighted, so this just joins any detect already running rather than
+    // launching another torch process. A *definitive* 0-device result switches
+    // the variant to 'cpu' inside the probe (so we never launch a doomed XPU
+    // ComfyUI that "assumes Nvidia" and crashes with "Torch not compiled with
+    // CUDA enabled"); a transient probe failure leaves 'xpu' so we still attempt
+    // the GPU rather than sticking on CPU. Runs before the stale-ipex cleanup
+    // below so a CPU fallback also strips any leftover ipex_to_cuda injection.
+    if (this.comfyUiVariant === 'xpu' && this.usableXpuConfirmed !== true) {
       await this.detectXpuDevicesWithTorch()
     }
 

@@ -7,10 +7,10 @@
 
 import { existsSync, copyFileSync } from 'fs'
 import { join, normalize } from 'path'
-import { getBuildPaths } from './build-paths.mts'
+import { getBuildPaths, getTargetPlatform } from './build-paths.mts'
 
 // Fixed directory structure
-const buildPaths = getBuildPaths()
+const buildPaths = getBuildPaths(getTargetPlatform())
 const { webUIBuildDir: WEBUI_BUILD_DIR, webUINodeModulesDir: WEBUI_NODE_MODULES_DIR } = buildPaths
 const TEMPLATES_DIR = WEBUI_BUILD_DIR
 

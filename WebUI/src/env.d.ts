@@ -509,6 +509,9 @@ type electronAPI = {
       filename: string,
       base64: string,
     ): Promise<{ success: boolean; filepath?: string; error?: string }>
+    localWeb: {
+      getUrls(port: number, allowLan: boolean): Promise<string[]>
+    }
     channel: {
       saveConfig(
         kind: string,
@@ -555,7 +558,8 @@ type electronAPI = {
           | 'document'
           | 'typing'
           | 'keyboard'
-          | 'editMessage',
+          | 'editMessage'
+          | 'history',
         payload: Record<string, unknown>,
       ): Promise<{
         success: boolean

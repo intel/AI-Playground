@@ -24,7 +24,12 @@ dependencies = [
   "ftfy",
   "fvcore",
   "gguf>=0.13.0",
-  "gitpython>=3.1.57",
+  # gitpython 3.1.58: clears GHSA-9rj7-rf2p-w77r, GHSA-4gmw-gg2m-w46p,
+  # GHSA-hh9p-6wh2-4mfc, GHSA-wvpp-8hx9-p66j and GHSA-jm78-9fvv-mhgr.
+  "gitpython>=3.1.58",
+  # h2 4.4.1: clears PYSEC-2026-3628. Transitive via matrix-nio (allows h2<5);
+  # floor it directly so the resolver can't fall back to the vulnerable 4.3.0.
+  "h2>=4.4.1",
   "huggingface-hub>0.20",
   "imageio-ffmpeg",
   "importlib_metadata",

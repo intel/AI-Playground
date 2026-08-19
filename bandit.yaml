@@ -1,0 +1,23 @@
+# Bandit scan scope, shared by .github/workflows/bandit.yml and `npm run lint:bandit`.
+#
+# fnmatch globs against the path bandit walks, which keeps the target prefix
+# (`.` in CI, `..` from WebUI/) — hence the leading `*/`.
+exclude_dirs:
+  - '*/.git/*'
+  - '*/.tox/*'
+  - '*/.venv/*'
+  - '*/__pycache__/*'
+  - '*/node_modules/*'
+  - '*/build/*'
+  - '*/ComfyUI/*'
+  - '*/OpenVINO/ovms/*'
+  # Vendored third-party code: kept diffable against upstream, so its findings
+  # can't be fixed here. See qwen3-tts/vendor/README.md.
+  - '*/qwen3-tts/vendor/*'
+  - '*/hijacks/ipex_to_cuda/*'
+  # Untracked local artifacts (downloaded models ship .py, portable git ships
+  # vim's) — excluded so a local run matches CI. Root-anchored, both targets.
+  - './models/*'
+  - '../models/*'
+  - './portable-git/*'
+  - '../portable-git/*'
