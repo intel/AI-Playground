@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useSpeechToText } from './speechToText'
 import { transcribeAudioBuffer } from '@/lib/transcribe'
 import { convertToWav } from '@/lib/audioUtils'
+import { needsMicrophonePermissionProbe, selectAudioInputDevices } from '@/lib/audioDevices'
 
 export interface AudioRecorderConfig {
   echoCancellation: boolean
@@ -49,27 +50,29 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
 
   async function loadAudioDevices() {
     try {
-      const devices = await navigator.mediaDevices.enumerateDevices()
-      const inputs = devices.filter((d) => d.kind === 'audioinput')
+      let devices = await navigator.mediaDevices.enumerateDevices()
 
-      const filtered: MediaDeviceInfo[] = []
-      const seenGroups = new Set<string>()
-
-      for (const d of inputs) {
-        const isValid = d.deviceId && d.deviceId !== 'default' && d.deviceId !== 'communications'
-        if (isValid && !seenGroups.has(d.groupId)) {
-          filtered.push(d)
-          seenGroups.add(d.groupId)
-        }
+      if (needsMicrophonePermissionProbe(devices)) {
+        await probeMicrophonePermission()
+        devices = await navigator.mediaDevices.enumerateDevices()
       }
 
-      audioDevices.value = filtered
+      audioDevices.value = selectAudioInputDevices(devices)
 
       if (!selectedDeviceId.value && audioDevices.value.length > 0) {
         selectedDeviceId.value = audioDevices.value[0].deviceId
       }
     } catch (err) {
       console.error('Failed to load audio devices:', err)
+    }
+  }
+
+  async function probeMicrophonePermission() {
+    try {
+      const probeStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      probeStream.getTracks().forEach((track) => track.stop())
+    } catch (err) {
+      console.error('Microphone permission request failed:', err)
     }
   }
 
