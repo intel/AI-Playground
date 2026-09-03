@@ -850,6 +850,11 @@ async function createWindow() {
     }
   })
 
+  // Media device enumeration goes through the synchronous check, not the request handler.
+  win.webContents.session.setPermissionCheckHandler((_webContents, permission) => {
+    return permission === 'media'
+  })
+
   if (VITE_DEV_SERVER_URL) {
     await win.loadURL(VITE_DEV_SERVER_URL)
     appLogger.info('load url:' + VITE_DEV_SERVER_URL, 'electron-backend')
