@@ -88,8 +88,9 @@
           <label class="whitespace-nowrap">{{ languages.ANSWER_MAX_TOKENS }}</label>
           <input
             type="number"
-            v-model="textInference.maxTokens"
-            min="0"
+            :value="textInference.maxTokens"
+            @change="onMaxTokensChange"
+            min="1"
             max="4096"
             step="1"
             class="rounded-sm text-foreground text-center h-7 w-20 leading-7 p-0 bg-transparent border border-border"
@@ -108,7 +109,8 @@
           <Label class="whitespace-nowrap">{{ languages.ANSWER_CONTEXT_SIZE }}</Label>
           <input
             type="number"
-            v-model="textInference.contextSize"
+            :value="textInference.contextSize"
+            @change="onContextSizeChange"
             min="512"
             max="131072"
             step="512"
@@ -281,6 +283,24 @@ import { usePresetSwitching } from '@/assets/js/store/presetSwitching.ts'
 import PresetSelector from '@/components/PresetSelector.vue'
 import * as toast from '@/assets/js/toast'
 import { useProductMode } from '@/assets/js/store/productMode'
+import { sanitizeIntegerInput } from '@/lib/numericInput'
+
+const MAX_TOKENS_RANGE = { fallback: 1024, min: 1, max: 4096 }
+const CONTEXT_SIZE_RANGE = { fallback: 8192, min: 512, max: 131072 }
+
+function onMaxTokensChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const sanitized = sanitizeIntegerInput(input.value, MAX_TOKENS_RANGE)
+  textInference.maxTokens = sanitized
+  input.value = String(sanitized)
+}
+
+function onContextSizeChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const sanitized = sanitizeIntegerInput(input.value, CONTEXT_SIZE_RANGE)
+  textInference.contextSize = sanitized
+  input.value = String(sanitized)
+}
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from '@/assets/js/store/conversations'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import { useCloudMode } from '@/assets/js/store/cloudMode'
