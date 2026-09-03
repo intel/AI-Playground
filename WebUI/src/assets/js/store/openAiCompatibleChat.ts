@@ -28,6 +28,7 @@ import { useErrors } from './errors'
 import { useActivities } from './activities'
 import { useConfirmations } from './confirmations'
 import { useI18N } from './i18n'
+import { sanitizeIntegerInput } from '@/lib/numericInput'
 import { createAppError, extractMessage, isCancellation } from '../errors/appError'
 import type { AppError } from '../errors/types'
 import { aipgTools, homeAgentTools } from '../tools/tools'
@@ -937,7 +938,11 @@ export const useOpenAiCompatibleChat = defineStore(
         messages,
         abortSignal: options.signal,
         system: systemPromptToUse,
-        maxOutputTokens: textInference.maxTokens,
+        maxOutputTokens: sanitizeIntegerInput(textInference.maxTokens, {
+          fallback: 1024,
+          min: 1,
+          max: 4096,
+        }),
         temperature: textInference.temperature,
         includeRawChunks: true,
         // Surfaced to tool execute() so tools (e.g. configureHomeAgent) know
