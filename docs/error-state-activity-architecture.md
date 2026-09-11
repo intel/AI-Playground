@@ -30,7 +30,8 @@ All paths below are relative to `WebUI/src/`.
   - `extractMessage(value)` — best-effort human message from any thrown value.
   - `serializeAppError` / `deserializeAppError` — cross the IPC boundary.
 
-`ErrorCategory` = `backend | inference | generation | setup | channel | validation | unknown`.
+`ErrorCategory` = `backend | inference | generation | setup | channel | validation | model | unknown`
+(`model` covers model files on disk: scanning, revealing and deleting them).
 `ErrorSurface` = `toast | inline | modal | silent` (how the sink presents it; defaults derive from
 `severity`).
 

@@ -1,4 +1,4 @@
-import { ChildProcess, execFile, spawn } from 'node:child_process'
+import { ChildProcess, execFile } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -14,6 +14,7 @@ import {
   type UvExtra,
 } from './uvBasedBackends/uv.ts'
 import { levelZeroDeviceSelectorEnv, withSelectedDevice } from './deviceDetection.ts'
+import { spawnBackend } from './processLifecycle.ts'
 import { QWEN3_TTS_MODEL_REPOS } from '@/assets/js/qwen3TtsConstants'
 
 const execFileAsync = promisify(execFile)
@@ -32,6 +33,7 @@ export class Qwen3TtsBackendService extends LongLivedPythonApiService {
 
   isSetUp: boolean = false
   readonly isRequired = false
+  // Started on first synthesize, not at boot or install, so idle VRAM stays free.
   healthEndpointUrl = `${this.baseUrl}/healthy`
 
   private loopbackAuthToken: string = randomBytes(32).toString('hex')
@@ -87,35 +89,13 @@ export class Qwen3TtsBackendService extends LongLivedPythonApiService {
     return result
   }
 
-  /**
-   * Whether the service venv's own Python can actually `import torch`. A real
-   * import (not just find_spec) is used deliberately: torch's failure modes here
-   * are not only "module absent" but also broken native libraries and import-time
-   * initialization errors (e.g. an app reinstall that leaves the dist-info but
-   * corrupts the wheel's DLLs). Those only surface when the package is executed,
-   * which is exactly what fails at model load. Returns false when the venv/python
-   * is missing or the import raises for any reason.
-   */
+  /** Whether the venv's own Python can `import torch` — see `venvCanImportModule`. */
   private async torchImportable(): Promise<boolean> {
-    const probe = 'import torch'
-    try {
-      await execFileAsync(this.pythonBinary, ['-c', probe], {
-        cwd: this.serviceDir,
-        env: { ...process.env, ...this.venvProcessEnv },
-        timeout: 30000,
-      })
-      return true
-    } catch {
-      return false
-    }
+    return this.venvCanImportModule('torch', this.venvProcessEnv)
   }
 
   private get pythonBinary(): string {
-    return path.join(
-      this.pythonEnvDir,
-      process.platform === 'win32' ? 'Scripts' : 'bin',
-      process.platform === 'win32' ? 'python.exe' : 'python',
-    )
+    return this.venvPythonPath
   }
 
   /**
@@ -213,22 +193,10 @@ export class Qwen3TtsBackendService extends LongLivedPythonApiService {
         debugMessage: 'installing dependencies (torch may take several minutes)',
       }
 
-      // Always install into a fresh venv. `uv sync` reconciles against package
-      // metadata, so re-running it over a venv whose torch files are broken but
-      // whose dist-info survives (a state an interrupted install or an app
-      // reinstall can leave behind) sees torch as "already installed" and skips
-      // it — leaving the exact ModuleNotFoundError: torch we are trying to fix.
-      // Removing the venv first guarantees torch is materialised from scratch,
-      // which is why the uninstall-then-setup reinstall path works where a plain
-      // repair did not. Wheels are served from uv's cache, so this does not
-      // re-download torch.
-      // Stop any running/fake-healthy process first so it can't hold handles on
-      // the venv files (Windows would fail the removal with EPERM otherwise).
-      // stop() flips status to 'stopped', so re-assert 'installing' afterwards.
-      await this.stop()
-      this.setStatus('installing')
-      this.appLogger.info(`removing existing qwen3-tts venv for a clean install`, this.name)
-      await fs.promises.rm(this.pythonEnvDir, { recursive: true, force: true })
+      // Always install into a fresh venv — see `prepareCleanPythonEnv` for why a
+      // plain `uv sync` over a broken-but-metadata-complete venv cannot fix the
+      // ModuleNotFoundError: torch state.
+      await this.prepareCleanPythonEnv()
 
       this.appLogger.info(`installing qwen3-tts with torch extra '${this.torchExtra}'`, this.name)
       await installBackendWithExtra(this.serviceFolder, this.torchExtra)
@@ -303,8 +271,10 @@ export class Qwen3TtsBackendService extends LongLivedPythonApiService {
     const env: Record<string, string> = { HF_HUB_OFFLINE: '1', TRANSFORMERS_OFFLINE: '1' }
     const custom = this.localModelDir(QWEN3_TTS_MODEL_REPOS.customVoice)
     const voiceDesign = this.localModelDir(QWEN3_TTS_MODEL_REPOS.voiceDesign)
+    const voiceClone = this.localModelDir(QWEN3_TTS_MODEL_REPOS.voiceClone)
     if (custom) env.QWEN3_TTS_MODEL = custom
     if (voiceDesign) env.QWEN3_TTS_VOICE_DESIGN_MODEL = voiceDesign
+    if (voiceClone) env.QWEN3_TTS_VOICE_CLONE_MODEL = voiceClone
     return env
   }
 
@@ -367,11 +337,14 @@ export class Qwen3TtsBackendService extends LongLivedPythonApiService {
       ...deviceEnv,
     }
 
-    const apiProcess = spawn(this.pythonBinary, ['web_api.py', '--port', this.port.toString()], {
-      cwd: this.serviceDir,
-      windowsHide: true,
-      env: { ...process.env, ...additionalEnvVariables },
-    })
+    const apiProcess = spawnBackend(
+      this.pythonBinary,
+      ['web_api.py', '--port', this.port.toString()],
+      {
+        cwd: this.serviceDir,
+        env: { ...process.env, ...additionalEnvVariables },
+      },
+    )
 
     const didProcessExitEarlyTracker = new Promise<boolean>((resolve, _reject) => {
       apiProcess.on('error', (error) => {

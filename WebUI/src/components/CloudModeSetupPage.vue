@@ -1,9 +1,13 @@
 <template>
   <div class="px-12 py-5 max-w-5xl w-5xl">
-    <h1 class="text-center py-1 px-4 rounded-sm text-3xl font-bold">Cloud Mode Setup</h1>
+    <h1 class="text-center py-1 px-4 rounded-sm text-3xl font-bold">
+      {{ HYBRID_CLOUD_NAME }} Setup
+    </h1>
     <p class="text-center text-xs text-muted-foreground pt-2">
-      Connect a remote OpenAI-compatible provider. Models are fetched from the provider and become
-      selectable in chat under the <span class="font-semibold">Cloud Mode</span> backend.
+      Add an OpenAI-compatible endpoint to run inference on beside this device — a hosted service, a
+      cloud provider, or another machine on your LAN. Its models are fetched from the provider and
+      become selectable in chat under the
+      <span class="font-semibold">{{ HYBRID_CLOUD_NAME }}</span> backend.
     </p>
 
     <div class="flex gap-6 pt-6">
@@ -138,6 +142,7 @@ import {
 } from '@/assets/js/store/cloudMode'
 import { useErrors } from '@/assets/js/store/errors'
 import * as toast from '@/assets/js/toast'
+import { HYBRID_CLOUD_NAME } from '@/lib/cloudModeName'
 
 const emit = defineEmits<{ (e: 'back'): void; (e: 'done'): void }>()
 

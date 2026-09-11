@@ -8,6 +8,9 @@ type ContextData = {
     value?: {
       inputTokens?: number
       outputTokens?: number
+      inputTokenDetails?: { cacheReadTokens?: number }
+      outputTokenDetails?: { reasoningTokens?: number }
+      // Legacy flat fields (AI SDK <7) still present in persisted conversations.
       cachedInputTokens?: number
       reasoningTokens?: number
     }
@@ -26,8 +29,18 @@ if (!contextData) {
 
 const inputTokens = computed(() => contextData.usage?.value?.inputTokens ?? 0)
 const outputTokens = computed(() => contextData.usage?.value?.outputTokens ?? 0)
-const cachedInputTokens = computed(() => contextData.usage?.value?.cachedInputTokens ?? 0)
-const reasoningTokens = computed(() => contextData.usage?.value?.reasoningTokens ?? 0)
+const cachedInputTokens = computed(
+  () =>
+    contextData.usage?.value?.inputTokenDetails?.cacheReadTokens ??
+    contextData.usage?.value?.cachedInputTokens ??
+    0,
+)
+const reasoningTokens = computed(
+  () =>
+    contextData.usage?.value?.outputTokenDetails?.reasoningTokens ??
+    contextData.usage?.value?.reasoningTokens ??
+    0,
+)
 
 const formatTokens = (tokens: number) => {
   if (tokens === 0) return null

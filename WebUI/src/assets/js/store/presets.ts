@@ -1,9 +1,12 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { z } from 'zod'
-import { ref, computed } from 'vue'
+import { ref, computed, shallowRef } from 'vue'
 import { demoAwareStorage } from '../demoAwareStorage'
 import { useBackendServices } from './backendServices'
+import { withDevPresets } from './devPresets'
+import { useProductMode } from './productMode'
 import { llmBackendTypes } from '@/types/shared'
+import { currentPresetName, renamePresetKeys } from '@/lib/presetRenames'
 
 // DeepPartial utility type
 type DeepPartial<T> = {
@@ -200,12 +203,41 @@ const ChatPresetSchema = BasePresetFieldsSchema.omit({ backend: true }).extend({
   // Only available when the Phison aiDAPTIV+ (ssd-offload) Llama.cpp build is installed.
   // Used by presets bundling large MoE models that rely on SSD offload.
   requiresPhison: z.boolean().optional(),
+  // Capability flag: this preset OFFERS the Phison KM RAG option (token-based
+  // merged-group retrieval + KV cache pre-warming). Selectable at runtime only when
+  // the Phison aiDAPTIV+ build is active and the llamaCPP backend is selected.
+  supportsPhisonKmRag: z.boolean().optional(),
+  // Default retrieval mode when the user has not chosen one for this preset.
+  defaultRagMode: z.enum(['standard', 'phisonKm']).optional(),
   toolsEnabledByDefault: z.boolean().optional(), // Explicit default for tools toggle
   // When true, this "chat" preset is a direct Text-to-Speech generator rather than an LLM
   // chat: selecting it turns the prompt box into a synthesizer (typed text -> Qwen3-TTS
   // audio, no LLM loaded). The `backends` array is a schema-required placeholder and is
-  // unused. See SettingsTts.vue and the direct-synthesis branch in openAiCompatibleChat.
+  // unused. Lives in the `audio` category (the Audio mode), not `chat`.
+  // See SettingsTts.vue and the direct-synthesis branch in openAiCompatibleChat.
   ttsPreset: z.boolean().optional(),
+  // When true, this "chat" preset runs on the agent harness (Pi coding agent in the
+  // main process) instead of plain chat inference: selecting it switches the app to
+  // Agent Mode, where the model works on files in a workspace folder with the tools
+  // its capabilities provide. `systemPrompt` becomes extra instructions appended to
+  // the agent's own prompt. See presetToMode() and the agentMode store.
+  agentPreset: z.boolean().optional(),
+  // Capability ids the agent session is equipped with ('media', 'web-debug',
+  // 'game-studio', 'memory', `mcp:<serverId>`). When set, it replaces the user's
+  // default selection for sessions started under this preset.
+  agentCapabilities: z.array(z.string()).optional(),
+  // Where the agent works: 'pick' lets the user choose any folder, 'games' has the
+  // app provision a folder per game under the games library (no folder picker).
+  agentWorkspace: z.enum(['pick', 'games']).optional(),
+  requiresCoding: z.boolean().optional(), // Filter models to ones fit for writing code
+  // When true, this "chat" preset is a direct Speech-to-Text transcriber rather than
+  // an LLM chat: selecting it turns the prompt box into a record/upload surface
+  // (recorded or uploaded audio -> Whisper transcript, no LLM loaded). Like
+  // `ttsPreset`, the `backends` array is a schema-required placeholder and is unused,
+  // and it lives in the `audio` category. OpenVINO-only, so it is filtered out in NVIDIA
+  // product mode. See SettingsStt.vue and the direct-transcribe branch in
+  // openAiCompatibleChat.
+  sttPreset: z.boolean().optional(),
   // UI visibility controls
   enableRAG: z.boolean().optional(), // Show "Add Documents" + embeddings selector (default: false)
   showTools: z.boolean().optional(), // Show "Enable Tools" toggle (default: false)
@@ -239,6 +271,9 @@ export type ChatPreset = z.infer<typeof ChatPresetSchema>
 // Pure derivations
 // ============================================================================
 
+/** Preset category backing the Audio mode (Text to Speech / Speech to Text). */
+export const AUDIO_CATEGORY = 'audio'
+
 /**
  * Whether a ComfyUI preset requires the user to enter a text prompt.
  *
@@ -271,6 +306,49 @@ export const usePresets = defineStore(
     const lastQualityVariantPerBackend = ref<Record<string, Record<string, string>>>({})
 
     const DEFAULT_BACKEND = 'comfyui'
+
+    // The STT preset is OpenVINO-only and thus hidden in NVIDIA mode — unless the
+    // user enabled an external transcription endpoint (which needs no OpenVINO).
+    // We read that flag from the speechToText store, but load it lazily (browser
+    // only) so this module stays importable in the headless/node preset tests:
+    // `speechToText` pulls the renderer store graph (setupWizard → homeAgent) that
+    // touches `window` at import time. The ref keeps the flag reactive.
+    type SttFallbackFlagStore = { fallback: { enabled: boolean; baseUrl: string } }
+    const sttFallbackStore = shallowRef<SttFallbackFlagStore | null>(null)
+    if (typeof window !== 'undefined') {
+      void import('./speechToText')
+        .then((m) => {
+          try {
+            sttFallbackStore.value = m.useSpeechToText() as unknown as SttFallbackFlagStore
+          } catch {
+            // Pinia not ready yet — ignore; the gate treats it as "no fallback".
+          }
+        })
+        .catch(() => {})
+    }
+    /** Mirrors `speechToText.hasFallback()`: the checkbox alone is not enough, an
+     *  endpoint with no URL cannot transcribe anything — so a blank base URL must
+     *  not un-hide the STT preset in NVIDIA mode. */
+    function sttExternalEnabled(): boolean {
+      const fb = sttFallbackStore.value?.fallback
+      return fb?.enabled === true && fb.baseUrl.trim().length > 0
+    }
+
+    /** Whether a chat preset's STT entry must be hidden: STT needs OpenVINO, which
+     *  isn't installable in NVIDIA mode — so hide it there UNLESS an external
+     *  transcription endpoint is usable or the standalone (torch) Whisper backend is
+     *  offered (registered = feature on). Both need no OpenVINO; readiness/install is
+     *  surfaced in the preset panel. */
+    function sttPresetHidden(preset: ChatPreset): boolean {
+      if (!preset.sttPreset) return false
+      const backendServices = useBackendServices()
+      const productMode = useProductMode()
+      return (
+        productMode.isNvidiaModeSelected &&
+        !sttExternalEnabled() &&
+        !backendServices.info.some((s) => s.serviceName === 'whisper-backend')
+      )
+    }
 
     // ========================================================================
     // Validation
@@ -544,7 +622,7 @@ export const usePresets = defineStore(
         }
 
         console.log('validatedPresets', validatedPresets)
-        presets.value = validatedPresets
+        presets.value = withDevPresets(validatedPresets)
         console.log(`Loaded ${validatedPresets.length} presets from files`)
       } catch (error) {
         console.error('Failed to load presets from files:', error)
@@ -641,7 +719,7 @@ export const usePresets = defineStore(
         })(),
       ])
       // Update the array only once to avoid multiple reactive triggers
-      presets.value = [...builtInPresets, ...userPresets]
+      presets.value = withDevPresets([...builtInPresets, ...userPresets])
       return syncResponse
     }
 
@@ -686,6 +764,10 @@ export const usePresets = defineStore(
             return false
           }
 
+          if (preset.type === 'chat' && sttPresetHidden(preset as ChatPreset)) {
+            return false
+          }
+
           // Hide Phison presets entirely on systems that do not offer the Phison build.
           // On capable systems they remain listed (greyed-out until installed + active).
           if (
@@ -724,6 +806,24 @@ export const usePresets = defineStore(
 
     function setLastUsedPreset(category: string, presetName: string): void {
       lastUsedPresetName.value[category] = presetName
+    }
+
+    /**
+     * Carry state stored under a preset's former name over to the name it ships
+     * with now. Without it a rename reads as "preset gone": the picker falls back
+     * to another preset, the settings the user tuned revert to defaults and the
+     * variant they chose is forgotten.
+     */
+    function migrateRenamedPresets(): void {
+      if (activePresetName.value) {
+        activePresetName.value = currentPresetName(activePresetName.value)
+      }
+      for (const [category, name] of Object.entries(lastUsedPresetName.value)) {
+        if (name) lastUsedPresetName.value[category] = currentPresetName(name)
+      }
+      activeVariantName.value = renamePresetKeys(activeVariantName.value)
+      settingsPerPreset.value = renamePresetKeys(settingsPerPreset.value)
+      lastQualityVariantPerBackend.value = renamePresetKeys(lastQualityVariantPerBackend.value)
     }
 
     // ========================================================================
@@ -788,7 +888,8 @@ export const usePresets = defineStore(
       ) as Preset[]
     })
 
-    const chatPresets = computed(() => {
+    /** Chat-type presets the user can actually select, across the Chat and Audio modes. */
+    const selectableChatTypePresets = computed(() => {
       const backendServices = useBackendServices()
       const hasNpuDevice = backendServices.info
         .find((s) => s.serviceName === 'openvino-backend')
@@ -807,6 +908,7 @@ export const usePresets = defineStore(
         if (p.type !== 'chat') return false
         const chatPreset = p as ChatPreset
         if (chatPreset.excludeFromChatPresetPicker) return false
+        if (sttPresetHidden(chatPreset)) return false
         if (chatPreset.requiresNpuSupport && !hasNpuDevice) {
           return false
         }
@@ -816,6 +918,17 @@ export const usePresets = defineStore(
         return true
       }) as ChatPreset[]
     })
+
+    // The speech presets moved out of Chat into their own Audio mode, so the chat
+    // picker must skip them. Presets without a category stay with Chat (that is
+    // where an uncategorized chat preset has always shown up).
+    const chatPresets = computed(() =>
+      selectableChatTypePresets.value.filter((p) => p.category !== AUDIO_CATEGORY),
+    )
+
+    const audioPresets = computed(() =>
+      selectableChatTypePresets.value.filter((p) => p.category === AUDIO_CATEGORY),
+    )
 
     // ========================================================================
     // Settings Persistence
@@ -860,6 +973,8 @@ export const usePresets = defineStore(
       imageEditPresets,
       videoPresets,
       chatPresets,
+      audioPresets,
+      selectableChatTypePresets,
       activePresetWithVariant,
 
       // Methods
@@ -879,6 +994,7 @@ export const usePresets = defineStore(
       getPresetsByCategories,
       getLastUsedPreset,
       setLastUsedPreset,
+      migrateRenamedPresets,
       getDistinctBackendsForPreset,
       getVariantsForBackend,
       getActiveBackend,
@@ -895,6 +1011,11 @@ export const usePresets = defineStore(
         'lastUsedPresetName',
         'lastQualityVariantPerBackend',
       ],
+      afterHydrate: (ctx) => {
+        // Selection and per-preset state are keyed by preset name, so a preset
+        // that shipped under another one has to be followed to its current name.
+        ctx.store.migrateRenamedPresets()
+      },
     },
   },
 )

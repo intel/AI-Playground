@@ -2,15 +2,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import { useTextInference } from '../store/textInference'
 import { useActivities } from '../store/activities'
-import { useConversations } from '../store/conversations'
-
-// The conversation a tool call belongs to is surfaced via `experimental_context`
-// (set in openAiCompatibleChat's streamText call), used to scope the activity to
-// the right chat turn. Mirrors the helper in configureHomeAgent.ts.
-function conversationKeyFor(experimentalContext: unknown): string {
-  const ctx = experimentalContext as { conversationKey?: string } | undefined
-  return ctx?.conversationKey ?? useConversations().activeKey
-}
+import { ToolConversationContextSchema, conversationKeyFor } from './toolContext'
 
 const CaptureScreenshotOutputSchema = z.object({
   ok: z.boolean(),
@@ -31,12 +23,13 @@ export const captureScreenshot = tool({
     'window or the full screen. The captured image is returned to you so you can inspect it.',
   inputSchema: z.object({}),
   outputSchema: CaptureScreenshotOutputSchema,
+  contextSchema: ToolConversationContextSchema,
   execute: async (_args, options): Promise<CaptureScreenshotOutput> => {
     const textInference = useTextInference()
     const activities = useActivities()
     const scope = {
       kind: 'chat' as const,
-      conversationKey: conversationKeyFor(options.experimental_context),
+      conversationKey: conversationKeyFor(options.context),
     }
 
     const target = textInference.screenshotWindow

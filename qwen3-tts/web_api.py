@@ -23,6 +23,7 @@ from tts_engine import (
     is_model_downloaded,
     model_status,
     synthesize_wav,
+    voice_clone_model_id,
     voice_design_model_id,
 )
 
@@ -68,6 +69,7 @@ def get_config():
             "data": {
                 "customVoiceModel": default_model_id(),
                 "voiceDesignModel": voice_design_model_id(),
+                "voiceCloneModel": voice_clone_model_id(),
                 "speakers": CUSTOM_VOICE_SPEAKERS,
                 "languages": LANGUAGES,
                 "status": model_status(),
@@ -86,7 +88,7 @@ def load_model():
     """
     body = request.get_json(silent=True) or {}
     mode = body.get("mode", "custom_voice")
-    if mode not in ("custom_voice", "voice_design"):
+    if mode not in ("custom_voice", "voice_design", "voice_clone"):
         return jsonify({"code": -1, "message": f"unsupported mode: {mode}"}), 400
     try:
         ensure_loaded(mode)
@@ -104,8 +106,12 @@ def synthesize():
     speaker = body.get("speaker", "Ryan")
     instruct = body.get("instruct")
     mode = body.get("mode", "custom_voice")
-    if mode not in ("custom_voice", "voice_design"):
+    if mode not in ("custom_voice", "voice_design", "voice_clone"):
         return jsonify({"code": -1, "message": f"unsupported mode: {mode}"}), 400
+    # voice_clone reproduces a reference recording, so the voice survives a change of
+    # text — unlike a seeded voice_design draw, which is only stable per sentence.
+    ref_audio_path = body.get("refAudioPath")
+    ref_text = body.get("refText")
     # Optional sampler seed: the client pins one per saved voice so the voice is
     # reproducible across generations. Clamped to a torch-safe non-negative int;
     # anything unparsable just means "unseeded".
@@ -122,6 +128,8 @@ def synthesize():
             instruct=str(instruct) if instruct is not None else None,
             mode=mode,
             seed=seed,
+            ref_audio_path=str(ref_audio_path) if ref_audio_path is not None else None,
+            ref_text=str(ref_text) if ref_text is not None else None,
         )
         encoded = base64.b64encode(wav_bytes).decode("ascii")
         return jsonify(

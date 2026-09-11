@@ -41,6 +41,12 @@ test.describe('Agentic smoke', () => {
         await app.main.selectPreset('Chat', AGENTIC_PRESET)
       })
 
+      // Preset settings persist per preset, so a machine that last ran this preset on
+      // a model without tool calling would keep it — and this test's tool checkboxes
+      // are hidden whenever the active model can't tool-call. Start from the preset's
+      // own defaults instead of the machine's history.
+      await app.resetPresetDefaults('Chat')
+
       // Pin the chat backend for this variant; skip OpenVINO where it isn't offered.
       const pinned = await app.selectChatBackendOrSkip(backend.label, backend.optional)
       test.skip(!pinned, `${backend.name} chat backend is not available in this product mode`)
@@ -50,6 +56,12 @@ test.describe('Agentic smoke', () => {
       // workflow advertised, the tool schemas alone fill most of the 8192-token context
       // before the first turn — see the ~6.5k/8.2k usage observed after just the haiku.
       await app.configureAgenticTools('minimal-image')
+
+      // Media already on screen when the image turn starts. Normally 0, but the agent
+      // sometimes generates unprompted media on the text turn (counts of 2 and 4 seen),
+      // which is eager rather than broken — so the image turn asserts it ADDED media
+      // rather than that this was zero.
+      let imagesBeforeImageTurn = 0
 
       await test.step('Prompt 1: write a haiku → expect a text reply', async () => {
         await app.main.sendPrompt(PROMPTS.haiku)
@@ -63,8 +75,7 @@ test.describe('Agentic smoke', () => {
         await app.main.waitForAssistantAnswer()
         expect(await app.main.lastAssistantText()).not.toEqual('')
         await app.main.assertWellFormedResponse()
-        // A plain text reply — no media generated yet.
-        expect(await app.main.generatedImages.count()).toBe(0)
+        imagesBeforeImageTurn = await app.main.generatedImages.count()
       })
 
       await test.step('Prompt 2: turn the haiku into an image → expect an image', async () => {
@@ -74,7 +85,7 @@ test.describe('Agentic smoke', () => {
         await app.waitForAgenticMediaTurn(MainPage.IMAGE_TIMEOUT)
         await app.main.assertNoGenerationError()
         await app.main.assertWellFormedResponse()
-        expect(await app.main.generatedImages.count()).toBeGreaterThanOrEqual(1)
+        expect(await app.main.generatedImages.count()).toBeGreaterThan(imagesBeforeImageTurn)
       })
     })
   }

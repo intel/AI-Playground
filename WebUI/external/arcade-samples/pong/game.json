@@ -1,0 +1,13 @@
+{
+  "id": "pong",
+  "name": "Pong",
+  "description": "Classic arcade game with AI opponent. Use mouse to control your paddle, dodge the computer's AI opponent! First to 5 points wins!",
+  "entry": "index.html",
+  "icon": "icon.png",
+  "published": true,
+  "createdAt": 1786483859243,
+  "updatedAt": 1786484439638,
+  "backend": "llamaCPP",
+  "startingModel": "Qwen3.5-9B",
+  "initialPrompt": "Make a game of Pong, keep it classic and simple"
+}

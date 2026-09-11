@@ -59,8 +59,7 @@ export function normalizeModelPathsInWorkflow(
  */
 export function bypassNode(workflow: ComfyUIApiWorkflow, nodeId: string): void {
   const node = workflow[nodeId] as
-    | { class_type?: string; inputs?: Record<string, unknown> }
-    | undefined
+    { class_type?: string; inputs?: Record<string, unknown> } | undefined
   if (!node?.inputs) return
   const classType = node.class_type
   let rewire: [number, [string, number]][]

@@ -8,6 +8,7 @@ import { computed } from 'vue'
 import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { useI18N } from '@/assets/js/store/i18n'
+import InfoHint from '@/components/InfoHint.vue'
 
 export type SetupWizardRowView = {
   displayName: string
@@ -23,6 +24,8 @@ export type SetupWizardRowView = {
   availableInCurrentMode?: boolean
   /** Optional external "info & license" link shown next to the name. */
   infoUrl?: string
+  /** Optional explanatory ⓘ next to the name (e.g. "OpenVINO also offers this"). */
+  infoTooltip?: string
   /** Show the inline "Repair" button (failed + available backends). */
   showRepair?: boolean
   /** Disable the repair button while another install is running. */
@@ -31,7 +34,22 @@ export type SetupWizardRowView = {
   showError?: boolean
 }
 
-const props = defineProps<{ row: SetupWizardRowView }>()
+const props = defineProps<{
+  row: SetupWizardRowView
+  /** Nested inside a SetupWizardGroup: drop the row's own border and tighten it,
+   *  so the group's box is the only frame and the list stays compact. */
+  compact?: boolean
+  /** Indent the name under a parent row without shifting the gear / toggle column. */
+  nested?: boolean
+}>()
+
+defineSlots<{
+  /** Settings menu (gear) for this component. */
+  options?: () => unknown
+  /** Expand/collapse control, rendered immediately after the row's name so the
+   *  gear and toggle stay where they are on every other row. */
+  disclosure?: () => unknown
+}>()
 const emit = defineEmits<{
   toggle: [boolean]
   repair: []
@@ -46,12 +64,17 @@ const available = computed(() => props.row.availableInCurrentMode ?? true)
   <div
     role="group"
     :aria-label="row.displayName"
-    class="flex items-center gap-3 px-3 py-2.5 rounded-lg border bg-muted/30 transition-colors"
+    class="flex min-w-0 items-center gap-3 transition-colors"
     :class="{
-      'border-border': available,
-      'border-border/50 opacity-50': !available,
+      'px-3 py-2.5 rounded-lg border bg-muted/30': !compact,
+      'px-2 py-1.5 rounded-md': compact,
+      'border-border': !compact && available,
+      'border-border/50': !compact && !available,
+      'opacity-50': !available,
     }"
   >
+    <div v-if="nested" class="w-4 shrink-0" aria-hidden="true" />
+
     <!-- Status bubble -->
     <TooltipProvider :delay-duration="200">
       <Tooltip>
@@ -67,33 +90,30 @@ const available = computed(() => props.row.availableInCurrentMode ?? true)
       </Tooltip>
     </TooltipProvider>
 
-    <!-- Name + version + info link -->
+    <!-- Name + version + info link. The disclosure sits in this cluster (right of
+         the label) so it takes space from the flexible name, not from the gear /
+         toggle column — those stay lined up with every other row. -->
     <div class="flex-1 min-w-0">
-      <div class="flex items-center gap-1.5">
-        <span class="text-sm font-medium leading-tight">{{ row.displayName }}</span>
-        <a
+      <div class="flex min-w-0 items-center gap-1.5">
+        <!-- Truncate: nested rows sit in CollapsibleContent (overflow:hidden). A
+             name that won't shrink pushes the row past that clip, and an ON
+             switch loses the thumb on its right edge. -->
+        <span
+          class="min-w-0 truncate font-medium leading-tight"
+          :class="compact ? 'text-xs' : 'text-sm'"
+          >{{ row.displayName }}</span
+        >
+        <div v-if="$slots.disclosure" class="size-4 shrink-0 flex items-center justify-center">
+          <slot name="disclosure" />
+        </div>
+        <InfoHint v-if="row.infoTooltip" :text="row.infoTooltip" />
+        <InfoHint
           v-if="row.infoUrl"
           :href="row.infoUrl"
-          target="_blank"
-          class="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-          title="Component info &amp; license"
-        >
-          <svg
-            class="w-3.5 h-3.5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 16v-4" />
-            <path d="M12 8h.01" />
-          </svg>
-        </a>
+          text="Component info & license — opens the project page"
+        />
       </div>
-      <div v-if="row.versionDisplay" class="text-xs text-muted-foreground leading-tight">
+      <div v-if="row.versionDisplay" class="truncate text-xs text-muted-foreground leading-tight">
         {{ row.versionDisplay }}
       </div>
     </div>
@@ -136,7 +156,10 @@ const available = computed(() => props.row.availableInCurrentMode ?? true)
       </button>
     </div>
 
-    <!-- Toggle + gear -->
+    <!-- Error log, gear, then the toggle. The toggle goes LAST so it sits flush
+         against the row's right edge on every row — with it before the gear, rows
+         that have a settings menu pushed their toggle left of the ones that don't
+         and nothing lined up. -->
     <div class="flex items-center gap-2 shrink-0">
       <button
         v-if="row.showError"
@@ -159,6 +182,7 @@ const available = computed(() => props.row.availableInCurrentMode ?? true)
           <line x1="16" y1="17" x2="8" y2="17" />
         </svg>
       </button>
+      <slot name="options" />
       <TooltipProvider :delay-duration="300">
         <Tooltip>
           <TooltipTrigger as-child>
@@ -176,7 +200,6 @@ const available = computed(() => props.row.availableInCurrentMode ?? true)
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      <slot name="options" />
     </div>
   </div>
 </template>

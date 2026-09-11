@@ -11,7 +11,9 @@ import { useTextInference } from '../store/textInference'
 import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
 import { useDeveloperSettings } from '../store/developerSettings'
-import { stopChatBackends, restartChatBackend } from './chatBackends'
+import { DEV_PRESET_NAMES, dummyWorkflowsOnly } from '../store/devPresets'
+import { stopChatBackends, returnGpuToChat } from './chatBackends'
+import { comfyRunsWaiting, queueComfyRun } from './mediaPipeline'
 import {
   DEFAULT_RESOLUTION_CONFIG,
   getResolutionsFromConfig,
@@ -78,6 +80,9 @@ export function getAvailableWorkflows(): Array<{
       if (preset.toolCategory !== 'create-images' && preset.toolCategory !== 'create-videos') {
         return false
       }
+      // Dev-only override (Settings › Developer): offer only the instant dummy
+      // workflows, so a verification run can't wander into a real model.
+      if (dummyWorkflowsOnly()) return DEV_PRESET_NAMES.has(preset.name)
       // Honour the per-workflow sub-checkboxes (Settings › Built-in tools).
       return textInference.isWorkflowPresetEnabled(preset.name)
     })
@@ -175,8 +180,7 @@ function findFastVariant(preset: Preset): string | null {
   return fastVariant ? fastVariant.name : null
 }
 
-// Helper function to execute ComfyUI generation for tool calls
-export async function executeComfyGeneration(args: {
+type ComfyGenerationArgs = {
   workflow?: string
   variant?: string
   prompt: string
@@ -187,7 +191,25 @@ export async function executeComfyGeneration(args: {
   inferenceSteps?: number
   seed?: number
   batchSize?: number
-}): Promise<ComfyUiToolOutput> {
+}
+
+/**
+ * Runs one generation for a tool call. ComfyUI serves prompts one at a time and
+ * the whole run drives the single global generation store (preset switch, item
+ * tracking, the idle watchdog below), so concurrent callers queue rather than
+ * interleave — see mediaPipeline.ts.
+ */
+export function executeComfyGeneration(
+  args: ComfyGenerationArgs,
+  options: { abortSignal?: AbortSignal } = {},
+): Promise<ComfyUiToolOutput> {
+  return queueComfyRun(() => runComfyGeneration(args, options), options.abortSignal)
+}
+
+async function runComfyGeneration(
+  args: ComfyGenerationArgs,
+  options: { abortSignal?: AbortSignal } = {},
+): Promise<ComfyUiToolOutput> {
   console.log('[ComfyUI Tool] Starting generation with args:', args)
 
   const activities = useActivities()
@@ -522,6 +544,10 @@ export async function executeComfyGeneration(args: {
       }
     })
 
+    // Cancelled while the preset was switching or a model downloading — don't
+    // queue a prompt (and pull in a multi-GB model) nobody is waiting for.
+    if (options.abortSignal?.aborted) return createErrorResult('Generation cancelled.')
+
     console.log('[ComfyUI Tool] Starting generation with imageIds:', imageIds)
     // Reset progress state before starting (this is done in imageGenerationPresets.generate() but we're calling comfyUi.generate() directly)
     imageGeneration.currentState = 'no_start'
@@ -538,6 +564,7 @@ export async function executeComfyGeneration(args: {
     const result = await new Promise<ComfyUiToolOutput>((resolve) => {
       let timeout: ReturnType<typeof setTimeout> | null = null
       let stopWatcher: (() => void) | null = null
+      let stopListeningForAbort: (() => void) | null = null
 
       const cleanup = () => {
         if (timeout) {
@@ -548,6 +575,29 @@ export async function executeComfyGeneration(args: {
           stopWatcher()
           stopWatcher = null
         }
+        if (stopListeningForAbort) {
+          stopListeningForAbort()
+          stopListeningForAbort = null
+        }
+      }
+
+      // Cancelling the turn has to reach ComfyUI: it has already accepted the
+      // prompt and will happily load a 30 GB model and render it while nobody
+      // waits for the result. `stop()` clears the queue, interrupts the run and
+      // settles the tracked items.
+      const onAbort = () => {
+        cleanup()
+        void comfyUi.stop()
+        resolve(createErrorResult('Generation cancelled.'))
+      }
+      if (options.abortSignal) {
+        if (options.abortSignal.aborted) {
+          onAbort()
+          return
+        }
+        const signal = options.abortSignal
+        signal.addEventListener('abort', onAbort, { once: true })
+        stopListeningForAbort = () => signal.removeEventListener('abort', onAbort)
       }
 
       // (Re)arm the idle watchdog. Called on every progress signal so the timer
@@ -680,10 +730,11 @@ export async function executeComfyGeneration(args: {
     // frees the GPU and restarts the chat backend — several seconds) isn't silent.
     // Relabel it to reflect what's actually happening before the LLM responds.
     await restoreState()
-    if (!useDeveloperSettings().keepModelsLoaded) {
+    // Nothing to hand back to while the queue still holds generations: they want
+    // ComfyUI loaded and have no use for the LLM (see comfyRunsWaiting).
+    if (!useDeveloperSettings().keepModelsLoaded && !comfyRunsWaiting()) {
       activities.update(toolActivityId, { label: i18nState.COM_ACTIVITY_RELOADING_CHAT })
-      await comfyUi.free()
-      await restartChatBackend()
+      await returnGpuToChat(() => comfyUi.free())
     }
     finishToolActivity()
   }
@@ -942,19 +993,22 @@ export const comfyUI = tool({
     return getToolDefinition().inputSchema
   },
   outputSchema: ComfyUiToolOutputSchema,
-  execute: async (args: {
-    workflow?: string
-    variant?: string
-    prompt: string
-    negativePrompt?: string
-    aspectRatio?: string
-    megapixels?: string
-    resolution?: string
-    inferenceSteps?: number
-    seed?: number
-    batchSize?: number
-  }) => {
-    const result = await executeComfyGeneration(args)
+  execute: async (
+    args: {
+      workflow?: string
+      variant?: string
+      prompt: string
+      negativePrompt?: string
+      aspectRatio?: string
+      megapixels?: string
+      resolution?: string
+      inferenceSteps?: number
+      seed?: number
+      batchSize?: number
+    },
+    { abortSignal }: { abortSignal?: AbortSignal },
+  ) => {
+    const result = await executeComfyGeneration(args, { abortSignal })
     console.log('### comfyUI.execute', args, result)
     return result
   },

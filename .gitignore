@@ -1,6 +1,8 @@
 .DS_Store
 .idea
 .vscode/
+node_modules/
+**/.vite/
 env/
 package_res/
 build_resources/
@@ -11,6 +13,9 @@ WebUI/external/device-service/
 WebUI/external/service/
 WebUI/external/workflows_intel/
 WebUI/external/workflows_bak/
+# Snapshot of the model directories as first loaded, written at runtime so
+# "restore defaults" has a pristine copy to restore to (see PathsManager).
+WebUI/external/*.defaults.json
 
 *.DS_Store
 *.pyc
@@ -33,9 +38,15 @@ build-envs/
 portable-git/
 models/
 # ...but that blanket rule also matches source directories named "models". The vendored
-# Qwen3-TTS tree has one, and git cannot re-include files whose parent directory is excluded,
-# so the directory itself has to be negated.
+# Qwen3-TTS tree has one, and the frontend has two, and git cannot re-include files whose
+# parent directory is excluded, so each directory itself has to be negated.
 !qwen3-tts/vendor/qwen_tts/core/models/
+!WebUI/src/assets/js/models/
+!WebUI/src/components/models/
 
 # Home Agent — runtime Telegram chat id (local dev); never commit
 home-agent/.*id
+
+# Laminar tracing — local project API keys (dev opt-in); never commit
+WebUI/external/laminar.dev.json
+WebUI/external/laminar.localhost.json

@@ -51,6 +51,25 @@ describe('extractToolMedia', () => {
     ).toEqual([{ kind: 'image', url: 'aipg-media://edited.png' }])
   })
 
+  it('handles the delegated media tool the same way', () => {
+    expect(
+      extractToolMedia({
+        type: 'tool-media',
+        state: 'output-available',
+        output: {
+          summary: 'Generated an image and a 3D model.',
+          images: [
+            { type: 'image', imageUrl: 'aipg-media://gen.png' },
+            { type: 'model3d', model3dUrl: 'aipg-media://gen.glb' },
+          ],
+        },
+      }),
+    ).toEqual([
+      { kind: 'image', url: 'aipg-media://gen.png' },
+      { kind: 'model3d', url: 'aipg-media://gen.glb' },
+    ])
+  })
+
   it('skips ComfyUI media entries missing their url', () => {
     expect(
       extractToolMedia({

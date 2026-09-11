@@ -30,14 +30,13 @@
     <div class="flex justify-between items-center gap-5">
       <HomeAgentToggle
         v-if="
-          homeAgent.isFeatureEnabled &&
           globalSetup.loadingState === 'running' &&
           (promptStore.getCurrentMode() === 'chat' || promptStore.getCurrentMode() === 'imageGen')
         "
         class="self-center"
       />
       <button
-        v-if="debugToolsEnabled"
+        v-if="showDebugSettings"
         :title="languages.COM_SETTINGS"
         @click="
           () => {
@@ -52,6 +51,14 @@
         ref="showSettingBtn"
       >
         <ServerStackIcon class="size-6 text-foreground"></ServerStackIcon>
+      </button>
+      <button
+        v-if="globalSetup.loadingState === 'running'"
+        :title="languages.MODEL_MANAGER_TITLE"
+        :aria-label="languages.MODEL_MANAGER_OPEN"
+        @click="uiStore.openModelManager()"
+      >
+        <CircleStackIcon class="size-6 text-foreground"></CircleStackIcon>
       </button>
       <button
         v-if="globalSetup.loadingState === 'running'"
@@ -98,7 +105,7 @@
   </main>
   <main
     v-show="globalSetup.loadingState === 'setupWizard'"
-    class="flex-auto flex items-center justify-center"
+    class="flex-auto flex items-start justify-center overflow-y-auto py-8 [scrollbar-gutter:stable]"
   >
     <SetupWizard />
   </main>
@@ -164,7 +171,6 @@
     <SideModalHistory
       id="history-panel"
       :isVisible="uiStore.showHistory"
-      :mode="promptStore.getCurrentMode()"
       @close="uiStore.closeHistory()"
       @conversation-selected="chatRef?.scrollToBottom"
     />
@@ -179,7 +185,11 @@
           @click="openHistory"
           class="text-foreground px-3 py-1.5 bg-card border border-border shadow-sm hover:bg-muted rounded-lg text-sm"
         >
-          {{ languages.COM_SHOW_HISTORY }}
+          {{
+            promptStore.getCurrentMode() === 'agent'
+              ? languages.COM_SHOW_SESSIONS
+              : languages.COM_SHOW_HISTORY
+          }}
         </button>
       </div>
       <div
@@ -204,7 +214,13 @@
           ></button>
         </DemoModeBlocker>
       </div>
-      <Chat v-if="promptStore.getCurrentMode() === 'chat'" ref="chatRef" />
+      <!-- The Audio mode renders its turns (synthesized audio, transcripts) as chat
+           messages, so it shares this view with the Chat mode. -->
+      <Chat
+        v-if="promptStore.getCurrentMode() === 'chat' || promptStore.getCurrentMode() === 'audio'"
+        ref="chatRef"
+      />
+      <AgentMode v-if="promptStore.getCurrentMode() === 'agent'" />
       <WorkflowResult
         v-if="promptStore.getCurrentMode() === 'imageGen'"
         ref="imageGenRef"
@@ -232,8 +248,11 @@
       :mode="promptStore.getCurrentMode()"
       @close="showSpecificSettings = false"
     />
+    <!-- Before the dialog layer on purpose: these share a z-index, so DOM order
+         decides, and the download / delete dialogs this view opens must be able
+         to appear on top of it. -->
+    <ModelManager v-if="uiStore.showModelManager" @close="uiStore.closeModelManager()" />
     <download-dialog v-show="dialogStore.downloadDialogVisible"></download-dialog>
-    <warning-dialog v-show="dialogStore.warningDialogVisible"></warning-dialog>
     <preset-requirements-dialog
       v-show="dialogStore.presetRequirementsDialogVisible"
     ></preset-requirements-dialog>
@@ -241,9 +260,6 @@
       v-show="dialogStore.installationProgressDialogVisible"
     ></installation-progress-dialog>
     <MaskEditorDialog />
-
-    <!-- Dev-only Home Agent mock channel for e2e testing -->
-    <MockChannelPanel v-if="debugToolsEnabled" />
 
     <!-- Demo Mode Overlay -->
     <DemoModeOverlayDriverJsRef ref="demoModeOverlayDriverJs" />
@@ -277,7 +293,25 @@
           >
         </p>
         <p>
-          AI Playground version: v{{ productVersion }}
+          AI Playground version:
+          <TooltipProvider v-if="buildIdentity.length > 0" :delay-duration="200">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <span class="underline decoration-dotted underline-offset-2 cursor-help"
+                  >v{{ productVersion }}</span
+                >
+              </TooltipTrigger>
+              <TooltipContent side="top" class="text-xs">
+                <span
+                  v-for="line in buildIdentity"
+                  :key="line.label"
+                  class="block whitespace-nowrap"
+                  >{{ line.label }}: {{ line.value }}</span
+                >
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <span v-else>v{{ productVersion }}</span>
           <a :href="userGuideUrl" target="_blank" class="text-primary"> User Guide</a>
 
           <a :href="noticesUrl" target="_blank" class="text-primary">
@@ -300,6 +334,8 @@
       <img v-else-if="theme.active === 'dark'" class="h-8" src="@/assets/svg/intel.svg" />
     </div>
   </footer>
+  <!-- Outside the running-only main: Home Agent setup lives in the wizard. -->
+  <warning-dialog v-show="dialogStore.warningDialogVisible"></warning-dialog>
 </template>
 
 <script setup lang="ts">
@@ -311,18 +347,21 @@ import { useGlobalSetup } from './assets/js/store/globalSetup'
 import { useProductMode } from './assets/js/store/productMode'
 import DownloadDialog from '@/components/DownloadDialog.vue'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTheme } from './assets/js/store/theme.ts'
-import AddLLMDialog from '@/components/AddLLMDialog.vue'
 import WarningDialog from '@/components/WarningDialog.vue'
 import PresetRequirementsDialog from '@/components/PresetRequirementsDialog.vue'
 import InstallationProgressDialog from '@/components/InstallationProgressDialog.vue'
 import MaskEditorDialog from '@/components/MaskEditorDialog.vue'
 import DemoModeIndicator from '@/components/DemoModeIndicator.vue'
-import { ServerStackIcon } from '@heroicons/vue/24/solid'
+import { CircleStackIcon, ServerStackIcon } from '@heroicons/vue/24/solid'
+import ModelManager from '@/views/ModelManager.vue'
 import { useColorMode } from '@vueuse/core'
 import { useDemoMode } from './assets/js/store/demoMode.ts'
+import { debugSettingsVisible } from './assets/js/store/debugSettings.ts'
 import WorkflowResult from '@/views/WorkflowResult.vue'
 import Chat from '@/views/Chat.vue'
+import AgentMode from '@/views/AgentMode.vue'
 import { computed, ref, watch } from 'vue'
 import SideModalHistory from '@/components/SideModalHistory.vue'
 import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
@@ -337,10 +376,10 @@ import DemoModeBlocker from '@/components/DemoModeBlocker.vue'
 import DemoModeNotificationDots from '@/components/DemoModeNotificationDots.vue'
 import DemoModeAutoresetDialog from '@/components/DemoModeAutoresetDialog.vue'
 import HomeAgentToggle from '@/components/HomeAgentToggle.vue'
-import MockChannelPanel from '@/components/MockChannelPanel.vue'
-import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import ContextualHelpLayer from '@/components/ContextualHelpLayer.vue'
 import { useContextualHelp } from '@/assets/js/store/contextualHelp'
+import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
+import { useOemBranding } from '@/assets/js/store/oemBranding'
 
 const theme = useTheme()
 const globalSetup = useGlobalSetup()
@@ -351,9 +390,9 @@ const dialogStore = useDialogStore()
 const promptStore = usePromptStore()
 const uiStore = useUIStore()
 const setupWizardStore = useSetupWizard()
-const homeAgent = useHomeAgent()
+const presetSwitching = usePresetSwitching()
+const oemBranding = useOemBranding()
 
-const addLLMCompt = ref<InstanceType<typeof AddLLMDialog>>()
 const demoModeOverlayDriverJs = ref<InstanceType<typeof DemoModeOverlayDriverJsRef>>()
 const showSettingBtn = ref<HTMLButtonElement>()
 const chatRef = ref<{
@@ -367,13 +406,19 @@ const videoRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
 const isOpen = ref(false)
 const footerExpanded = ref(true)
 const showAppSettings = ref(false)
-const showModelRequestDialog = ref(false)
 const fullscreen = ref(false)
 const showSpecificSettings = ref(false)
 
 const platformTitle = window.envVars.platformTitle
 const productVersion = window.envVars.productVersion
-const debugToolsEnabled = window.envVars.debugToolsEnabled
+const showDebugSettings = debugSettingsVisible()
+
+// Which build this is, for telling test builds apart. Both parts are absent in a
+// build made from a tree without git history, and then the version gets no hover.
+const buildIdentity = [
+  { label: 'Release tag', value: window.envVars.gitTag },
+  { label: 'Commit', value: window.envVars.gitCommit },
+].filter((entry) => !!entry.value)
 
 const gitHubRepoUrl = ref('https://github.com/intel/ai-playground/blob/main/')
 const userGuideUrl = computed(() => `${gitHubRepoUrl.value}AI%20Playground%20Users%20Guide.pdf`)
@@ -428,6 +473,9 @@ onMounted(async () => {
   // Fetch dynamic GitHub repo URL for footer links
   gitHubRepoUrl.value = await window.electronAPI.getGitHubRepoUrl()
 
+  // Which OEM's machine this is decides co-branded labels (e.g. Acer Game Agent).
+  void oemBranding.initialize()
+
   // Apply theme class to document root for CSS variables
   watch(
     () => theme.active,
@@ -474,14 +522,6 @@ function openDevTools() {
   window.electronAPI.openDevTools()
 }
 
-// todo: Why is this not used
-function _showModelRequest() {
-  showModelRequestDialog.value = true
-  nextTick(() => {
-    addLLMCompt.value!.onShow()
-  })
-}
-
 function handleAutoHideFooter() {
   footerExpanded.value = false
 }
@@ -506,7 +546,11 @@ function startTour() {
 watch(
   () => globalSetup.loadingState,
   (state) => {
-    if (state === 'running' && demoMode.enabled) {
+    if (state !== 'running') return
+    // The prompt store isn't persisted, so the app boots in chat mode while the
+    // active preset comes back from disk — and an agent preset means Agent Mode.
+    presetSwitching.syncModeWithActivePreset()
+    if (demoMode.enabled) {
       void demoMode.applyExplicitDefaults()
       window.setTimeout(startTour, 2200)
     }

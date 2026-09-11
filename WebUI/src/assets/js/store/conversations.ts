@@ -3,6 +3,7 @@ import { computed, ref, watch, watchEffect } from 'vue'
 import { demoAwareStorage } from '../demoAwareStorage'
 import { AipgUiMessage } from './openAiCompatibleChat'
 import { completeOrphanedToolParts, sanitizeBulkyToolOutputs } from './toolMessageSanitize'
+import { currentPresetName } from '@/lib/presetRenames'
 
 /**
  * Legacy fixed key for the original singleton Telegram thread. Kept only as a
@@ -225,6 +226,9 @@ export const useConversations = defineStore(
           ctx.store.$state.conversationList,
           ctx.store.$state.conversationThreadMeta,
         )
+        // A thread names the preset it was held with; a renamed preset no longer
+        // answers to that name, which would leave the thread's preset unresolved.
+        followRenamedPresets(ctx.store.$state.conversationThreadMeta)
         addNewConversationIfLatestIsNotEmpty(
           ctx.store.$state.conversationList,
           undefined,
@@ -293,6 +297,17 @@ function backfillLegacyHomeAgentThreadMeta(
     presetName: HOME_AGENT_CHAT_PRESET_NAME,
     variant: null,
     kind: 'homeAgent',
+  }
+}
+
+/**
+ * Point threads stamped with a preset's former name at the name it ships with
+ * now. Reopening such a thread applies its preset (see the `activeKey` watcher in
+ * `textInference`), which does nothing when the stored name matches no preset.
+ */
+function followRenamedPresets(meta: Record<string, ConversationThreadMeta>) {
+  for (const entry of Object.values(meta)) {
+    if (entry.presetName) entry.presetName = currentPresetName(entry.presetName)
   }
 }
 

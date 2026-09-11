@@ -38,15 +38,9 @@ type LocaleSettings = {
   languageOverride: string | null
 }
 
-type ThemeSettings = {
-  availableThemes: Theme[]
-  currentTheme: Theme
-}
-
 type SetupData = {
   modelPaths: ModelPaths
   modelLists: ModelLists
-  isAdminExec: boolean
   version: string
   /** True when the model directory cannot be written to (e.g. a read-only
    * shared folder on an all-users install), so the UI should disable downloads. */

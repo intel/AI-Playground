@@ -62,6 +62,9 @@ function extractAnnotatedImage(output: unknown): ToolMediaItem[] {
 const EXTRACTORS: Record<string, (_output: unknown) => ToolMediaItem[]> = {
   'tool-comfyUI': extractComfyMedia,
   'tool-comfyUiImageEdit': extractComfyMedia,
+  // The media specialist returns the same comfy-shaped `images[]`, and it
+  // replaces the two tools above whenever tool delegation is enabled.
+  'tool-media': extractComfyMedia,
   'tool-captureScreenshot': extractOkDataUriImage,
   'tool-screenshotWebPage': extractOkDataUriImage,
   'tool-visualizeObjectDetections': extractAnnotatedImage,

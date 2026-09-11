@@ -101,13 +101,10 @@
       <div class="w-20 h-20 rounded-full bg-primary/30 flex items-center justify-center">
         <span class="svg-icon i-upload w-10 h-10"></span>
       </div>
-      <p class="text-lg font-bold" v-if="!globalSetup.state.isAdminExec">
+      <p class="text-lg font-bold">
         {{ i18nState.RAG_DRAG_UPLOAD }}
       </p>
-      <pre class="text-xs bg-background/20 p-2 rounded" v-if="!globalSetup.state.isAdminExec">{{
-        i18nState.RAG_UPLOAD_MIME_TYPE
-      }}</pre>
-      <p class="px-5" v-else>{{ i18nState.RAG_DRAG_UPLOAD_UNSUPPORTED }}</p>
+      <pre class="text-xs bg-background/20 p-2 rounded">{{ i18nState.RAG_UPLOAD_MIME_TYPE }}</pre>
       <button
         @click="chooseUploadFiles"
         :title="languages.COM_ADD_FILE_TO_RAG"
@@ -122,7 +119,6 @@
 <script setup lang="ts">
 import * as toast from '@/assets/js/toast'
 import { useI18N } from '@/assets/js/store/i18n'
-import { useGlobalSetup } from '@/assets/js/store/globalSetup'
 import { useTextInference } from '@/assets/js/store/textInference'
 import * as clientAPI from '@/assets/js/clientAPI'
 import { useDropZone } from '@vueuse/core'
@@ -130,7 +126,6 @@ import { ref, computed, watch, onMounted } from 'vue'
 
 import { ValidFileExtension, IndexedDocument } from '@/assets/js/store/textInference'
 
-const globalSetup = useGlobalSetup()
 const textInference = useTextInference()
 const i18nState = useI18N().state
 const dropZoneRef = ref<HTMLDivElement>()

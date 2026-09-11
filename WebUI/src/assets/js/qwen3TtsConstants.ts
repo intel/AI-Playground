@@ -1,13 +1,5 @@
 export type Qwen3TtsSpeakerId =
-  | 'Vivian'
-  | 'Serena'
-  | 'Uncle_Fu'
-  | 'Dylan'
-  | 'Eric'
-  | 'Ryan'
-  | 'Aiden'
-  | 'Ono_Anna'
-  | 'Sohee'
+  'Vivian' | 'Serena' | 'Uncle_Fu' | 'Dylan' | 'Eric' | 'Ryan' | 'Aiden' | 'Ono_Anna' | 'Sohee'
 
 export type Qwen3TtsLanguage =
   | 'Auto'
@@ -22,7 +14,13 @@ export type Qwen3TtsLanguage =
   | 'Spanish'
   | 'Italian'
 
-export type Qwen3TtsSynthesisMode = 'custom_voice' | 'voice_design'
+/**
+ * `custom_voice` — a built-in preset speaker.
+ * `voice_design` — invent a speaker from a natural-language description (sampled).
+ * `voice_clone`  — reproduce the speaker in a reference recording. Used to play back
+ *                  a saved voice, whose preview WAV is that reference.
+ */
+export type Qwen3TtsSynthesisMode = 'custom_voice' | 'voice_design' | 'voice_clone'
 
 /**
  * HuggingFace repos backing the two synthesis modes. These are downloaded via the
@@ -33,11 +31,21 @@ export type Qwen3TtsSynthesisMode = 'custom_voice' | 'voice_design'
 export const QWEN3_TTS_MODEL_REPOS = {
   customVoice: 'Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice',
   voiceDesign: 'Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign',
+  /**
+   * The Base checkpoint — the only `tts_model_type` the vendored library lets clone a
+   * voice. A created voice is *invented* by voice design (a sampled draw from its
+   * description) but *reproduced* by cloning its saved preview, because a seed can
+   * only pin one generation: give voice design the same seed and different words and
+   * it draws a different speaker. Cloning conditions on audio, so the voice survives
+   * a change of text.
+   */
+  voiceClone: 'Qwen/Qwen3-TTS-12Hz-1.7B-Base',
 } as const
 
 export const QWEN3_TTS_MODEL_REPO_LIST: string[] = [
   QWEN3_TTS_MODEL_REPOS.customVoice,
   QWEN3_TTS_MODEL_REPOS.voiceDesign,
+  QWEN3_TTS_MODEL_REPOS.voiceClone,
 ]
 
 /** Named voice direction a user saves and reuses (settings, chat, and the agent). */
@@ -48,10 +56,16 @@ export type Qwen3TtsSavedVoice = {
   /**
    * Sampling seed pinned to this voice. Voice-design synthesis is sampled, so the
    * same description otherwise yields a different-sounding person on every call.
-   * Persisting a seed makes a saved voice reproducible across generations; the
-   * user can re-roll it from settings when they dislike the result.
+   * Persisting a seed makes a saved voice reproducible across generations; the user
+   * picks or re-rolls it on the seed row when creating/editing the voice.
    */
   seed?: number
+  /**
+   * Absolute path to the "Hi, I'm <name>" WAV generated when the voice was saved.
+   * The voice card's Play button plays this file, so hearing a saved voice costs
+   * nothing. Absent for voices saved before previews existed.
+   */
+  previewFilePath?: string
 }
 
 export const QWEN3_TTS_SPEAKERS: Array<{

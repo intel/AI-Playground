@@ -18,6 +18,7 @@
   "showTools": true,
   "toolsEnabledByDefault": true,
   "enableRAG": true,
+  "supportsPhisonKmRag": true,
   "advancedMode": true,
   "requiredModels": []
 }

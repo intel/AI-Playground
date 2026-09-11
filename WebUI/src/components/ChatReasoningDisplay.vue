@@ -34,21 +34,23 @@ watch(
 )
 onUnmounted(() => clearInterval(tickHandle))
 
-const elapsedSeconds = computed(() => {
+// Undefined when the host recorded no timing for this block — a duration is
+// only invented if it was actually measured.
+const elapsedSeconds = computed<string | undefined>(() => {
   if (props.streaming) {
     const start = props.liveStartedAt || props.startedAt
-    if (!start) return '0.0'
-    return ((now.value - start) / 1000).toFixed(1)
+    return start ? ((now.value - start) / 1000).toFixed(1) : undefined
   }
-  if (!props.startedAt) return '0.0'
+  if (!props.startedAt) return undefined
   return (((props.finishedAt ?? props.startedAt) - props.startedAt) / 1000).toFixed(1)
 })
 
 const statusText = computed(() => {
-  if (!props.streaming && props.finishedAt && props.startedAt) {
-    return `Done Reasoning after ${elapsedSeconds.value} seconds`
-  }
-  return `Reasoned for ${elapsedSeconds.value} seconds`
+  const seconds = elapsedSeconds.value
+  if (props.streaming) return seconds ? `Reasoning for ${seconds} seconds` : 'Reasoning…'
+  if (seconds && props.finishedAt) return `Done Reasoning after ${seconds} seconds`
+  // A restored transcript keeps the trace but not its timing.
+  return 'Reasoning trace'
 })
 </script>
 

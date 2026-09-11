@@ -22,8 +22,13 @@ const props = defineProps<{
 
 const selectInferenceDevice = async (item: string) => {
   await backendServices.selectDevice(props.backend, item)
-  await backendServices.stopService(props.backend)
-  await backendServices.startService(props.backend)
+  // Persist the pick for the next start. Only bounce a running service so
+  // changing device on an idle on-demand backend (TTS/STT) does not load it.
+  const info = backendServices.info.find((s) => s.serviceName === props.backend)
+  if (info?.status === 'running') {
+    await backendServices.stopService(props.backend)
+    await backendServices.startService(props.backend)
+  }
 }
 const backendServices = useBackendServices()
 const devices = computed(

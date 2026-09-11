@@ -1,0 +1,13 @@
+{
+  "id": "tic-tac-toe-beyond",
+  "name": "Tic Tac Toe Beyond",
+  "description": "Neon tic-tac-toe with particle explosions — play a friend or challenge the AI and win with fireworks.",
+  "entry": "index.html",
+  "icon": "icon.png",
+  "published": true,
+  "createdAt": 1786666796502,
+  "updatedAt": 1786667305789,
+  "backend": "llamaCPP",
+  "startingModel": "Qwen3.6-35B-A3B",
+  "initialPrompt": "Tic-Tac-Toe Beyond: Create a game of tic tac toe with modern effects like particles, make it fun"
+}

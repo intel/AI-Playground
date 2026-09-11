@@ -1,6 +1,8 @@
 import { ref, computed, watch } from 'vue'
 import { useHomeAgent } from './homeAgent'
 import { useErrors } from './errors'
+import { useDialogStore } from './dialogs'
+import { useI18N } from './i18n'
 import {
   DEFAULT_LOCAL_WEB_PORT,
   MAX_LOCAL_WEB_PORT,
@@ -20,6 +22,8 @@ const MIN_PASSWORD_LEN = 4
 export function useLocalWebSetup() {
   const homeAgent = useHomeAgent()
   const errors = useErrors()
+  const dialogs = useDialogStore()
+  const i18n = useI18N()
 
   // String initially, but Vue's implicit `.number` on the `<input type="number">`
   // turns it into a number once the user edits it — `parseLocalWebPort` takes both.
@@ -101,8 +105,15 @@ export function useLocalWebSetup() {
   // toggle both change which URLs can answer.
   watch([portInput, allowLan], () => void refreshUrls())
 
+  async function ensureSecretStorageReady(): Promise<'ok' | 'cancelled' | 'failed'> {
+    if (await window.electronAPI.safeStorage.isEncryptionAvailable()) return 'ok'
+    const confirmed = await dialogs.requestConfirmation(i18n.state.HOME_AGENT_LAN_INSECURE_STORAGE)
+    if (!confirmed) return 'cancelled'
+    const result = await window.electronAPI.safeStorage.enablePlainTextEncryption()
+    return result.success ? 'ok' : 'failed'
+  }
+
   async function runVerify() {
-    verifyStatus.value = 'loading'
     verifyError.value = ''
     if (!portValid.value) {
       verifyStatus.value = 'error'
@@ -122,6 +133,17 @@ export function useLocalWebSetup() {
       return
     }
     try {
+      const storage = await ensureSecretStorageReady()
+      if (storage === 'cancelled') {
+        verifyStatus.value = 'idle'
+        return
+      }
+      if (storage === 'failed') {
+        verifyStatus.value = 'error'
+        verifyError.value = 'Could not enable secret storage on this system.'
+        return
+      }
+      verifyStatus.value = 'loading'
       const saveResult = await homeAgent.saveChannelConfig('local-web', {
         kind: 'local-web',
         port: String(portNumber.value),

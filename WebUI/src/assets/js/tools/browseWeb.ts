@@ -2,15 +2,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import { useActivities } from '../store/activities'
 import { useWebBrowser } from '../store/webBrowser'
-import { useConversations } from '../store/conversations'
-
-// The conversation a tool call belongs to is surfaced via `experimental_context`
-// (set in openAiCompatibleChat's streamText call), so the "Browsing the web…"
-// activity (and its "Show window" button) anchors to the right chat turn.
-function conversationKeyFor(experimentalContext: unknown): string {
-  const ctx = experimentalContext as { conversationKey?: string } | undefined
-  return ctx?.conversationKey ?? useConversations().activeKey
-}
+import { ToolConversationContextSchema, conversationKeyFor } from './toolContext'
 
 function chatScope(conversationKey: string): { kind: 'chat'; conversationKey: string } {
   return { kind: 'chat', conversationKey }
@@ -75,10 +67,11 @@ export const searchWeb = tool({
     query: z.string().describe('The search query.'),
     maxResults: z.number().optional().describe('Maximum number of results to return (default 8).'),
   }),
+  contextSchema: ToolConversationContextSchema,
   execute: async (args: { query: string; maxResults?: number }, options) => {
     const activities = useActivities()
     const webBrowser = useWebBrowser()
-    const conversationKey = conversationKeyFor(options?.experimental_context)
+    const conversationKey = conversationKeyFor(options?.context)
     return await activities.track(
       {
         category: 'browsing',
@@ -108,10 +101,11 @@ export const browseWeb = tool({
       .string()
       .describe('The URL of the page to open. A scheme is optional (https:// is assumed).'),
   }),
+  contextSchema: ToolConversationContextSchema,
   execute: async (args: { url: string }, options) => {
     const activities = useActivities()
     const webBrowser = useWebBrowser()
-    const conversationKey = conversationKeyFor(options?.experimental_context)
+    const conversationKey = conversationKeyFor(options?.context)
     return await activities.track(
       {
         category: 'browsing',
@@ -147,10 +141,11 @@ export const screenshotWebPage = tool({
     'pages prefer browseWeb, which returns the readable text. Open a page with browseWeb ' +
     'or searchWeb first.',
   inputSchema: z.object({}),
+  contextSchema: ToolConversationContextSchema,
   execute: async (_args, options): Promise<ScreenshotWebPageOutput> => {
     const activities = useActivities()
     const webBrowser = useWebBrowser()
-    const conversationKey = conversationKeyFor(options?.experimental_context)
+    const conversationKey = conversationKeyFor(options?.context)
     return await activities.track(
       {
         category: 'browsing',
@@ -206,13 +201,14 @@ export const interactWithWebPage = tool({
       .optional()
       .describe('For "click"/"scroll": an optional CSS selector to target instead of a linkIndex.'),
   }),
+  contextSchema: ToolConversationContextSchema,
   execute: async (
     args: { action: 'click' | 'scroll' | 'back'; linkIndex?: number; selector?: string },
     options,
   ) => {
     const activities = useActivities()
     const webBrowser = useWebBrowser()
-    const conversationKey = conversationKeyFor(options?.experimental_context)
+    const conversationKey = conversationKeyFor(options?.context)
     const interaction: WebBrowserInteraction =
       args.action === 'click'
         ? { action: 'click', linkIndex: args.linkIndex, selector: args.selector }

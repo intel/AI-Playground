@@ -31,6 +31,10 @@ test.describe('Assistant — agentic media flow', () => {
       await app.main.selectPreset('Chat', AGENTIC_PRESET)
     })
 
+    // Back to the preset's shipped defaults (model included) before this flow sets
+    // its own tools and generation budget — see AppDriver.resetPresetDefaults.
+    await app.resetPresetDefaults('Chat')
+
     // Enforce the app-default tool selection (all built-in tools except Capture
     // screenshot, MCP on, all workflows enabled). Enforced rather than assumed because
     // settings persist to disk, so a prior fast-smoke run that trimmed tools/workflows

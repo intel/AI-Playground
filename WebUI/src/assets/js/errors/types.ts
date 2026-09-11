@@ -9,6 +9,7 @@ export type ErrorCategory =
   | 'setup' // first-run wizard / installation
   | 'channel' // Home Agent / Telegram / Slack (reserved for deferred phase 4)
   | 'validation' // user input / preconditions
+  | 'model' // model files on disk: scanning, revealing, deleting
   | 'unknown'
 
 export type ErrorSeverity = 'info' | 'warning' | 'error' | 'fatal'

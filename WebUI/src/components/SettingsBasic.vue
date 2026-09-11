@@ -1,23 +1,21 @@
-use useErrors if possible
 <template>
   <div class="border-b border-border flex flex-col gap-5 py-4">
     <DemoModeBlocker>
       <div class="flex flex-col gap-2">
-        <p>{{ languages.SETTINGS_BASIC_LANGUAGE }}</p>
+        <SettingsHeading>{{ languages.SETTINGS_BASIC_LANGUAGE }}</SettingsHeading>
         <LanguageSelector></LanguageSelector>
       </div>
     </DemoModeBlocker>
 
-    <div v-if="theme.availableThemes.length > 1" class="flex flex-col gap-2">
-      <p>{{ languages.SETTINGS_THEME }}</p>
+    <div class="flex flex-col gap-2">
+      <SettingsHeading>{{ languages.SETTINGS_THEME }}</SettingsHeading>
       <ThemeSelector />
     </div>
 
     <DemoModeBlocker>
-      <div class="flex flex-col gap-3"></div>
       <div class="flex flex-col gap-3">
-        <p>{{ languages.SETTINGS_MODEL_HUGGINGFACE_SETTINGS }}</p>
-        <h4 class="text-sm font-medium">{{ languages.SETTINGS_MODEL_HUGGINGFACE_API_TOKEN }}</h4>
+        <SettingsHeading>{{ languages.SETTINGS_MODEL_HUGGINGFACE_SETTINGS }}</SettingsHeading>
+        <SettingsHeading sub>{{ languages.SETTINGS_MODEL_HUGGINGFACE_API_TOKEN }}</SettingsHeading>
         <div class="flex flex-col items-start gap-1">
           <Input
             type="password"
@@ -32,7 +30,7 @@ use useErrors if possible
             {{ languages.SETTINGS_MODEL_HUGGINGFACE_INVALID_TOKEN_TEXT }}
           </div>
         </div>
-        <h4 class="text-sm font-medium">{{ languages.SETTINGS_MODEL_HUGGINGFACE_MIRROR_URL }}</h4>
+        <SettingsHeading sub>{{ languages.SETTINGS_MODEL_HUGGINGFACE_MIRROR_URL }}</SettingsHeading>
         <div class="flex flex-col items-start gap-2">
           <Input
             v-model="mirrorUrl"
@@ -71,7 +69,7 @@ use useErrors if possible
   </div>
   <DemoModeBlocker>
     <div class="flex flex-col gap-3 pt-6">
-      <p>{{ languages.SETTINGS_BACKEND_STATUS }}</p>
+      <SettingsHeading>{{ languages.SETTINGS_BACKEND_STATUS }}</SettingsHeading>
       <table class="text-center w-full mx-2 table-fixed">
         <tbody>
           <tr v-for="item in displayComponents" :key="item.serviceName">
@@ -85,165 +83,65 @@ use useErrors if possible
     </div>
   </DemoModeBlocker>
 
-  <div v-if="!productModeStore.isNvidiaModeSelected" class="flex flex-col gap-3 pt-4">
-    <div>
-      <p>{{ languages.SETTINGS_AUDIO }}</p>
-      <div class="pl-2 pt-4">
-        <div class="flex justify-between pr-4 items-center gap-4 mb-4">
-          <Label class="whitespace-nowrap">Speech To Text</Label>
-          <Checkbox
-            v-if="!backendStarting"
-            id="speech-to-text"
-            :modelValue="speechToText.enabled"
-            @update:modelValue="handleSpeechToTextToggle"
-          />
-          <Spinner v-else class="justify-self-start" />
-        </div>
-        <MicrophoneSettings v-if="speechToText.enabled" />
-        <div
-          v-if="speechToText.enabled && sttDevices.length > 0"
-          class="grid grid-cols-[120px_1fr] items-center gap-4 mt-4"
-        >
-          <Label class="whitespace-nowrap">Device</Label>
-          <drop-down-new
-            title="STT Device"
-            @change="selectSttDevice"
-            :value="selectedSttDevice?.id"
-            :items="sttDeviceItems"
-          />
-        </div>
-
-        <div class="mt-4 border-t border-white/10 pt-4">
+  <DemoModeBlocker>
+    <div class="flex flex-col gap-3 pt-4">
+      <p>External speech endpoints</p>
+      <div class="pl-2 pt-2 flex flex-col gap-4">
+        <!-- Text to Speech fallback: enabling it adds an "External endpoint" engine
+             option to the Text to Speech preset (works in every product mode). -->
+        <div>
           <div class="flex justify-between pr-4 items-center gap-4">
             <div class="flex items-center gap-2">
-              <Label class="whitespace-nowrap">Fallback transcription endpoint</Label>
+              <Label class="whitespace-nowrap">Text to Speech endpoint</Label>
               <TooltipProvider :delay-duration="200">
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <span class="svg-icon i-info w-4 h-4 opacity-50 cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent side="bottom" class="max-w-[320px]">
-                    Used when the OVMS Whisper server isn't available (e.g. on macOS). Point it at
-                    any OpenAI-compatible transcription server — for example a local whisper.cpp
-                    <code>whisper-server</code> started with
+                    An OpenAI-compatible <code>/v1/audio/speech</code> server (base URL like
+                    <code>http://127.0.0.1:8080/v1</code>). When enabled, it appears as the
+                    "External endpoint" engine in the Text to Speech preset.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Checkbox id="tts-fallback-enabled" v-model="textToSpeech.fallback.enabled" />
+          </div>
+        </div>
+
+        <!-- Speech to Text fallback: enabling it adds an "External endpoint" engine to
+             the Speech to Text preset AND makes that preset available in NVIDIA mode
+             (Whisper/OpenVINO is otherwise unavailable there). -->
+        <div class="border-t border-white/10 pt-4">
+          <div class="flex justify-between pr-4 items-center gap-4">
+            <div class="flex items-center gap-2">
+              <Label class="whitespace-nowrap">Speech to Text endpoint</Label>
+              <TooltipProvider :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="svg-icon i-info w-4 h-4 opacity-50 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" class="max-w-[320px]">
+                    An OpenAI-compatible transcription server — e.g. a local whisper.cpp
+                    <code>whisper-server</code> with
                     <code>--inference-path "/v1/audio/transcriptions"</code> (base URL like
-                    <code>http://127.0.0.1:2022/v1</code>).
+                    <code>http://127.0.0.1:2022/v1</code>). Enabling it also makes the Speech to
+                    Text preset available in NVIDIA mode.
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
             <Checkbox id="stt-fallback-enabled" v-model="speechToText.fallback.enabled" />
           </div>
-          <div v-if="speechToText.fallback.enabled" class="flex flex-col gap-3 mt-3 pr-4">
-            <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-              <Label class="whitespace-nowrap">Base URL</Label>
-              <Input
-                v-model="speechToText.fallback.baseUrl"
-                placeholder="http://127.0.0.1:2022/v1"
-              />
-            </div>
-            <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-              <Label class="whitespace-nowrap">Model</Label>
-              <Input v-model="speechToText.fallback.model" placeholder="whisper-1" />
-            </div>
-            <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-              <Label class="whitespace-nowrap">API key</Label>
-              <Input
-                v-model="speechToText.fallback.apiKey"
-                type="password"
-                placeholder="(optional)"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-4 border-t border-white/10 pt-4">
-          <div class="flex justify-between pr-4 items-center gap-4 mb-4">
-            <Label class="whitespace-nowrap">Text To Speech</Label>
-            <Checkbox
-              v-if="!backendStarting"
-              id="text-to-speech"
-              :modelValue="textToSpeech.enabled"
-              @update:modelValue="handleTextToSpeechToggle"
-            />
-            <Spinner v-else class="justify-self-start" />
-          </div>
-          <div
-            v-if="textToSpeech.enabled"
-            class="flex justify-between pr-4 items-center gap-4 mb-4"
-          >
-            <div class="flex items-center gap-2">
-              <Label class="whitespace-nowrap">Speak replies to voice input</Label>
-              <TooltipProvider :delay-duration="200">
-                <Tooltip>
-                  <TooltipTrigger as-child>
-                    <span class="svg-icon i-info w-4 h-4 opacity-50 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" class="max-w-[320px]">
-                    When enabled, the assistant auto-plays its reply in the app when your input came
-                    from the microphone, and the Home Agent sends a voice message back when you send
-                    a voice message.
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            <Checkbox id="tts-auto-speak" v-model="textToSpeech.autoSpeakOnVoiceInput" />
-          </div>
-
-          <div class="mt-2 border-t border-white/10 pt-4">
-            <div class="flex justify-between pr-4 items-center gap-4">
-              <div class="flex items-center gap-2">
-                <Label class="whitespace-nowrap">Fallback speech endpoint</Label>
-                <TooltipProvider :delay-duration="200">
-                  <Tooltip>
-                    <TooltipTrigger as-child>
-                      <span class="svg-icon i-info w-4 h-4 opacity-50 cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" class="max-w-[320px]">
-                      Used when the OVMS text-to-speech server isn't available (e.g. on macOS).
-                      Point it at any OpenAI-compatible
-                      <code>/v1/audio/speech</code> server (base URL like
-                      <code>http://127.0.0.1:8080/v1</code>).
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <Checkbox id="tts-fallback-enabled" v-model="textToSpeech.fallback.enabled" />
-            </div>
-            <div v-if="textToSpeech.fallback.enabled" class="flex flex-col gap-3 mt-3 pr-4">
-              <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-                <Label class="whitespace-nowrap">Base URL</Label>
-                <Input
-                  v-model="textToSpeech.fallback.baseUrl"
-                  placeholder="http://127.0.0.1:8080/v1"
-                />
-              </div>
-              <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-                <Label class="whitespace-nowrap">Model</Label>
-                <Input v-model="textToSpeech.fallback.model" placeholder="tts-1" />
-              </div>
-              <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-                <Label class="whitespace-nowrap">Voice</Label>
-                <Input v-model="textToSpeech.fallback.voice" placeholder="(optional)" />
-              </div>
-              <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-                <Label class="whitespace-nowrap">API key</Label>
-                <Input
-                  v-model="textToSpeech.fallback.apiKey"
-                  type="password"
-                  placeholder="(optional)"
-                />
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
-  </div>
+  </DemoModeBlocker>
 
   <DemoModeBlocker>
     <div class="flex flex-col gap-3 pt-4">
-      <p>{{ languages.SETTINGS_DEVELOPER }}</p>
+      <SettingsHeading>{{ languages.SETTINGS_DEVELOPER }}</SettingsHeading>
       <div class="pl-2 pt-2">
         <div class="flex justify-between pr-4 items-center gap-4 mb-4">
           <Label class="whitespace-nowrap">{{
@@ -272,15 +170,130 @@ use useErrors if possible
           </div>
           <Checkbox id="keep-models-loaded" v-model="developerSettings.keepModelsLoaded" />
         </div>
+        <div class="flex justify-between pr-4 items-center gap-4 mb-4">
+          <div class="flex items-center gap-2">
+            <Label class="whitespace-nowrap">Agent preset</Label>
+            <TooltipProvider :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="svg-icon i-info w-4 h-4 opacity-50 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="bottom" class="max-w-[300px]">
+                  Add the experimental "Agent" chat preset — the coding agent pointed at a folder
+                  you pick, rather than at one task like Game Agent.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <Checkbox
+            id="agent-preset-enabled"
+            :model-value="debugSettings.agentPresetEnabled"
+            @update:model-value="(v) => setAgentPreset(v === true)"
+          />
+        </div>
+        <template v-if="showDebugSettings">
+          <div class="flex justify-between pr-4 items-center gap-4 mb-4">
+            <div class="flex items-center gap-2">
+              <Label class="whitespace-nowrap">Verbose agent logging</Label>
+              <TooltipProvider :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="svg-icon i-info w-4 h-4 opacity-50 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" class="max-w-[300px]">
+                    Write the agent turn lifecycle and every tool call into the app log. Useful when
+                    an agent run misbehaves; noisy otherwise.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Checkbox id="verbose-agent-logging" v-model="developerSettings.verboseAgentLogging" />
+          </div>
+          <div class="flex justify-between pr-4 items-center gap-4 mb-4">
+            <div class="flex items-center gap-2">
+              <Label class="whitespace-nowrap">Use dummy media workflows</Label>
+              <TooltipProvider :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="svg-icon i-info w-4 h-4 opacity-50 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" class="max-w-[300px]">
+                    Offer the assistant nothing but the dummy workflows, which return placeholder
+                    images, videos and 3D models instantly. Use it to verify media generation,
+                    chaining and rendering without waiting for a real model.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Checkbox
+              id="force-dummy-media-workflows"
+              v-model="developerSettings.forceDummyMediaWorkflows"
+            />
+          </div>
+          <div class="flex justify-between pr-4 items-center gap-4 mb-4">
+            <div class="flex items-center gap-2">
+              <Label class="whitespace-nowrap">Pretend Phison SSD</Label>
+              <TooltipProvider :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="svg-icon i-info w-4 h-4 opacity-50 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" class="max-w-[300px]">
+                    Skip the hardware probe and report a Phison aiDAPTIV+ SSD as present, so the
+                    SSD-offload option can be exercised on any machine.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Checkbox
+              id="pretend-phison-ssd"
+              :model-value="debugSettings.phisonSsdDetected"
+              @update:model-value="(v) => debugSettings.setPhisonSsdDetected(v === true)"
+            />
+          </div>
+          <div class="flex flex-col gap-2 pr-4 mb-4">
+            <Label>OEM vendor override</Label>
+            <drop-down-new
+              :items="oemVendorItems"
+              :value="debugSettings.oemVendorOverride ?? NO_OEM_OVERRIDE"
+              @change="
+                (value) =>
+                  debugSettings.setOemVendorOverride(value === NO_OEM_OVERRIDE ? null : value)
+              "
+            />
+          </div>
+          <div class="flex flex-col gap-2 pr-4 mb-4">
+            <Label>Remote repository</Label>
+            <Input
+              v-model="debugSettings.remoteRepository"
+              placeholder="intel/ai-playground"
+              class="h-[30px] leading-[30px] rounded-md bg-card border-border text-foreground px-[3px]"
+              @change="debugSettings.saveRemoteRepository()"
+            />
+          </div>
+          <div class="flex flex-col gap-2 pr-4 mb-4">
+            <Label>OpenVINO image-gen devices</Label>
+            <Input
+              v-model="debugSettings.openvinoImageGenDevices"
+              placeholder="CPU, GPU"
+              class="h-[30px] leading-[30px] rounded-md bg-card border-border text-foreground px-[3px]"
+              @change="debugSettings.saveOpenvinoImageGenDevices()"
+            />
+          </div>
+          <p class="text-xs text-muted-foreground pr-4 mb-4">
+            The OEM, Phison and OpenVINO-device settings are read at startup — restart the app to
+            see them take effect.
+          </p>
+        </template>
       </div>
       <div class="flex justify-between items-center">
-        <p>
+        <SettingsHeading>
           {{
             i18nState.SETTINGS_PRESETS_MANAGEMENT ||
             languages.SETTINGS_PRESETS_MANAGEMENT ||
             'Presets Management'
           }}
-        </p>
+        </SettingsHeading>
         <div class="flex pr-4 gap-2 items-center">
           <div :data-tooltip="i18nState.PRESET_RELOAD_INFO">
             <button
@@ -311,9 +324,8 @@ use useErrors if possible
 </template>
 
 <script setup lang="ts">
-import { computed, watch, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useModels } from '@/assets/js/store/models'
-import { useTheme } from '@/assets/js/store/theme'
 import { mapServiceNameToDisplayName, mapStatusToColor, mapToDisplayStatus } from '@/lib/utils.ts'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { usePresets } from '@/assets/js/store/presets'
@@ -325,28 +337,40 @@ import { useDemoMode } from '@/assets/js/store/demoMode'
 import * as toast from '@/assets/js/toast'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import ThemeSelector from '@/components/ThemeSelector.vue'
-import MicrophoneSettings from '@/components/MicrophoneSettings.vue'
-import DropDownNew from '@/components/DropDownNew.vue'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import DemoModeSettings from '@/components/DemoModeSettings.vue'
+import SettingsHeading from '@/components/SettingsHeading.vue'
 import { useI18N } from '@/assets/js/store/i18n'
-import { Spinner } from './ui/spinner'
 import { Button } from '@/components/ui/button'
 import DemoModeBlocker from '@/components/DemoModeBlocker.vue'
+import DropDownNew from '@/components/DropDownNew.vue'
 import { useSetupWizard } from '@/assets/js/store/setupWizard'
-import { useProductMode } from '@/assets/js/store/productMode'
 import { useCloudMode } from '@/assets/js/store/cloudMode'
+import { useDebugSettings, debugSettingsVisible } from '@/assets/js/store/debugSettings'
 
 const cloudMode = useCloudMode()
-const productModeStore = useProductMode()
+const debugSettings = useDebugSettings()
+const showDebugSettings = debugSettingsVisible()
+
+async function setAgentPreset(enabled: boolean) {
+  await debugSettings.setAgentPresetEnabled(enabled)
+  await presetsStore.loadPresetsFromFiles()
+}
+
+// Vendors the OEM probe can report; `detectOem` treats anything else as unknown.
+const NO_OEM_OVERRIDE = '__none__'
+const oemVendorItems = [
+  { label: 'No override (probe the firmware)', value: NO_OEM_OVERRIDE, active: true },
+  { label: 'Acer', value: 'acer', active: true },
+  { label: 'Unknown', value: 'unknown', active: true },
+]
 const demoMode = useDemoMode()
 const setupWizardStore = useSetupWizard()
 const backendServices = useBackendServices()
 const models = useModels()
-const theme = useTheme()
 const presetsStore = usePresets()
 const i18nState = useI18N().state
 const languages = i18nState
@@ -354,7 +378,6 @@ const speechToText = useSpeechToText()
 const textToSpeech = useTextToSpeech()
 const developerSettings = useDeveloperSettings()
 const dialogStore = useDialogStore()
-const backendStarting = ref(false)
 
 const mirrorUrl = ref(models.hfEndpoint)
 const verificationMessage = ref('')
@@ -485,25 +508,6 @@ const displayComponents = computed(() => {
   return components
 })
 
-// STT device selection
-const sttDevices = computed(
-  () => backendServices.info.find((bs) => bs.serviceName === 'openvino-backend')?.sttDevices ?? [],
-)
-const selectedSttDevice = computed(
-  () => sttDevices.value.find((d: InferenceDevice) => d.selected) ?? sttDevices.value[0],
-)
-const sttDeviceItems = computed(() =>
-  sttDevices.value.map((d: InferenceDevice) => ({
-    label: `${d.id}: ${d.name}`,
-    value: d.id,
-    active: true,
-  })),
-)
-
-async function selectSttDevice(deviceId: string) {
-  await backendServices.selectSttDevice('openvino-backend', deviceId)
-}
-
 async function loadPresetsFromIntel() {
   const syncStatus = await presetsStore.loadPresetsFromIntel()
   if (syncStatus.result === 'success') {
@@ -519,53 +523,11 @@ function openSetupWizard() {
   if (demoMode.enabled) return
   setupWizardStore.openWizard()
 }
-
-// Watch for changes to enabled state and ensure server is running
-watch(
-  () => speechToText.enabled,
-  async (enabled) => {
-    if (enabled) {
-      await speechToText.ensureTranscriptionServerRunning()
-    }
-  },
-  { immediate: false },
-)
-
-watch(
-  () => textToSpeech.enabled,
-  async (enabled) => {
-    if (enabled) {
-      await textToSpeech.ensureSpeechServerRunning()
-    }
-  },
-  { immediate: false },
-)
-
-// Handle toggle using store method
-async function handleSpeechToTextToggle(enabled: boolean | 'indeterminate') {
-  backendStarting.value = true
-  try {
-    await speechToText.toggle(enabled === true)
-  } catch (_error) {
-    toast.error(`Failed to ${enabled ? 'enable' : 'disable'} Speech To Text`)
-  } finally {
-    backendStarting.value = false
-  }
-}
-
-async function handleTextToSpeechToggle(enabled: boolean | 'indeterminate') {
-  backendStarting.value = true
-  try {
-    await textToSpeech.toggle(enabled === true)
-  } catch (_error) {
-    toast.error(`Failed to ${enabled ? 'enable' : 'disable'} Text To Speech`)
-  } finally {
-    backendStarting.value = false
-  }
-}
 </script>
 
-<style>
+<!-- scoped: `[data-tooltip]` is a bare attribute selector, so unscoped it would claim
+     every element in the app carrying that attribute, not just this panel's two. -->
+<style scoped>
 [data-tooltip]:hover::after {
   display: block;
   position: absolute;

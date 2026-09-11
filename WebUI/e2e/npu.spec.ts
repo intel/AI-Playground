@@ -21,6 +21,10 @@ test.describe('NPU', () => {
       await app.main.selectPreset('Chat', AGENTIC_PRESET)
     })
 
+    // Start from the preset's shipped defaults, not from what a previous run saved
+    // for it — see AppDriver.resetPresetDefaults.
+    await app.resetPresetDefaults('Chat')
+
     await app.runNpuHaiku(HAIKU_PROMPT)
   })
 })

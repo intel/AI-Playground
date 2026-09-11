@@ -34,21 +34,30 @@
   },
   "requiredCustomNodes": [
     "Lightricks/ComfyUI-LTXVideo@2acf7af8991f33b5cc06ec26753cb6e88e057d04",
+    "city96/ComfyUI-GGUF@6ea2651e7df66d7585f6ffee804b20e92fb38b8a",
     "evanspearman/ComfyMath@939bb813f1c0ace959b62f20bb2da47190c4e211"
   ],
   "requiredPythonPackages": [],
   "requiredModels": [
     {
-      "type": "checkpoints",
-      "model": "Lightricks/LTX-2.3-fp8/ltx-2.3-22b-dev-fp8.safetensors"
-    },
-    {
-      "type": "lora",
-      "model": "Lightricks/LTX-2.3/ltx-2.3-22b-distilled-lora-384.safetensors"
+      "type": "unet",
+      "model": "unsloth/LTX-2.3-GGUF/distilled-1.1/ltx-2.3-22b-distilled-1.1-Q4_K_S.gguf"
     },
     {
       "type": "clip",
-      "model": "Comfy-Org/ltx-2/split_files/text_encoders/gemma_3_12B_it_fp4_mixed.safetensors"
+      "model": "unsloth/gemma-3-12b-it-GGUF/gemma-3-12b-it-Q3_K_M.gguf"
+    },
+    {
+      "type": "clip",
+      "model": "unsloth/LTX-2.3-GGUF/text_encoders/ltx-2.3-22b-distilled_embeddings_connectors.safetensors"
+    },
+    {
+      "type": "vae",
+      "model": "unsloth/LTX-2.3-GGUF/vae/ltx-2.3-22b-distilled_video_vae.safetensors"
+    },
+    {
+      "type": "checkpoints",
+      "model": "unsloth/LTX-2.3-GGUF/vae/ltx-2.3-22b-distilled_audio_vae.safetensors"
     }
   ],
   "settings": [
@@ -149,35 +158,33 @@
         "comfyUiApiWorkflow": {
           "236": {
             "inputs": {
-              "ckpt_name": "Lightricks---LTX-2.3-fp8\\ltx-2.3-22b-dev-fp8.safetensors"
+              "unet_name": "unsloth---LTX-2.3-GGUF\\distilled-1.1\\ltx-2.3-22b-distilled-1.1-Q4_K_S.gguf"
             },
-            "class_type": "CheckpointLoaderSimple",
-            "_meta": { "title": "Load Checkpoint" }
+            "class_type": "UnetLoaderGGUF",
+            "_meta": { "title": "Unet Loader (GGUF)" }
           },
           "243": {
             "inputs": {
-              "text_encoder": "Comfy-Org---ltx-2\\split_files\\text_encoders\\gemma_3_12B_it_fp4_mixed.safetensors",
-              "ckpt_name": "Lightricks---LTX-2.3-fp8\\ltx-2.3-22b-dev-fp8.safetensors",
-              "device": "default"
+              "clip_name1": "unsloth---gemma-3-12b-it-GGUF\\gemma-3-12b-it-Q3_K_M.gguf",
+              "clip_name2": "unsloth---LTX-2.3-GGUF\\text_encoders\\ltx-2.3-22b-distilled_embeddings_connectors.safetensors",
+              "type": "ltxv"
             },
-            "class_type": "LTXAVTextEncoderLoader",
-            "_meta": { "title": "LTXV Audio Text Encoder Loader" }
+            "class_type": "DualCLIPLoaderGGUF",
+            "_meta": { "title": "DualCLIPLoader (GGUF)" }
           },
           "221": {
             "inputs": {
-              "ckpt_name": "Lightricks---LTX-2.3-fp8\\ltx-2.3-22b-dev-fp8.safetensors"
+              "ckpt_name": "unsloth---LTX-2.3-GGUF\\vae\\ltx-2.3-22b-distilled_audio_vae.safetensors"
             },
             "class_type": "LTXVAudioVAELoader",
             "_meta": { "title": "LTXV Audio VAE Loader" }
           },
-          "232": {
+          "262": {
             "inputs": {
-              "lora_name": "Lightricks---LTX-2.3\\ltx-2.3-22b-distilled-lora-384.safetensors",
-              "strength_model": 0.5,
-              "model": ["236", 0]
+              "vae_name": "unsloth---LTX-2.3-GGUF\\vae\\ltx-2.3-22b-distilled_video_vae.safetensors"
             },
-            "class_type": "LoraLoaderModelOnly",
-            "_meta": { "title": "Load LoRA" }
+            "class_type": "VAELoader",
+            "_meta": { "title": "Load VAE" }
           },
           "225": {
             "inputs": { "value": 105 },
@@ -245,7 +252,7 @@
           "231": {
             "inputs": {
               "cfg": 1,
-              "model": ["232", 0],
+              "model": ["236", 0],
               "positive": ["239", 0],
               "negative": ["239", 1]
             },
@@ -294,7 +301,7 @@
               "temporal_size": 4096,
               "temporal_overlap": 4,
               "samples": ["218", 0],
-              "vae": ["236", 2]
+              "vae": ["262", 0]
             },
             "class_type": "VAEDecodeTiled",
             "_meta": { "title": "VAE Decode (Tiled)" }

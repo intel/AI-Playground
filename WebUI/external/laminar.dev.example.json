@@ -1,0 +1,10 @@
+{
+  "_comment": "Copy to laminar.dev.json (team self-hosted instance) or laminar.localhost.json (local compose). Both are gitignored. The app reads .dev.json first, then .localhost.json; in an installed build they go in the app's resources folder. See AGENTS.md, 'Tracing agent and chat turns (Laminar)'. Delete both files to switch tracing off.",
+  "projectApiKey": "<project settings of the instance you are pointing at>",
+  "_endpointComment": "Where that instance is. baseUrl carries no port; the defaults below are the docker-compose stack's, so a local instance needs only the key. The team's self-hosted instance is https://api.laminar.aipg.aws.thenerdgroup.ai with httpPort 443 and grpcPort 8443.",
+  "baseUrl": "http://localhost",
+  "httpPort": 8000,
+  "grpcPort": 8001,
+  "_maxCharsComment": "Optional. How much of each recorded message list to keep; the Pi extension's own default of 20000 clips the newest messages and hides the prompt of every turn after the first.",
+  "maxChars": 1000000
+}

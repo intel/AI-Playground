@@ -33,3 +33,22 @@ export async function getMainWindow(electronApp: ElectronApplication): Promise<P
   if (windows.length > 0) return windows[0]
   throw new Error('No Electron windows appeared within 30s')
 }
+
+/**
+ * Make the next native directory picker return `dir` instead of blocking on a
+ * modal nobody can click. The renderer asks for a folder through the
+ * `showOpenDialog` IPC, which the main process serves with Electron's own
+ * `dialog.showOpenDialog` — so the stub goes in the main process, on the module
+ * object the handler reads the function off at call time.
+ *
+ * Only the workspace picker needs this today; it replaces the method for the rest
+ * of the app's life, which is fine for a single-test Electron instance.
+ */
+export async function stubDirectoryPicker(
+  electronApp: ElectronApplication,
+  dir: string,
+): Promise<void> {
+  await electronApp.evaluate(async ({ dialog }, chosen) => {
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [chosen] })
+  }, dir)
+}

@@ -6,168 +6,181 @@
       <div
         role="dialog"
         aria-label="Model download"
-        class="py-20 px-20 min-w-768px flex flex-col items-center justify-center bg-card rounded-3xl gap-8 text-foreground"
+        class="flex max-h-[88vh] w-[min(1100px,92vw)] flex-col items-center justify-center gap-8 overflow-hidden rounded-3xl bg-card px-10 py-10 text-foreground"
         :class="{ 'animate-scale-in': animate }"
       >
-        <div v-if="showConfirm" class="text-center flex items-center flex-col gap-5">
-          <p>{{ i18nState.DOWNLOADER_CONFRIM_TIP }}</p>
-          <table class="text-left w-full">
-            <thead>
-              <tr class="text-center text-muted-foreground font-bold">
-                <td class="text-left">{{ languages.DOWNLOADER_MODEL }}</td>
-                <td>{{ languages.DOWNLOADER_FILE_SIZE }}</td>
-                <td>{{ languages.DOWNLOADER_GATED }}</td>
-                <td>{{ languages.DOWNLOADER_INFO }}</td>
-                <td>{{ languages.DOWNLOADER_LICENSE }}</td>
-                <td>{{ languages.DOWNLOADER_REASON }}</td>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in downloadModelRender" :key="item.repo_id">
-                <td>{{ item.repo_id }}</td>
-                <td>
-                  <div class="flex flex-col items-center">
-                    <span v-if="sizeRequesting" class="svg-icon i-loading w-4 h-4"></span>
-                    <span v-else>{{ item.size }}</span>
-                  </div>
-                </td>
-                <td>
-                  <div class="flex flex-col items-center">
-                    <span v-if="sizeRequesting" class="svg-icon i-loading w-4 h-4"></span>
-                    <div v-else>
-                      <svg
-                        v-if="item.gated"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke-width="1"
-                        stroke="currentColor"
-                        class="size-6 ml-2"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
-                        />
-                      </svg>
-                      <svg
-                        v-else
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke-width="1"
-                        stroke="currentColor"
-                        class="size-6 ml-2"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
-                        />
-                      </svg>
+        <!-- A batch of tens of models used to grow the box past the screen, taking
+             the terms checkbox and the buttons with it. The list scrolls instead,
+             and everything needed to act on it stays in view. -->
+        <div v-if="showConfirm" class="flex min-h-0 w-full flex-col items-center gap-5 text-center">
+          <div class="flex flex-col items-center gap-1">
+            <p>{{ i18nState.DOWNLOADER_CONFRIM_TIP }}</p>
+            <p class="text-sm text-muted-foreground">
+              {{ modelCountLabel }}
+              <template v-if="totalDownloadSize"> · {{ totalDownloadSize }}</template>
+            </p>
+          </div>
+          <div class="min-h-0 w-full flex-1 overflow-y-auto">
+            <table class="text-left w-full">
+              <thead class="sticky top-0 z-10 bg-card">
+                <tr class="text-center text-muted-foreground font-bold">
+                  <td class="text-left">{{ languages.DOWNLOADER_MODEL }}</td>
+                  <td>{{ languages.DOWNLOADER_FILE_SIZE }}</td>
+                  <td>{{ languages.DOWNLOADER_GATED }}</td>
+                  <td>{{ languages.DOWNLOADER_INFO }}</td>
+                  <td>{{ languages.DOWNLOADER_LICENSE }}</td>
+                  <td>{{ languages.DOWNLOADER_REASON }}</td>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in downloadModelRender" :key="item.repo_id">
+                  <td>{{ item.repo_id }}</td>
+                  <td>
+                    <div class="flex flex-col items-center">
+                      <span v-if="sizeRequesting" class="svg-icon i-loading w-4 h-4"></span>
+                      <span v-else>{{ item.size }}</span>
                     </div>
-                  </div>
-                </td>
-                <td>
-                  <div class="flex flex-col items-center">
-                    <a
-                      :href="getInfoUrl(item.repo_id, item.type)"
-                      target="_blank"
-                      class="text-primary text-sm"
+                  </td>
+                  <td>
+                    <div class="flex flex-col items-center">
+                      <span v-if="sizeRequesting" class="svg-icon i-loading w-4 h-4"></span>
+                      <div v-else>
+                        <svg
+                          v-if="item.gated"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke-width="1"
+                          stroke="currentColor"
+                          class="size-6 ml-2"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
+                          />
+                        </svg>
+                        <svg
+                          v-else
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke-width="1"
+                          stroke="currentColor"
+                          class="size-6 ml-2"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="flex flex-col items-center">
+                      <a
+                        :href="getInfoUrl(item.repo_id, item.type)"
+                        target="_blank"
+                        class="text-primary text-sm"
+                      >
+                        {{ i18nState.DOWNLOADER_TERMS }}
+                      </a>
+                    </div>
+                  </td>
+                  <td>
+                    <div
+                      class="flex flex-col items-center"
+                      v-if="item.additionalLicenseLink !== undefined"
                     >
-                      {{ i18nState.DOWNLOADER_TERMS }}
-                    </a>
-                  </div>
-                </td>
-                <td>
-                  <div
-                    class="flex flex-col items-center"
-                    v-if="item.additionalLicenseLink !== undefined"
-                  >
-                    <a
-                      :href="item.additionalLicenseLink"
-                      target="_blank"
-                      class="text-primary text-sm"
-                    >
-                      {{ i18nState.DOWNLOADER_TERMS }}
-                    </a>
-                  </div>
-                  <div class="flex flex-col items-center" v-else>-</div>
-                </td>
-                <td class="items-center text-sm text-green-400">
-                  {{ getFunctionTip(item.type) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div
-            v-if="
-              downloadModelRender.some((i) => i.gated && !i.accessGranted) &&
-              downloadModelRender.length === 1
-            "
-            class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg"
-          >
-            <span class="font-bold mx-4">{{ languages.DOWNLOADER_ACCESS_INFO_SINGLE }}</span>
-            <span class="text-left">
-              {{ !models.hfTokenIsValid ? languages.DOWNLOADER_GATED_TOKEN : '' }}
-              {{
-                downloadModelRender.some((i) => i.gated)
-                  ? languages.DOWNLOADER_GATED_ACCEPT_SINGLE
-                  : ''
-              }}
-              {{
-                downloadModelRender.some((i) => !i.accessGranted)
-                  ? languages.DOWNLOADER_ACCESS_ACCEPT_SINGLE
-                  : ''
-              }}
-            </span>
+                      <a
+                        :href="item.additionalLicenseLink"
+                        target="_blank"
+                        class="text-primary text-sm"
+                      >
+                        {{ i18nState.DOWNLOADER_TERMS }}
+                      </a>
+                    </div>
+                    <div class="flex flex-col items-center" v-else>-</div>
+                  </td>
+                  <td class="items-center text-sm text-green-400">
+                    {{ getFunctionTip(item.type) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <div
-            v-if="
-              downloadModelRender.some((i) => i.gated && !i.accessGranted) &&
-              downloadModelRender.length > 1
-            "
-            class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg"
-          >
-            <span class="font-bold mx-4">{{ languages.DOWNLOADER_ACCESS_INFO }}</span>
-            <span class="text-left">
-              {{ !models.hfTokenIsValid ? languages.DOWNLOADER_GATED_TOKEN : '' }}
-              {{
-                downloadModelRender.some((i) => i.gated) ? languages.DOWNLOADER_GATED_ACCEPT : ''
-              }}
-              {{
-                downloadModelRender.some((i) => !i.accessGranted)
-                  ? languages.DOWNLOADER_ACCESS_ACCEPT
-                  : ''
-              }}
-            </span>
-          </div>
-          <div
-            v-if="modelFolderReadOnly"
-            class="flex flex-col items-center gap-2 p-4 border border-amber-500 bg-amber-500/10 rounded-lg"
-          >
-            <span class="text-left">{{ languages.DOWNLOADER_READONLY_MODEL_DIR }}</span>
-          </div>
-          <label v-if="!modelFolderReadOnly" class="flex items-center gap-2">
-            <Checkbox v-model="readTerms" />
-            <span class="text-sm text-left">{{ languages.DOWNLOADER_TERMS_TIP }}</span>
-          </label>
-          <div class="flex justify-center items-center gap-9">
-            <button @click="cancelConfirm" class="bg-muted text-foreground py-1 px-4 rounded">
-              {{ i18nState.COM_CANCEL }}
-            </button>
-            <button
-              @click="confirmDownload"
-              :disabled="
-                modelFolderReadOnly ||
-                sizeRequesting ||
-                !readTerms ||
-                downloadModelRender.every((i) => !i.accessGranted)
+          <div class="flex w-full shrink-0 flex-col items-center gap-5">
+            <div
+              v-if="
+                downloadModelRender.some((i) => i.gated && !i.accessGranted) &&
+                downloadModelRender.length === 1
               "
-              class="bg-primary py-1 px-4 rounded"
+              class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg"
             >
-              {{ i18nState.COM_CONFIRM }}
-            </button>
+              <span class="font-bold mx-4">{{ languages.DOWNLOADER_ACCESS_INFO_SINGLE }}</span>
+              <span class="text-left">
+                {{ !models.hfTokenIsValid ? languages.DOWNLOADER_GATED_TOKEN : '' }}
+                {{
+                  downloadModelRender.some((i) => i.gated)
+                    ? languages.DOWNLOADER_GATED_ACCEPT_SINGLE
+                    : ''
+                }}
+                {{
+                  downloadModelRender.some((i) => !i.accessGranted)
+                    ? languages.DOWNLOADER_ACCESS_ACCEPT_SINGLE
+                    : ''
+                }}
+              </span>
+            </div>
+            <div
+              v-if="
+                downloadModelRender.some((i) => i.gated && !i.accessGranted) &&
+                downloadModelRender.length > 1
+              "
+              class="flex flex-col items-center gap-2 p-4 border border-red-600 bg-red-600/10 rounded-lg"
+            >
+              <span class="font-bold mx-4">{{ languages.DOWNLOADER_ACCESS_INFO }}</span>
+              <span class="text-left">
+                {{ !models.hfTokenIsValid ? languages.DOWNLOADER_GATED_TOKEN : '' }}
+                {{
+                  downloadModelRender.some((i) => i.gated) ? languages.DOWNLOADER_GATED_ACCEPT : ''
+                }}
+                {{
+                  downloadModelRender.some((i) => !i.accessGranted)
+                    ? languages.DOWNLOADER_ACCESS_ACCEPT
+                    : ''
+                }}
+              </span>
+            </div>
+            <div
+              v-if="modelFolderReadOnly"
+              class="flex flex-col items-center gap-2 p-4 border border-amber-500 bg-amber-500/10 rounded-lg"
+            >
+              <span class="text-left">{{ languages.DOWNLOADER_READONLY_MODEL_DIR }}</span>
+            </div>
+            <label v-if="!modelFolderReadOnly" class="flex items-center gap-2">
+              <Checkbox v-model="readTerms" />
+              <span class="text-sm text-left">{{ languages.DOWNLOADER_TERMS_TIP }}</span>
+            </label>
+            <div class="flex justify-center items-center gap-9">
+              <button @click="cancelConfirm" class="bg-muted text-foreground py-1 px-4 rounded">
+                {{ i18nState.COM_CANCEL }}
+              </button>
+              <button
+                @click="confirmDownload"
+                :disabled="
+                  modelFolderReadOnly ||
+                  sizeRequesting ||
+                  !readTerms ||
+                  downloadModelRender.every((i) => !i.accessGranted)
+                "
+                class="bg-primary py-1 px-4 rounded"
+              >
+                {{ i18nState.COM_CONFIRM }}
+              </button>
+            </div>
           </div>
         </div>
         <div v-else-if="hashError" class="flex flex-col items-center justify-center gap-4">
@@ -217,6 +230,7 @@ import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { EtaEstimator } from '@/lib/etaEstimator'
 import { aipgFetch } from '@/lib/loopbackAuth'
 import { fetchModelMeta, runModelDownload } from '@/lib/modelDownloader'
+import { parseHumanSize, sumHumanSizes } from '@/lib/humanSize'
 import { createCancellation } from '@/assets/js/errors/appError'
 
 const i18nState = useI18N().state
@@ -243,6 +257,24 @@ let abortController: AbortController
 const animate = ref(false)
 const readTerms = ref(false)
 const downloadModelRender = ref<DownloadModelRender[]>([])
+
+const modelCountLabel = computed(() =>
+  i18nState.DOWNLOADER_MODEL_COUNT.replace('{count}', String(downloadModelRender.value.length)),
+)
+
+// What the whole batch costs. With one model the per-row size says it already;
+// with thirty it is the only number that matters before confirming.
+//
+// All-or-nothing on purpose: `sumHumanSizes` skips what it cannot parse, and a
+// model the metadata call returned no size for ('' or '???') would then be
+// silently left out — a total that understates a multi-GB download is worse than
+// no total at all.
+const totalDownloadSize = computed(() => {
+  if (sizeRequesting.value) return undefined
+  const sizes = downloadModelRender.value.map((i) => i.size)
+  if (sizes.some((size) => parseHumanSize(size) === undefined)) return undefined
+  return sumHumanSizes(sizes)
+})
 const etaEstimator = new EtaEstimator(100)
 
 watch(downloadDialogVisible, async (isVisible) => {

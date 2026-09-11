@@ -169,7 +169,7 @@
                 </template>
 
                 <!-- Tool parts -->
-                <template v-else-if="isToolOrDynamicToolUIPart(part)">
+                <template v-else-if="isToolUIPart(part)">
                   <template v-if="isAipgTool(part) && part.type === 'tool-comfyUI'">
                     <div>
                       <span v-if="part.state === 'input-streaming' && !part.input?.workflow"
@@ -207,6 +207,42 @@
                       <span
                         ><em>{{ part.input?.prompt ?? '' }}</em></span
                       >
+                      <ChatWorkflowResult
+                        :images="getToolImages(part)"
+                        :processing="getToolProcessing(part)"
+                        :currentState="getToolCurrentState(part)"
+                        :stepText="getToolStepText(part)"
+                        :toolCallId="(part as any).toolCallId"
+                      />
+                    </div>
+                  </template>
+                  <!-- Thin media delegation tool: the nested media agent reports its
+                       steps to mediaAgentRuns (keyed by toolCallId), which the
+                       timeline renders live; the shared imageGeneration store still
+                       feeds ChatWorkflowResult through toolProgressMap. -->
+                  <template v-else-if="isAipgTool(part) && part.type === 'tool-media'">
+                    <div>
+                      <span v-if="part.state === 'input-streaming' && !part.input?.request"
+                        >Creating media…</span
+                      >
+                      <span v-else>
+                        Creating media:
+                        <em>{{ part.input?.request ?? '' }}</em>
+                      </span>
+                      <MediaAgentTimeline
+                        class="mt-2"
+                        :tool-call-id="(part as any).toolCallId"
+                        :fallback-steps="(part as any).output?.steps"
+                      />
+                      <div
+                        v-if="
+                          part.state === 'output-available' &&
+                          (part as any).output?.success === false
+                        "
+                        class="mt-2 text-sm text-destructive"
+                      >
+                        {{ (part as any).output?.message ?? 'Media generation failed.' }}
+                      </div>
                       <ChatWorkflowResult
                         :images="getToolImages(part)"
                         :processing="getToolProcessing(part)"
@@ -313,7 +349,7 @@
                     <ChatMcpToolDisplay :part="part" :state="part.state" />
                   </template>
                   <template v-else>
-                    <ChatToolDisplay :part="part" :state="part.state" />
+                    <ChatToolDisplay :part="part" :state="part.state" :input="part.input" />
                   </template>
                 </template>
               </template>
@@ -351,7 +387,7 @@
                 <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
               </button>
               <button
-                v-if="textToSpeech.enabled"
+                v-if="textToSpeech.available"
                 class="flex items-end"
                 title="Speak"
                 :disabled="openAiCompatibleChat.processing"
@@ -436,6 +472,7 @@ import { useErrors } from '@/assets/js/store/errors'
 import { createAppError } from '@/assets/js/errors/appError'
 import { useTextToSpeech } from '@/assets/js/store/textToSpeech'
 import ChatWorkflowResult from '@/components/ChatWorkflowResult.vue'
+import MediaAgentTimeline from '@/components/MediaAgentTimeline.vue'
 import ChatMcpToolDisplay from '@/components/ChatMcpToolDisplay.vue'
 import ChatToolDisplay from '@/components/ChatToolDisplay.vue'
 import ChatWebBrowseDisplay, { type WebBrowseEntry } from '@/components/ChatWebBrowseDisplay.vue'
@@ -452,7 +489,7 @@ import {
   type GenerateState,
 } from '@/assets/js/store/imageGenerationPresets'
 import { useComfyUiPresets } from '@/assets/js/store/comfyUiPresets'
-import { DynamicToolUIPart, isToolOrDynamicToolUIPart, ToolUIPart } from 'ai'
+import { DynamicToolUIPart, isToolUIPart, ToolUIPart } from 'ai'
 import { aipgTools, AipgTools } from '@/assets/js/tools/tools'
 import { UserCircleIcon } from '@heroicons/vue/24/outline'
 
@@ -489,7 +526,7 @@ function messageHasVisibleContent(message: { parts?: { type: string; text?: stri
     message.parts?.some((part) => {
       if (part.type === 'text') return stripAipgMediaImages(part.text ?? '').length > 0
       if (part.type === 'reasoning') return true
-      return isToolOrDynamicToolUIPart(part as Parameters<typeof isToolOrDynamicToolUIPart>[0])
+      return isToolUIPart(part as Parameters<typeof isToolUIPart>[0])
     }) ?? false
   )
 }
@@ -538,9 +575,15 @@ defineExpose({
   scrollToBottom,
 })
 
+// The Audio mode streams into this same view (TTS audio bubbles, STT transcripts),
+// so it submits and cancels through the same handlers.
+const chatLikeModes: ChatLikeModeType[] = ['chat', 'audio']
+
 onMounted(() => {
-  promptStore.registerSubmitCallback('chat', handlePromptSubmit)
-  promptStore.registerCancelCallback('chat', handleCancel)
+  for (const mode of chatLikeModes) {
+    promptStore.registerSubmitCallback(mode, handlePromptSubmit)
+    promptStore.registerCancelCallback(mode, handleCancel)
+  }
 })
 
 // When async content (e.g. a generated picture) finishes loading, the panel
@@ -557,8 +600,10 @@ watch(chatPanel, (el, _old, onCleanup) => {
 })
 
 onUnmounted(() => {
-  promptStore.unregisterSubmitCallback('chat')
-  promptStore.unregisterCancelCallback('chat')
+  for (const mode of chatLikeModes) {
+    promptStore.unregisterSubmitCallback(mode)
+    promptStore.unregisterCancelCallback(mode)
+  }
 })
 
 watch(
@@ -685,7 +730,8 @@ watch(
   () => openAiCompatibleChat.processing,
   (processing, wasProcessing) => {
     if (!(wasProcessing && !processing)) return
-    if (!textToSpeech.enabled || !textToSpeech.autoSpeakOnVoiceInput) return
+    // "Speak replies" for the active preset (edited on the Text To Speech tool row).
+    if (!textToSpeech.available || !textInference.speakRepliesAllowed()) return
     if (!textToSpeech.pendingVoiceTurn) return
 
     textToSpeech.pendingVoiceTurn = false
@@ -702,8 +748,15 @@ watch(
 )
 
 // Helper functions for AIPG tool rendering
+// The tool part types that produce media through the shared imageGeneration
+// store (and therefore share the toolProgressMap live-progress tracking).
+const mediaToolPartTypes = new Set(['tool-comfyUI', 'tool-comfyUiImageEdit', 'tool-media'])
+function isMediaToolPart(part: { type: string }): boolean {
+  return mediaToolPartTypes.has(part.type)
+}
+
 function getToolImages(part: ToolUIPart<AipgTools>): MediaItem[] {
-  if (!(part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit')) return []
+  if (!isMediaToolPart(part)) return []
   const toolCallId = part.toolCallId
   const progress = toolProgressMap[toolCallId]
 
@@ -712,10 +765,14 @@ function getToolImages(part: ToolUIPart<AipgTools>): MediaItem[] {
     return progress.images
   }
 
-  // Otherwise, use output images if available
+  // Otherwise, use output images if available (e.g. after a reload)
   if (part.state === 'output-available') {
-    if (!part.output) return []
-    return part.output.images.map((img) => ({ ...img, state: 'done' as const }))
+    const output = part.output as { images?: unknown[] } | undefined
+    if (!output?.images) return []
+    return output.images.map((img) => ({
+      ...(img as MediaItem),
+      state: 'done' as const,
+    }))
   }
 
   return []
@@ -872,7 +929,7 @@ watch(
     // Find tool calls that just started (input-streaming or input-available)
     messages.forEach((msg) => {
       msg.parts.forEach((part) => {
-        if (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') {
+        if (isMediaToolPart(part) && 'toolCallId' in part) {
           const toolCallId = part.toolCallId
           const state = part.state
 
@@ -911,11 +968,12 @@ watch(
         ?.flatMap((msg) => msg.parts)
         .filter(
           (part) =>
-            (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') &&
+            isMediaToolPart(part) &&
+            'state' in part &&
             (part.state === 'input-streaming' || part.state === 'input-available'),
         )
         .map((part) => ({
-          toolCallId: part.toolCallId,
+          toolCallId: (part as { toolCallId: string }).toolCallId,
           part,
         })) || []
 
@@ -958,10 +1016,11 @@ watch(
         ?.flatMap((msg) => msg.parts)
         .filter(
           (part) =>
-            (part.type === 'tool-comfyUI' || part.type === 'tool-comfyUiImageEdit') &&
+            isMediaToolPart(part) &&
+            'state' in part &&
             (part.state === 'input-streaming' || part.state === 'input-available'),
         )
-        .map((part) => part.toolCallId) || [],
+        .map((part) => (part as { toolCallId: string }).toolCallId) || [],
     )
 
     Object.keys(toolProgressMap).forEach((toolCallId) => {

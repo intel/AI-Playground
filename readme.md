@@ -4,23 +4,41 @@
 </a>
 
 # AI PLAYGROUND
-<img width="2025" height="593" alt="image" src="https://github.com/user-attachments/assets/76c47f53-cd1b-419c-9ffb-43ba2369c84b" />
+<img width="1498" height="699" alt="AI Playground 3.2 — Intel AI PC generative AI suite" src="docs/readme/hero-3.2.png" />
 
 
-Welcome to AI Playground open source project and AI PC generative AI application suite. This application provides a full suite of generative AI features for chat, code assistance, document search, image analysis, image and video generation. All features run offline and are powered by your PC’s Intel® Core™ Ultra with built-in Intel Arc GPU or Intel Arc™ dGPU Series A or B with 8GB+ of vRAM.
+Welcome to AI Playground open source project and AI PC generative AI application suite. This application provides a full suite of generative AI features for chat, image generation, video generation, code assistance, document search, image analysis, and more. Features can run offline on your PC’s Intel® Core™ Ultra with built-in Intel Arc GPU, Intel Arc™ dGPU Series A or B with 8GB+ of vRAM, or NVIDIA RTX GPUs—or you can optionally use Hybrid Cloud mode to run frontier models from providers such as ChatGPT, Claude, Gemini, and Grok while you manage models, cost, and control of your data.
 
-AI Playground is intended to act as an offline alternative to cloud tools such Gemini ChatGPT and Grok.  AI Playground leverages libraries from GitHub and Huggingface including:
-- Image Diffusion (PyTorch): Stable Diffusion 1.5, SDXL, Flux.1-Schnell, Flux.1 Kontext[dev], Z-Image, Wan2.1 VACE, LTX-Video
-- LLM: GGUF (Llama.cpp Vulkan) - Gemma4, Qwen3.5, Qwen3 VL, GPT-OSS 20B, DeepSeek R1 Distilled, Phi3, Mistral 7B, Llama 3.2: OpenVINO - TinyLlama, Mistral 7B, Phi3 mini, Phi3.5 mini, DeepSeek R1 Distill (1.5B, 7B)
-<img width="3221" height="1849" alt="image" src="https://github.com/user-attachments/assets/da8f2870-3d48-49ac-bf82-8feb44f460ee" />
+AI Playground is intended to act as an offline alternative to cloud tools such as Gemini, ChatGPT, and Grok.  AI Playground leverages libraries from GitHub and Huggingface including:
+- Image Diffusion (PyTorch): Stable Diffusion 1.5, SDXL, Flux.1-Schnell, Flux.1 Kontext[dev], Flux.2 Klein, Z-Image, ERNIE-Image, Wan 2.1/2.2, LTX-Video, LTX-2.3
+- LLM: GGUF (Llama.cpp Vulkan) - Gemma 4, Qwen3.5, Qwen3.6, Qwen3 VL, GPT-OSS 20B, DeepSeek R1 Distilled, Phi3, Mistral 7B, Llama 3.2: OpenVINO - TinyLlama, Mistral 7B, Phi3 mini, Phi3.5 mini, DeepSeek R1 Distill (1.5B, 7B). Optional Hybrid Cloud backends connect to hosted models via your API keys.
+<img width="1539" height="462" alt="AI Playground 3.2 Chat Assistant with mode bar and agent presets" src="docs/readme/chat-assistant-ui.png" />
 
-As a local alternative to cloud AI service, AI Playground is intended to give consumers and AI curious prosumers easy and intuitive access to a wide variety of generative AI features using their Intel powered AI PC. This means you can be offline, without loading sensitive or personal data to 3rd party sites, for free, in a single app without having to know how to install and manage multiple AI backend frameworks.   Key features:
-- Latest and greatest chat models: Support for Gemma4, Qwen3.5, Qwen 3 VL, Mistral 7B, DeepSeek R1 or GPT-OSS, AI playground makes a variety of chat models available to users
-- Vision, Reasoning and RAG: Chat features support Vision, Reasoning and RAG to analyze and get deep answers on both visual and text content
-Analyze images with Qwen3 VL Model	Vibe Coding with GPT-OSS 20B Reasoning	Document RAG with Mistral 7B Instruct
-- Image Generation: From Stable Diffusion 1.5, SDXL, Flux.1 and Z-image models AI Playground is making a breadth of image generation from quick easy low-res draft generation to high quality image generation
+As a local alternative to cloud AI services, AI Playground is intended to give consumers and AI curious prosumers easy and intuitive access to a wide variety of generative AI features using their Intel powered AI PC. This means you can be offline, without loading sensitive or personal data to 3rd party sites, for free, in a single app without having to know how to install and manage multiple AI backend frameworks.   Key features:
+- Chat Assistant: One preset for vision, reasoning, document RAG, tool calling, and MCP—run image, video, and editing workflows from chat when tools are enabled
+- Latest chat models: Gemma 4, Qwen3.5, Qwen3.6, Qwen3 VL, Mistral 7B, DeepSeek R1, GPT-OSS, and more via Llama.cpp or OpenVINO; browse, favorite, and download from the Model Manager (cylinder icon in the title bar)
+- Game Agent & Quick Coder: Agentic presets to create HTML games (plan, debug, play-test, and thumbnails with Game Agent; faster one-shot creation with Quick Coder)
+- Audio mode: Speech-to-text and text-to-speech presets (including voice design and custom voices)
+- Hybrid Cloud (optional): Use frontier models from top providers when you configure API keys in the Set Up wizard—local features still work without it
+<img width="1482" height="447" alt="Image generation presets in AI Playground" src="docs/readme/feature-image-gen.png" /> <img width="1495" height="445" alt="Image editing presets in AI Playground" src="docs/readme/feature-image-edit.png" /> <img width="1503" height="461" alt="Video generation presets in AI Playground" src="docs/readme/feature-video-gen.png" />
+
+Image generation presets	Image editing presets	Video generation presets
+- Agentic chat & MCP: Tool calling connects chat to built-in media tools and external apps (for example Blender via MCP)
+<img width="1779" height="1049" alt="Agentic chat with MCP tool calling in AI Playground" src="docs/readme/agentic-mcp-blender.png" />
+- Image Generation: From Stable Diffusion 1.5, SDXL, Flux.1, Z-Image, and ERNIE-Image—draft through Pro-quality presets with strong prompt adherence
 - Image Editing: Subscription free and private control for upscaling, inpainting, outpainting, 2D to 3D mesh or editing images in a variety of ways.  Good for editing personal photos to taking sketches and generated images to the next level with greater control.
-- Remote Phone Access: Home Agent feature, allows you to run AI Playground features, while remote, using a chat application from your phone to send prompts and receive results, while your home PC does the work. (Telegram and Slack currently supported)
+- Video Generation: Text- and image-guided clips (LTX, WAN, and related presets; best on discrete GPUs or high-memory Core Ultra systems)
+- Remote access — Home Agent: Run AI Playground from Telegram, Slack, or a LAN web chat on your phone while your home PC does the work
+- Help mode: Toggle contextual guidance in the UI (? icon) for presets, settings, and core areas
+
+### UI overview
+Figure 1: Screenshot of user interface with the light color theme and Chat History Panel and Footer Panel exposed
+
+<img width="1637" height="922" alt="AI Playground light theme with chat history" src="docs/readme/ui-light-history.png" />
+
+Figure 2: Screenshot of user interface using the default color theme, with the App Settings Panel and Prompt Settings Panel exposed
+
+<img width="1635" height="920" alt="AI Playground default theme with app and prompt settings" src="docs/readme/ui-dark-settings.png" />
 
 ## README.md
 - English (readme.md)
@@ -28,20 +46,25 @@ Analyze images with Qwen3 VL Model	Vibe Coding with GPT-OSS 20B Reasoning	Docume
 ## Min Specs
 AI Playground alpha and beta installers are currently available downloadable executables, or available as a source code from our Github repository.  To run AI Playground you must have a PC that meets the following specifications
 
-*	Windows OS or Ubuntu Linux
-*	Intel Core Ultra Series 3, Series 2H, Series 2V, or Series 1 H processor OR Intel Arc GPU Series A or Series B (discrete) with 8GB of vRAM, or Nvidia RTX GPU
-*	Home Agent feature requires a minimum of 32GB of system memory on Intel Core Ultra systems or 16GB of vRAM on discrete GPUs
+*	Windows OS or Linux Ubuntu
+*	AI Playground Essentials: Intel Core Series 3 with 12GB of system memory (basic chat, RAG chat, basic image gen and editing)
+*	AI Playground Studio: Intel Core Ultra (Series 3, Series 2 V/H, or Series 1 H) or Intel Arc discrete GPU (Series A or B) with at least 8GB of vRAM (full feature set in the [Users Guide](https://github.com/intel/AI-Playground/blob/main/AI%20Playground%20Users%20Guide.pdf))
+*	AI Playground Studio for NVIDIA CUDA: PC with NVIDIA GeForce RTX discrete GPU with 8GB+ of vRAM (experimental; OpenVINO is not supported in this mode)
+*	82GB+ of disk space recommended (application ~6GB; models require additional space)
+*	Home Agent feature requires a minimum of 32GB of system memory on Intel Core Ultra laptops, or 16GB of vRAM on discrete GPU systems
 
 ## Installation - Packaged Installer: 
 This is a single packaged installer for all supported hardware mentioned above. This installer simplifies the process for end users to install AI Playground on their PCs. Please note that while this makes the installation process easier, this is open-source beta software, and there may be component and version conflicts. Refer to the Troubleshooting section for known issues.
 
 ### Download the installer
-:new: **AI Playground 3.1.2 beta-hf3 (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v3.1.2-beta_hf3) | [Windows Installer](https://github.com/intel/AI-Playground/releases/download/v3.1.2-beta_hf3/AI-Playground-installer.exe) | [Linux Installer](https://github.com/intel/AI-Playground/releases/download/v3.1.2-beta_hf3/AI-Playground-installer.deb)
+:new: **AI Playground 3.2.0 beta (all SKUs)** - [Release Notes](https://github.com/intel/AI-Playground/releases/tag/v3.2.0-beta-rc2) | [Windows Installer](https://github.com/intel/AI-Playground/releases/download/v3.2.0-beta-rc2/AI-Playground-installer.exe) | [Linux Installer](https://github.com/intel/AI-Playground/releases/download/v3.2.0-beta-rc2/AI-Playground-installer.deb)
+
+Previous release: [AI Playground 3.1.2 beta-hf3](https://github.com/intel/AI-Playground/releases/tag/v3.1.2-beta_hf3)
 
 ### Installation Process for v3.x
-1. The installer only installs the Electron frontend, so it completes very quickly.
-2. On the first run, AI Playground Setup window appears where you can select from hardware modes and needed backend components for AI Playground to function properly. This process requires a strong and open network and may **take several minutes**.
-3. Download the Users Guide for application information: [AI Playground Users Guide](https://github.com/intel/AI-Playground/blob/main/AI%20Playground%20Users%20Guide.pdf)
+1. The packaged installer targets all supported hardware above and prepares the AI Playground runtime for first launch.
+2. On first run, the AI Playground Set Up wizard appears. Choose a hardware mode (Essentials, Studio, or Studio for NVIDIA CUDA) and install backend components (Llama.cpp, OpenVINO, ComfyUI, and optional Home Agent, Hybrid Cloud, and Audio). It is recommended to keep default hardware settings and enable all components, then click Install and Continue. This step needs a clear, unfiltered internet connection (corporate VPNs often cause failures) and may **take several minutes**.
+3. Download the Users Guide for full application information: [AI Playground Users Guide v3.2](https://github.com/intel/AI-Playground/blob/main/AI%20Playground%20Users%20Guide.pdf)
 
 ### Troubleshooting Installation
 The following are known situations where your installation may be blocked or interrupted.  Review the following to remedy installations issues.  If installation issues persist, generate a copy of the log by typing CTRL+SHIFT+I, select the console tab and copy the last few entries of the log written where the installer failed.  Provide these details to us via the issues tab here, or via the Intel Insiders Discord, or Graphics forum on Intel's support site.
@@ -51,7 +74,7 @@ The following are known situations where your installation may be blocked or int
   * Anti-Virus software - features needed to read and write embedding cache may not be properly installed:  Disable anti-virus, restart 
 2. **Restart**: Time-out issues have been sighted, which show as a failed install but resolve when restarting AI Playground
 3. **Verify Intel Arc GPU**: Ensure your system has an Intel Arc GPU with the lastest driver. Go to your Windows Start Menu, type "Device Manager," and under Display Adapters, check the name of your GPU device. It should describe an Intel Arc GPU. If so, then you you have a GPU that means our minimum specifications.  If it says "Intel(R) Graphics," your system does not have a built-in Intel Arc GPU and does not meet the minimum specifications. If your GPU is an discrete GPU such as Intel Arc A or B series GPU, then you can troubleshoot a troubled installation by disabling the iGPU in Device Manager
-4. **Interrupted Installation**: The online installation for backend components can be interrupted or blocked by an IT network, firewall, or sleep settings. Ensure you are on an open network, with the firewall off, and set sleep settings to stay awake when powered on.
+4. **Interrupted Installation**: The online installation for backend components can be interrupted or blocked by an IT network, firewall, corporate VPN, or sleep settings. Disconnect from corporate VPN for the Set Up wizard when possible; otherwise use an open network, with the firewall off, and set sleep settings to stay awake when powered on.
 5. **Missing Libraries**: Some Windows systems may be missing needed libraries. This can be fixed by installing the 64-bit VC++ redistribution from Microsoft [here](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170). It is recommended this be done after updating the Graphics drivers. Then install AI Playground.
 6. **Python Conflict**: Some PCs with an existing installation of Python can cause a conflict with AI Playground installation, where the wrong or conflicting packages are installed due to the incorrect version or location of Python on the system.  This is usually remedied by uninstalling Python environment, restarting and reinstalling AI Playground
 7.  **Temp Files**: Should the installation be interrupted because of any of the above issues it is possible that temporary installation files have been left behind and trying to install with these files in place can block the installation. Remove these files or do a clean install of AI Playground to remedy
@@ -122,7 +145,11 @@ To build the installer, run:
 npm run build
 ```
 
-The installer executable will be located in the `build/electron` folder.
+The installer executable will be located in the `build/electron` folder. Its name
+identifies the build it came from: a release tag when the build was started by
+pushing one (`AI.Playground-3.2.0-alpha.test8.exe`), otherwise the app version
+plus the short commit (`AI.Playground-3.2.0-alpha.8adad7c.exe`). The same commit
+and tag are shown when hovering the version in the app's footer.
 
 ### Build and run on Linux (AppImage or .deb)
 
@@ -144,7 +171,7 @@ root) and a **`.deb`** package for a system-wide install via `apt`.
    npm run build:linux
    ```
 
-   Both `AI Playground-<version>.AppImage` and `AI Playground-<version>.deb` are
+   Both `AI.Playground-<build>.AppImage` and `AI.Playground-<build>.deb` are
    written to `build/electron`. The build host needs `ar` (from `binutils`,
    usually already present) to assemble the `.deb`.
 
@@ -158,8 +185,8 @@ root) and a **`.deb`** package for a system-wide install via `apt`.
 
    ```bash
    cd build/electron
-   chmod +x "AI Playground-"*.AppImage
-   ./"AI Playground-"*.AppImage
+   chmod +x AI.Playground-*.AppImage
+   ./AI.Playground-*.AppImage
    ```
 
    `--no-sandbox` is baked into the launcher (see `build/scripts/after-pack.cjs`),
@@ -176,7 +203,7 @@ root) and a **`.deb`** package for a system-wide install via `apt`.
 
    ```bash
    cd build/electron
-   sudo apt install ./"AI Playground-"*.deb
+   sudo apt install ./AI.Playground-*.deb
    ```
 
    This installs the app system-wide; launch it as **AI Playground** from your
@@ -262,7 +289,7 @@ For interactive `curl` calls (e.g. fetching the NPU driver tarball from
 `github.com` which redirects to AWS), pass `--proxy "$http_proxy"` explicitly.
 
 ## Model Support
-AI Playground does not ship with any generative AI models but does make models available for all features either directly from the interface or indirectly by the users downloading models from HuggingFace.co or CivitAI.com and placing them in the appropriate model folder. 
+AI Playground does not ship with generative AI models pre-installed. When a task needs a model that is not on disk, the app prompts you to download it (after you accept the model’s terms on the provider site). Use the Model Manager (cylinder icon in the title bar) to browse, search, filter, favorite, download, add Hugging Face paths, and remove models. You can also download models from HuggingFace.co or CivitAI.com and place them in the appropriate model folder. 
 
 Models currently linked from the application 
 
@@ -330,12 +357,12 @@ Models currently linked from the application
 Be sure to check license terms for any model used in AI Playground especially taking note of any restrictions.
 
 ### Use Alternative Models
-Check the [User Guide](https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf) for details or [watch this video](https://www.youtube.com/watch?v=1FXrk9Xcx2g) on how to add alternative Stable Diffusion models to AI Playground
+Check the [User Guide](https://github.com/intel/AI-Playground/blob/main/AI%20Playground%20Users%20Guide.pdf) for details or [watch this video](https://www.youtube.com/watch?v=1FXrk9Xcx2g) on how to add alternative Stable Diffusion models to AI Playground
 
 
 ## Notices and Disclaimers: 
 For information on AI Playground terms, license and disclaimers, visit the project and files on GitHub repo:</br >
-[License](https://github.com/intel/ai-playground/blob/main/LICENSE) | [Notices & Disclaimers](https://github.com/intel/ai-playground/blob/main/notices-disclaimers.md)
+[License](https://github.com/intel/AI-Playground/blob/main/LICENSE) | [Notices & Disclaimers](https://github.com/intel/AI-Playground/blob/main/notices-disclaimers.md)
 
 The software may include third party components with separate legal notices or governed by other agreements, as may be described in the Third Party Notices file accompanying the software.
 

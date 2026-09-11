@@ -1,13 +1,31 @@
-import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 import pkg from '../package.json'
 import { LocalSettings } from './main'
 import { ModelPaths } from '@/assets/js/store/models'
-import { EmbedInquiry, IndexedDocument } from '@/assets/js/store/textInference'
+import {
+  EmbedInquiry,
+  IndexedDocument,
+  WarmupRequest,
+  PhisonKmIngestConfig,
+} from '@/assets/js/store/textInference'
+import type { AgentModeTurnConfig } from '@/types/agentIpc'
+
+function listen<T>(channel: string, callback: (data: T) => void): () => void {
+  const listener = (_event: IpcRendererEvent, data: T) => callback(data)
+  ipcRenderer.on(channel, listener)
+  return () => {
+    ipcRenderer.removeListener(channel, listener)
+  }
+}
 
 contextBridge.exposeInMainWorld('envVars', {
   platformTitle: import.meta.env.VITE_PLATFORM_TITLE,
   debugToolsEnabled: import.meta.env.VITE_DEBUG_TOOLS === 'true',
   productVersion: pkg.version,
+  // Which build this is, baked in by vite.config.mts. Empty when the source has
+  // no git history (an exported tree), so the UI must treat them as optional.
+  gitCommit: import.meta.env.VITE_GIT_COMMIT ?? '',
+  gitTag: import.meta.env.VITE_GIT_TAG ?? '',
 })
 contextBridge.exposeInMainWorld('electronAPI', {
   startDrag: (fileName: string) => ipcRenderer.send('ondragstart', fileName),
@@ -37,10 +55,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('getInstalledBackendVersion', serviceName),
   getGitHubRepoUrl: () => ipcRenderer.invoke('getGitHubRepoUrl'),
   openDevTools: () => ipcRenderer.send('openDevTools'),
+  setVerboseAgentLogging: (enabled: boolean) => ipcRenderer.send('setVerboseAgentLogging', enabled),
   getDeveloperSettings: () => ipcRenderer.invoke('getDeveloperSettings'),
   openUrl: (url: string) => ipcRenderer.send('openUrl', url),
   getLocaleSettings: () => ipcRenderer.invoke('getLocaleSettings'),
-  getThemeSettings: () => ipcRenderer.invoke('getThemeSettings'),
   updateLocalSettings: (updates: Partial<LocalSettings>) =>
     ipcRenderer.invoke('updateLocalSettings', updates),
   getLocalSettings: () => ipcRenderer.invoke('getLocalSettings'),
@@ -67,10 +85,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   reportClientEvent: (eventId: number) => ipcRenderer.send('reportClientEvent', eventId),
   saveImage: (url: string) => ipcRenderer.send('saveImage', url),
   saveImageToMediaInput: (dataUri: string) => ipcRenderer.invoke('saveImageToMediaInput', dataUri),
-  saveGeneratedAudio: (audioBase64: string, filename: string) =>
-    ipcRenderer.invoke('saveGeneratedAudio', audioBase64, filename),
+  saveGeneratedAudio: (audioBase64: string, filename: string, options?: { overwrite?: boolean }) =>
+    ipcRenderer.invoke('saveGeneratedAudio', audioBase64, filename, options),
   readLocalAudioAsDataUri: (filePath: string) =>
     ipcRenderer.invoke('readLocalAudioAsDataUri', filePath),
+  deleteGeneratedAudio: (filePath: string) => ipcRenderer.invoke('deleteGeneratedAudio', filePath),
   readAipgMediaAsBase64: (url: string) => ipcRenderer.invoke('readAipgMediaAsBase64', url),
   wakeupApiService: () => ipcRenderer.send('wakeupApiService'),
   openImageWin: (url: string, title: string, width: number, height: number) =>
@@ -84,9 +103,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
       callback(seriveName, normalExit),
     ),
   existsPath: (path: string) => ipcRenderer.invoke('existsPath', path),
-  addDocumentToRAGList: (doc: IndexedDocument) => ipcRenderer.invoke('addDocumentToRAGList', doc),
+  addDocumentToRAGList: (doc: IndexedDocument, phisonKmConfig?: PhisonKmIngestConfig) =>
+    ipcRenderer.invoke('addDocumentToRAGList', doc, phisonKmConfig),
   embedInputUsingRag: (embedInquiry: EmbedInquiry) =>
     ipcRenderer.invoke('embedInputUsingRag', embedInquiry),
+  warmupKVCacheForDocument: (request: WarmupRequest) =>
+    ipcRenderer.invoke('warmupKVCacheForDocument', request),
   getEmbeddingServerUrl: (serviceName: string) =>
     ipcRenderer.invoke('getEmbeddingServerUrl', serviceName),
   ensureEmbeddingServerReady: (serviceName: string, embeddingModelName: string) =>
@@ -95,13 +117,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateModelPaths: (modelPaths: ModelPaths) => ipcRenderer.invoke('updateModelPaths', modelPaths),
   restorePathsSettings: () => ipcRenderer.invoke('restorePathsSettings'),
   loadModels: () => ipcRenderer.invoke('loadModels'),
+  getLaminarConfig: () => ipcRenderer.invoke('getLaminarConfig'),
+  laminarTelemetryEvent: (name: string, payload: string) =>
+    ipcRenderer.send('laminarTelemetryEvent', name, payload),
   zoomIn: () => ipcRenderer.invoke('zoomIn'),
   zoomOut: () => ipcRenderer.invoke('zoomOut'),
   getDownloadedGGUFLLMs: () => ipcRenderer.invoke('getDownloadedGGUFLLMs'),
   getDownloadedOpenVINOLLMModels: () => ipcRenderer.invoke('getDownloadedOpenVINOLLMModels'),
   getDownloadedEmbeddingModels: () => ipcRenderer.invoke('getDownloadedEmbeddingModels'),
   getComfyUIModels: (modelType: string) => ipcRenderer.invoke('getComfyUIModels', modelType),
+  scanModelLibrary: () => ipcRenderer.invoke('scanModelLibrary'),
+  showModelInFolder: (modelPath: string) => ipcRenderer.invoke('showModelInFolder', modelPath),
+  deleteModelPath: (modelPath: string) => ipcRenderer.invoke('deleteModelPath', modelPath),
   getPlatform: () => ipcRenderer.invoke('getPlatform') as Promise<NodeJS.Platform>,
+  safeStorage: {
+    isEncryptionAvailable: () => ipcRenderer.invoke('safeStorage:isEncryptionAvailable'),
+    enablePlainTextEncryption: () => ipcRenderer.invoke('safeStorage:enablePlainTextEncryption'),
+  },
   openImageWithSystem: (url: string) => ipcRenderer.send('openImageWithSystem', url),
   openImageInFolder: (url: string) => ipcRenderer.send('openImageInFolder', url),
   setFullScreen: (enable: boolean) => ipcRenderer.send('setFullScreen', enable),
@@ -111,6 +143,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getComfyUiDefaultParameters: () => ipcRenderer.invoke('getComfyUiDefaultParameters'),
   getLlamaCppDefaultParameters: () => ipcRenderer.invoke('getLlamaCppDefaultParameters'),
   detectPhisonSsd: () => ipcRenderer.invoke('detectPhisonSsd') as Promise<{ detected: boolean }>,
+  detectOem: () => ipcRenderer.invoke('detectOem'),
   onServiceSetUpProgress: (callback: (data: SetupProgress) => void) =>
     ipcRenderer.on('serviceSetUpProgress', (_event, value) => callback(value)),
   onServiceInfoUpdate: (callback: (service: ApiServiceInformation) => void) =>
@@ -122,6 +155,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     llmModelName: string,
     embeddingModelName?: string,
     contextSize?: number,
+    modelArgs?: string,
   ) =>
     ipcRenderer.invoke(
       'ensureBackendReadiness',
@@ -129,6 +163,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       llmModelName,
       embeddingModelName,
       contextSize,
+      modelArgs,
     ),
   ensureComfyUIBackendRunning: () => ipcRenderer.invoke('ensureComfyUIBackendRunning'),
   startTranscriptionServer: (modelName: string) =>
@@ -229,6 +264,66 @@ contextBridge.exposeInMainWorld('electronAPI', {
           },
     ) => ipcRenderer.invoke('mcp:updateServer', serverId, config),
     removeServer: (serverId: string) => ipcRenderer.invoke('mcp:removeServer', serverId),
+  },
+  agentMode: {
+    startTurn: (turnId: string, prompt: string, config: AgentModeTurnConfig) =>
+      ipcRenderer.invoke('agentMode:startTurn', turnId, prompt, config),
+    cancel: () => ipcRenderer.invoke('agentMode:cancel'),
+    resetSession: () => ipcRenderer.invoke('agentMode:resetSession'),
+    deleteSession: (sessionId: string) => ipcRenderer.invoke('agentMode:deleteSession', sessionId),
+    importAttachment: (workspaceDir: string, name: string, bytes: Uint8Array) =>
+      ipcRenderer.invoke('agentMode:importAttachment', workspaceDir, name, bytes),
+    listCapabilities: (options: {
+      workspaceDir?: string
+      toolSpecs?: unknown[]
+      mcpServerIds?: string[]
+    }) => ipcRenderer.invoke('agentMode:listCapabilities', options),
+    onStreamChunk: (callback: (data: { turnId: string; chunk: unknown }) => void) =>
+      listen('agentMode:streamChunk', callback),
+    onToolProgress: (
+      callback: (data: {
+        turnId: string
+        toolCallId: string
+        toolName: string
+        text: string
+      }) => void,
+    ) => listen('agentMode:toolProgress', callback),
+    onToolImage: (
+      callback: (data: { toolCallId: string; dataUri: string; label: string }) => void,
+    ) => listen('agentMode:toolImage', callback),
+    onTurnDone: (callback: (data: { turnId: string }) => void) =>
+      listen('agentMode:turnDone', callback),
+    onExecuteTool: (
+      callback: (data: {
+        requestId: string
+        toolCallId: string
+        toolName: string
+        input: unknown
+      }) => void,
+    ) => listen('agentMode:executeTool', callback),
+    submitToolResult: (requestId: string, result: unknown, error?: string) =>
+      ipcRenderer.invoke('agentMode:toolResult', requestId, result, error),
+  },
+  games: {
+    list: () => ipcRenderer.invoke('games:list'),
+    read: (dir: string) => ipcRenderer.invoke('games:read', dir),
+    create: (
+      name?: string,
+      options?: {
+        scaffold?: boolean
+        backend?: string
+        startingModel?: string
+        initialPrompt?: string
+      },
+    ) => ipcRenderer.invoke('games:create', name, options),
+    publish: (dir: string, fields: { name?: string; description?: string }) =>
+      ipcRenderer.invoke('games:publish', dir, fields),
+    openFolder: (dir?: string) => ipcRenderer.invoke('games:openFolder', dir),
+    play: (dir: string) => ipcRenderer.invoke('games:play', dir),
+    openArcade: () => ipcRenderer.invoke('games:openArcade'),
+    arcadeCatalog: () => ipcRenderer.invoke('games:arcadeCatalog'),
+    setArcadeShown: (target: { kind: 'user' | 'sample'; id: string; shown: boolean }) =>
+      ipcRenderer.invoke('games:setArcadeShown', target),
   },
   webBrowser: {
     navigate: (url: string) => ipcRenderer.invoke('webBrowser:navigate', url),

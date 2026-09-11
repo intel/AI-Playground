@@ -1,4 +1,3 @@
-import '@google/model-viewer'
 import type { ModelViewerElement } from '@google/model-viewer'
 import skyboxImage from '@/assets/image/qwantani_moonrise_puresky_8k.jpg'
 
@@ -29,6 +28,12 @@ export async function render3dThumbnail(
   const width = opts?.width ?? 768
   const height = opts?.height ?? 768
   const timeoutMs = opts?.timeoutMs ?? 45_000
+
+  // Register the <model-viewer> custom element on first use. Loaded lazily (rather
+  // than as a top-level side-effect import) so this browser-only dependency stays
+  // out of the static import graph of headless callers (e.g. the Home Agent store
+  // pulled in by Pinia stores under test).
+  await import('@google/model-viewer')
 
   const viewer = document.createElement('model-viewer') as ModelViewerElement
   viewer.setAttribute('camera-controls', '')

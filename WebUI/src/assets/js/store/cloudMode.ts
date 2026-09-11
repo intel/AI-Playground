@@ -1,6 +1,7 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { demoAwareStorage } from '../demoAwareStorage'
 import { createAppError, extractMessage } from '../errors/appError'
+import { HYBRID_CLOUD_NAME } from '@/lib/cloudModeName'
 
 /**
  * A remote OpenAI-compatible provider (e.g. a self-hosted or cloud LLM
@@ -113,6 +114,16 @@ export type CloudModelCapabilities = {
   supportsVision: boolean
   supportsToolCalling: boolean
   supportsReasoning: boolean
+  /**
+   * Whether the provider itself declared reasoning, as opposed to being assumed
+   * capable because it declared nothing. Asking a model to think is a request
+   * parameter (see agentMode/piCloudReasoning.ts), so it needs the stricter
+   * signal — `supportsReasoning` is a preset gate and errs towards offering the
+   * model.
+   */
+  reasoningAdvertised: boolean
+  /** Model's context window in tokens; undefined when the provider is silent. */
+  contextLength?: number
 }
 
 // Default assumption for a remote model: fully capable. A provider that doesn't
@@ -124,6 +135,7 @@ export const ASSUME_ALL_CAPABILITIES: CloudModelCapabilities = {
   supportsVision: true,
   supportsToolCalling: true,
   supportsReasoning: true,
+  reasoningAdvertised: false,
 }
 
 export type CloudProvider = {
@@ -139,17 +151,41 @@ export type CloudProvider = {
   modelCapabilities?: Record<string, CloudModelCapabilities>
 }
 
+/** A positive integer token count, or undefined for anything else. */
+function tokenCount(value: unknown): number | undefined {
+  const parsed = typeof value === 'string' ? Number(value) : value
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed) || parsed <= 0) return undefined
+  return Math.floor(parsed)
+}
+
+/**
+ * Context window of a single `/v1/models` entry. OpenRouter-style payloads carry
+ * `context_length` at the top level and repeat it under `top_provider`; vLLM
+ * reports `max_model_len`. First hit wins.
+ */
+function parseContextLength(model: Record<string, unknown>): number | undefined {
+  const topProvider = model.top_provider as Record<string, unknown> | undefined
+  return (
+    tokenCount(model.context_length) ??
+    tokenCount(topProvider?.context_length) ??
+    tokenCount(model.max_model_len)
+  )
+}
+
 /**
  * Best-effort capability extraction from a single `/v1/models` entry. Vanilla
  * OpenAI returns only `{ id }`, but many providers (OpenRouter, vLLM, LiteLLM,
- * …) attach `capabilities`, `architecture.input_modalities`, or
- * `supported_parameters`. When an entry advertises none of these we assume it's
- * fully capable; when it does advertise, a missing signal means "not supported".
+ * …) attach `capabilities`, `architecture.input_modalities`,
+ * `supported_parameters` or `context_length`. When an entry advertises no
+ * capabilities we assume it's fully capable; when it does advertise, a missing
+ * signal means "not supported". The context window is independent of that
+ * guess — either the provider reports one or we don't know it.
  */
-function parseModelCapabilities(model: Record<string, unknown>): CloudModelCapabilities {
+export function parseModelCapabilities(model: Record<string, unknown>): CloudModelCapabilities {
   const caps = model.capabilities as Record<string, unknown> | undefined
   const architecture = model.architecture as Record<string, unknown> | undefined
   const supportedParams = model.supported_parameters
+  const contextLength = parseContextLength(model)
 
   const asLowerArray = (v: unknown): string[] =>
     (Array.isArray(v) ? v.map(String) : typeof v === 'string' ? [v] : []).map((s) =>
@@ -162,15 +198,22 @@ function parseModelCapabilities(model: Record<string, unknown>): CloudModelCapab
   const params = asLowerArray(supportedParams)
 
   const advertised = !!caps || !!architecture || Array.isArray(supportedParams)
-  if (!advertised) return { ...ASSUME_ALL_CAPABILITIES }
+  if (!advertised) return { ...ASSUME_ALL_CAPABILITIES, contextLength }
 
   const flag = (v: unknown) => v === true
+  const reasoningAdvertised =
+    flag(caps?.reasoning) ||
+    // OpenRouter-style payloads describe reasoning as an object and expose the
+    // knob as `reasoning_effort` rather than `reasoning`.
+    !!model.reasoning ||
+    params.some((p) => p === 'reasoning' || p === 'include_reasoning' || p === 'reasoning_effort')
   return {
     supportsVision: flag(caps?.vision) || modalities.some((m) => m.includes('image')),
     supportsToolCalling:
       flag(caps?.tools) || flag(caps?.function_calling) || params.includes('tools'),
-    supportsReasoning:
-      flag(caps?.reasoning) || params.includes('reasoning') || params.includes('include_reasoning'),
+    supportsReasoning: reasoningAdvertised,
+    reasoningAdvertised,
+    contextLength,
   }
 }
 
@@ -191,7 +234,8 @@ const DEFAULT_PROVIDER: CloudProvider = {
 export const useCloudMode = defineStore(
   'cloudMode',
   () => {
-    // Mirrors `isCloudModeEnabled` from local settings. Hydrated on init().
+    // Whether Cloud Mode is switched on, toggled in the setup wizard. Persisted
+    // here rather than in settings.json: nothing in the main process needs it.
     const isFeatureEnabled = ref(false)
 
     const providers = ref<CloudProvider[]>([{ ...DEFAULT_PROVIDER }])
@@ -342,7 +386,7 @@ export const useCloudMode = defineStore(
           category: 'inference',
           code: 'cloud/fetch-models-unreachable',
           surface: 'inline',
-          userMessage: 'Could not reach the Cloud Mode proxy. Try restarting the app.',
+          userMessage: `Could not reach the ${HYBRID_CLOUD_NAME} proxy. Try restarting the app.`,
           technicalMessage: `GET ${url} threw: ${extractMessage(e)}`,
           context: { providerId: id, upstream: base },
           cause: e,
@@ -384,10 +428,11 @@ export const useCloudMode = defineStore(
       const data = json.data ?? []
       const ids = data.map((m) => String(m.id ?? '')).filter(Boolean)
 
-      // Also derive per-model capabilities so capability-gated presets (Vision,
-      // tool-calling, reasoning) can offer these models. If parsing throws for
-      // any reason, drop the map so every model falls back to "fully capable"
-      // (see capabilitiesFor / ASSUME_ALL_CAPABILITIES).
+      // Also derive per-model capabilities and context window, so capability-gated
+      // presets (Vision, tool-calling, reasoning) can offer these models and the
+      // context gauge / agent session know how big the window is. If parsing
+      // throws for any reason, drop the map so every model falls back to "fully
+      // capable, unknown window" (see capabilitiesFor / ASSUME_ALL_CAPABILITIES).
       try {
         const caps: Record<string, CloudModelCapabilities> = {}
         for (const m of data) {
@@ -433,22 +478,13 @@ export const useCloudMode = defineStore(
 
     async function toggleFeature(enabled: boolean) {
       isFeatureEnabled.value = enabled
-      await window.electronAPI.updateLocalSettings({ isCloudModeEnabled: enabled })
       // Warm up the proxy so the chat backend URL is ready before first use.
       if (enabled) ensureProxyUrl().catch(() => undefined)
     }
 
-    /** Hydrate the feature flag and decrypted keys on startup. */
+    /** Warm the proxy and pull the decrypted keys into the session cache. */
     async function initConfig() {
-      try {
-        const localSettings = await window.electronAPI.getLocalSettings()
-        isFeatureEnabled.value = !!localSettings.isCloudModeEnabled
-      } catch (e) {
-        console.error('cloudMode.initConfig: getLocalSettings failed:', e)
-        isFeatureEnabled.value = false
-      }
       if (!isFeatureEnabled.value) return
-      // Start/resolve the proxy up front so the chat backend URL is ready.
       ensureProxyUrl().catch(() => undefined)
       // Re-load each provider's key from safeStorage into the session cache.
       await Promise.all(providers.value.map((p) => loadApiKey(p.id).catch(() => null)))
@@ -468,7 +504,15 @@ export const useCloudMode = defineStore(
       { immediate: true },
     )
 
-    initConfig()
+    // Enablement rehydrates from persisted store state, which lands after this
+    // setup function has run — so the warm-up hangs off a watch, not a call.
+    watch(
+      isFeatureEnabled,
+      (on) => {
+        if (on) void initConfig()
+      },
+      { immediate: true },
+    )
 
     return {
       isFeatureEnabled,
@@ -497,7 +541,7 @@ export const useCloudMode = defineStore(
     persist: {
       storage: demoAwareStorage,
       // Never persist API keys here — they live encrypted on disk via safeStorage.
-      pick: ['providers', 'selectedProviderId'],
+      pick: ['isFeatureEnabled', 'providers', 'selectedProviderId'],
     },
   },
 )

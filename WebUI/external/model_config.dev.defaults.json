@@ -1,0 +1,21 @@
+{
+  "ggufLLM": "../models/LLM/ggufLLM",
+  "openvinoLLM": "../models/LLM/openvino",
+  "embedding": "../models/LLM/embedding",
+  "STT": "../models/STT",
+  "TTS": "../models/TTS",
+  "openvino-image": "../models/openvino-image",
+  "checkpoints": "../models/ComfyUI/checkpoints",
+  "inpaint": "../models/ComfyUI/inpaint",
+  "unet": "../models/ComfyUI/unet",
+  "clip": "../models/ComfyUI/clip",
+  "vae": "../models/ComfyUI/vae",
+  "diffusion_models": "../models/ComfyUI/diffusion_models",
+  "faceswap": "../models/ComfyUI/insightface",
+  "facerestore": "../models/ComfyUI/facerestore_models",
+  "nsfwdetector": "../models/ComfyUI/nsfw_detector",
+  "controlNet": "../models/ComfyUI/controlnet",
+  "upscale": "../models/ComfyUI/upscale_models",
+  "lora": "../models/ComfyUI/loras",
+  "loras": "../models/ComfyUI/loras"
+}

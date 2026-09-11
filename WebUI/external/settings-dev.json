@@ -1,9 +1,4 @@
 {
-  "debug": true,
-  "deviceArchOverride": null,
-  "isAdminExec": false,
-  "availableThemes": ["dark", "lnl", "bmg", "light"],
-  "currentTheme": "light",
   "isDemoModeEnabled": false,
   "demoModeResetInSeconds": 60,
   "demoModePasscode": "0451",
@@ -11,6 +6,7 @@
   "remoteRepository": "asdf/ai-playground",
   "huggingfaceEndpoint": "https://huggingface.co",
   "openvinoImageGenDevices": ["CPU", "GPU"],
-  "isHomeAgentEnabled": true,
-  "isQwen3TtsEnabled": true
+  "isAgentPresetEnabled": true,
+  "showDebugSettingsInUI": true,
+  "oemVendorOverride": "acer"
 }

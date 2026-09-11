@@ -15,7 +15,12 @@
         <p class="text-lg text-left pt-3 pb-7">
           {{ languages.BACKEND_OPTIONAL_COMPONENTS_MESSAGE }}
         </p>
-        <table class="text-center w-full" style="table-layout: fixed">
+        <!-- Spacing lives here, not in a global `table {}` rule: as an unscoped SFC
+             style that leaked onto every other table in the app. -->
+        <table
+          class="text-center w-full border-separate border-spacing-[10px]"
+          style="table-layout: fixed"
+        >
           <thead>
             <tr class="font-bold">
               <td style="text-align: left">{{ languages.BACKEND_SINGLE_COMPONENT }}</td>
@@ -433,6 +438,7 @@ import {
   mapToDisplayStatus,
   compareVersions,
 } from '@/lib/utils.ts'
+import { isOnDemandBackend } from '@/lib/onDemandBackends'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import LanguageSelector from '@/components/LanguageSelector.vue'
 import BackendOptions from '@/components/BackendOptions.vue'
@@ -714,6 +720,11 @@ async function installBackend(name: BackendServiceName) {
   const setupProgress = await backendServices.setUpService(name)
   console.log('setup finished with', setupProgress)
   if (setupProgress.success) {
+    // TTS/STT sidecars stay stopped after install; first use starts them.
+    if (isOnDemandBackend(name)) {
+      loadingComponents.value.delete(name)
+      return
+    }
     await restartBackend(name)
   } else {
     errors.report('Backend setup failed', {
@@ -1047,24 +1058,3 @@ function getUninstalledStatusClass(serviceName: BackendServiceName): string {
   return 'text-muted-foreground'
 }
 </script>
-
-<style>
-ul {
-  list-style-type: disc;
-  padding-left: 20px;
-}
-
-.hover-box {
-  position: absolute;
-  background-color: rgba(90, 90, 90, 0.91);
-  border: 1px solid #000000;
-  padding: 10px;
-  border-radius: 10px;
-  z-index: 1;
-}
-
-table {
-  border-collapse: separate;
-  border-spacing: 10px;
-}
-</style>

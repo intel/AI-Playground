@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useI18N } from '@/assets/js/store/i18n.ts'
+import { HYBRID_CLOUD_NAME } from '@/lib/cloudModeName'
 
 /**
  * Compares two version strings using numeric segment comparison.
@@ -100,10 +101,15 @@ export function mapServiceNameToDisplayName(serviceName: string) {
       return 'OpenVINO'
     case 'home-agent-backend':
       return 'Home Agent'
+    // Both audio sidecars name their engine: the app can reach the same feature
+    // through OpenVINO (Kokoro for TTS, OVMS Whisper for STT), so a bare "Text To
+    // Speech" / "Speech To Text" row read as if it were the only way to get it.
     case 'qwen3-tts-backend':
-      return 'Text To Speech'
+      return 'Text To Speech (Qwen3-TTS)'
+    case 'whisper-backend':
+      return 'Speech To Text (Standalone Whisper)'
     case 'cloud-mode':
-      return 'Cloud Mode'
+      return HYBRID_CLOUD_NAME
     default:
       return serviceName
   }
@@ -132,6 +138,10 @@ export function mapModeToLabel(mode: ModeType) {
   switch (mode) {
     case 'chat':
       return i18nState.MODE_CHAT
+    case 'agent':
+      return 'Agent'
+    case 'audio':
+      return i18nState.MODE_AUDIO
     case 'imageGen':
       return i18nState.MODE_IMAGE_GEN
     case 'imageEdit':

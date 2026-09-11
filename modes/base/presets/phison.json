@@ -3,10 +3,13 @@
   "category": "chat",
   "name": "aiDAPTIV™",
   "description": "Run large Mixture-of-Experts (MoE) models locally with Phison's Pascari aiDAPTIV™ technology. By intelligently leveraging high-performance storage, aiDAPTIV enables AI models that exceed traditional GPU memory limits.",
+  "extendedDescription": "Combines Phison's RAG algorithm with aiDAPTIV™ KV-cache reuse to reduce time-to-first-token, so users get faster responses and a smoother experience.",
   "displayPriority": 90,
-  "tags": ["Phison", "aiDAPTIV+", "MoE", "Large"],
+  "tags": ["Phison", "aiDAPTIV+", "MoE", "Large", "RAG"],
   "backends": ["llamaCPP"],
   "requiresPhison": true,
+  "supportsPhisonKmRag": true,
+  "defaultRagMode": "phisonKm",
   "preferredModels": {
     "llamaCPP": "unsloth/gpt-oss-120b-GGUF/Q5_K_M/gpt-oss-120b-Q5_K_M-00001-of-00002.gguf"
   },
@@ -15,7 +18,5 @@
   "maxNewTokens": 2048,
   "filterLargeMoeOnly": true,
   "enableRAG": true,
-  "showTools": true,
-  "toolsEnabledByDefault": true,
   "requiredModels": []
 }

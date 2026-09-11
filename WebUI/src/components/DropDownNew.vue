@@ -14,6 +14,15 @@ interface DropdownItem {
   label: string
   value: string
   active: boolean
+  /**
+   * Partially available: the item backs several resources and only some of them
+   * are in place (e.g. Qwen TTS needs one model for built-in voices and another
+   * for created voices). Renders the status dot half-filled, which reads as
+   * "usable, but not everything is downloaded" — neither a full dot (nothing
+   * left to fetch) nor an empty one (nothing there at all). Ignored when
+   * `active` is true.
+   */
+  partial?: boolean
   // Optional hover text shown as a tooltip on the item (e.g. a voice description).
   description?: string
 }
@@ -45,9 +54,14 @@ const selectedItem = computed(() => {
           class="w-full h-[30px] rounded-md bg-card border border-border text-foreground px-3 flex items-center justify-between disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <div
-            class="w-2 h-2 rounded-full shrink-0"
+            class="w-2 h-2 rounded-full shrink-0 relative overflow-hidden"
             :class="selectedItem.active ? 'bg-primary' : 'bg-muted-foreground'"
-          ></div>
+          >
+            <div
+              v-if="!selectedItem.active && selectedItem.partial"
+              class="absolute inset-y-0 left-0 w-1/2 bg-primary"
+            ></div>
+          </div>
           <span class="text-xs flex-grow text-left px-3 text-nowrap">
             {{ selectedItem.label }}
           </span>
@@ -77,9 +91,14 @@ const selectedItem = computed(() => {
                 class="text-sm px-4 py-1 flex items-center text-left hover:bg-muted text-foreground"
               >
                 <div
-                  class="w-2 h-2 rounded-full mr-2 shrink-0"
+                  class="w-2 h-2 rounded-full mr-2 shrink-0 relative overflow-hidden"
                   :class="item.active ? 'bg-primary' : 'bg-muted-foreground'"
-                ></div>
+                >
+                  <div
+                    v-if="!item.active && item.partial"
+                    class="absolute inset-y-0 left-0 w-1/2 bg-primary"
+                  ></div>
+                </div>
                 {{ item.label }}
               </DropdownMenuItem>
             </TooltipTrigger>

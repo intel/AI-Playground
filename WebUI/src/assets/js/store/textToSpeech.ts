@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { acceptHMRUpdate } from 'pinia'
 import { demoAwareStorage } from '../demoAwareStorage'
 import { useBackendServices } from './backendServices'
@@ -8,10 +8,35 @@ import { useDialogStore } from './dialogs'
 import * as toast from '@/assets/js/toast'
 import { useSetupWizard } from './setupWizard'
 import { useProductMode } from './productMode'
-import { synthesizeSpeech, bytesToBlobUrl } from '@/lib/synthesizeSpeech'
+import { synthesizeSpeech, bytesToBlobUrl, bytesToBase64 } from '@/lib/synthesizeSpeech'
 import { markdownToSpeechText } from '@/lib/markdownToSpeech'
 
 export const SPEECHT5_MODEL_NAME = 'tngtech/Kokoro-82M-int8-ov'
+
+/** Which engine backs Text To Speech.
+ *  - `qwen3`: Qwen3-TTS on its own backend — works in every product mode.
+ *  - `kokoro`: OpenVINO OVMS speech server — offered only when OpenVINO is
+ *    installable (non-NVIDIA mode) and set up.
+ *  - `external`: an OpenAI-compatible fallback endpoint configured in App Settings —
+ *    offered only when that fallback is enabled (works in every mode, incl. NVIDIA). */
+export type TtsEngine = 'qwen3' | 'kokoro' | 'external'
+
+/** Kokoro-82M voices exposed in the TTS preset when the Kokoro engine is selected.
+ *  These map 1:1 to the voice ids the OVMS `text2speech` (kokoro) task accepts. */
+export const KOKORO_VOICES = [
+  'af_heart',
+  'af_bella',
+  'af_nicole',
+  'af_sarah',
+  'af_sky',
+  'am_adam',
+  'am_michael',
+  'bf_emma',
+  'bf_isabella',
+  'bm_george',
+  'bm_lewis',
+] as const
+export type KokoroVoice = (typeof KOKORO_VOICES)[number]
 
 /**
  * Resolved text-to-speech endpoint configuration consumed by the shared
@@ -45,9 +70,15 @@ export const useTextToSpeech = defineStore(
   () => {
     const enabled = ref(false)
     const initializing = ref(false)
-    // When true, the desktop app auto-plays replies (and the Home Agent sends a
-    // voice reply) whenever the user's input came from speech.
-    const autoSpeakOnVoiceInput = ref(true)
+    // Note: "Speak replies" is a per-preset tool setting (textInference.speakReplies,
+    // edited on the Text To Speech tool row), not TTS-engine config — see
+    // `textInference.speakRepliesAllowed`.
+
+    // Which engine the TTS preset (and the synthesizeTextToSpeech tool) uses. Edited
+    // in SettingsTts; 'kokoro' is only selectable when `isKokoroAvailable` is true.
+    const selectedEngine = ref<TtsEngine>('qwen3')
+    // The Kokoro voice used for the OVMS text2speech path.
+    const selectedKokoroVoice = ref<KokoroVoice>('af_heart')
     const backendServices = useBackendServices()
     const models = useModels()
     const dialogStore = useDialogStore()
@@ -82,6 +113,32 @@ export const useTextToSpeech = defineStore(
     }
 
     /**
+     * Whether the Kokoro (OpenVINO) engine can be offered as a TTS choice: OpenVINO
+     * must be installable in this product mode (not NVIDIA) and set up. The external
+     * fallback is a separate engine now (see {@link isExternalAvailable}).
+     */
+    const isKokoroAvailable = computed(() => {
+      if (productMode.isNvidiaModeSelected) return false
+      const ov = backendServices.info.find((s) => s.serviceName === 'openvino-backend')
+      return ov?.isSetUp === true
+    })
+
+    /** Whether the external (fallback) endpoint engine is configured/usable. */
+    const isExternalAvailable = computed(() => hasFallback())
+
+    /**
+     * Whether "speak replies aloud" is usable at all: either Kokoro (OVMS) or a
+     * configured external endpoint. Used by the desktop Speak button / auto-speak and
+     * the Home Agent voice reply now that the old global TTS enable toggle is gone.
+     *
+     * Deliberately excludes the Qwen3 engine: those consumers all go through
+     * `speak()` → `resolveSpeech()`, which only knows the OVMS and external
+     * endpoints. Qwen3 synthesis lives in the qwen3TextToSpeech store, so it must
+     * not be counted here — check the Qwen backend separately if you need it.
+     */
+    const available = computed(() => isKokoroAvailable.value || isExternalAvailable.value)
+
+    /**
      * Resolve which speech endpoint to use. Prefers the OVMS text2speech server
      * when it is running, otherwise falls back to the configured
      * OpenAI-compatible endpoint. Returns `null` when neither is available.
@@ -93,7 +150,7 @@ export const useTextToSpeech = defineStore(
           return {
             baseURL: ovmsUrl,
             model: SPEECHT5_MODEL_NAME.split('/').join('---'),
-            voice: 'af_heart',
+            voice: selectedKokoroVoice.value,
             apiKey: '',
           }
         }
@@ -105,7 +162,7 @@ export const useTextToSpeech = defineStore(
         return {
           baseURL: fallback.value.baseUrl.trim(),
           model: fallback.value.model.trim() || 'tts-1',
-          voice: fallback.value.voice.trim() || 'af_heart',
+          voice: fallback.value.voice.trim() || selectedKokoroVoice.value,
           apiKey: fallback.value.apiKey,
         }
       }
@@ -118,7 +175,10 @@ export const useTextToSpeech = defineStore(
      * Does NOT auto-disable TTS on failure.
      */
     async function ensureSpeechServerRunning(): Promise<void> {
-      if (!enabled.value) return
+      // The external endpoint synthesizes remotely, so there is no OVMS server to
+      // start — and trying anyway is what used to break TTS on hosts where OVMS is
+      // installed but cannot execute (macOS, where its binary is not executable).
+      if (selectedEngine.value === 'external') return
 
       const openVinoService = backendServices.info.find((s) => s.serviceName === 'openvino-backend')
 
@@ -141,8 +201,86 @@ export const useTextToSpeech = defineStore(
     }
 
     /**
-     * Initialize the speech server on app startup if TTS is enabled.
-     * Validates prerequisites and auto-disables TTS if they are not met.
+     * Ensure the Kokoro (OVMS) speech server is ready to synthesize: OpenVINO must
+     * be set up (or a fallback is configured), the model must be present (prompting
+     * the standard download popup if missing), and the server must be running. Used
+     * by the direct TTS-preset path and the agentic tool when the Kokoro engine is
+     * selected — independent of the `enabled` toggle.
+     */
+    async function ensureKokoroReady(): Promise<void> {
+      const openVinoService = backendServices.info.find((s) => s.serviceName === 'openvino-backend')
+      if (!openVinoService?.isSetUp) {
+        throw new Error(
+          'OpenVINO backend is required for the Kokoro engine. Install it from ' +
+            'Settings → Installation Management, or select the External endpoint engine.',
+        )
+      }
+
+      const modelExists = await models.checkSpeechModelExists(SPEECHT5_MODEL_NAME)
+      if (!modelExists) {
+        const missing = await models.getMissingSpeechModel(SPEECHT5_MODEL_NAME)
+        if (missing.length > 0) {
+          await new Promise<void>((resolve, reject) => {
+            dialogStore.showDownloadDialog(
+              missing,
+              () => resolve(),
+              () => reject(new Error('Kokoro speech model download was cancelled')),
+            )
+          })
+        }
+      }
+
+      const url = await backendServices.getSpeechServerUrl()
+      if (!url) {
+        await backendServices.startSpeechServer(SPEECHT5_MODEL_NAME)
+      }
+    }
+
+    /**
+     * Synthesize `text` with the currently-selected non-Qwen engine (Kokoro or the
+     * external endpoint) and return the WAV audio as base64, so callers can save it
+     * to disk and render an audio bubble (mirroring the Qwen3-TTS direct path).
+     *
+     * Also returns the voice actually used: the external engine may have its own
+     * configured voice, so callers must not assume `selectedKokoroVoice` when
+     * reporting what was spoken.
+     */
+    async function synthesizeToWav(text: string): Promise<{ audioBase64: string; voice: string }> {
+      let endpoint: SpeechEndpoint | null
+      if (selectedEngine.value === 'qwen3') {
+        // Qwen3 synthesizes through its own backend store (useQwen3TextToSpeech),
+        // not through a speech endpoint — callers branch on the engine before
+        // getting here. Fail loudly rather than silently synthesizing on OVMS.
+        throw new Error(
+          'synthesizeToWav does not support the Qwen3 engine — use the qwen3TextToSpeech store.',
+        )
+      }
+      if (selectedEngine.value === 'external') {
+        // Force the configured external endpoint (don't prefer a running OVMS).
+        if (!hasFallback()) {
+          throw new Error('No external speech endpoint is configured (enable it in App Settings).')
+        }
+        endpoint = {
+          baseURL: fallback.value.baseUrl.trim(),
+          model: fallback.value.model.trim() || 'tts-1',
+          voice: fallback.value.voice.trim() || selectedKokoroVoice.value,
+          apiKey: fallback.value.apiKey,
+        }
+      } else {
+        // Kokoro: start the OVMS speech server, then use it.
+        await ensureKokoroReady()
+        endpoint = await resolveSpeech()
+        if (!endpoint) {
+          throw new Error('Kokoro Text To Speech is not available (no OVMS server).')
+        }
+      }
+      const { bytes } = await synthesizeSpeech(text, endpoint)
+      return { audioBase64: bytesToBase64(bytes), voice: endpoint.voice }
+    }
+
+    /**
+     * Validate TTS prerequisites on app startup if TTS is enabled.
+     * Does not start the speech server — that happens on first speak / synthesize.
      */
     async function initialize(): Promise<void> {
       if (productMode.isNvidiaModeSelected) {
@@ -151,6 +289,9 @@ export const useTextToSpeech = defineStore(
       }
 
       if (!enabled.value) return
+
+      // Nothing local to validate when the external endpoint is the source.
+      if (selectedEngine.value === 'external') return
 
       initializing.value = true
 
@@ -172,12 +313,6 @@ export const useTextToSpeech = defineStore(
         if (!modelExists) {
           enabled.value = false
           toast.warning('Text To Speech disabled: speech model not found')
-          return
-        }
-
-        const url = await backendServices.getSpeechServerUrl()
-        if (!url) {
-          await backendServices.startSpeechServer(SPEECHT5_MODEL_NAME)
         }
       } catch (error) {
         enabled.value = false
@@ -277,6 +412,19 @@ export const useTextToSpeech = defineStore(
     }
 
     /**
+     * Restore the engine/voice choices to their defaults, for the Audio mode's
+     * "Reset Preset Settings". The external endpoint's URL, model and API key are
+     * left alone: they're machine configuration the user entered once (and enabled
+     * in App Settings), not a per-preset choice — wiping a key from a reset button
+     * would be a surprise there is no undo for.
+     */
+    function resetToDefaults(): void {
+      stopSpeaking()
+      selectedEngine.value = 'qwen3'
+      selectedKokoroVoice.value = 'af_heart'
+    }
+
+    /**
      * Synthesize `text` and play it back in the desktop app. `id` ties the
      * playback to a specific chat message so the UI can show a stop affordance.
      */
@@ -285,6 +433,10 @@ export const useTextToSpeech = defineStore(
       if (!trimmed) return
 
       stopSpeaking()
+
+      // Start the OVMS speech server on demand (no-op if already running or if the
+      // model isn't installed — in which case a configured fallback still serves).
+      await ensureSpeechServerRunning()
 
       const endpoint = await resolveSpeech()
       if (!endpoint) {
@@ -315,7 +467,11 @@ export const useTextToSpeech = defineStore(
     return {
       enabled,
       initializing,
-      autoSpeakOnVoiceInput,
+      selectedEngine,
+      selectedKokoroVoice,
+      isKokoroAvailable,
+      isExternalAvailable,
+      available,
       fallback,
       isSpeaking,
       speakingMessageId,
@@ -325,14 +481,17 @@ export const useTextToSpeech = defineStore(
       toggle,
       initialize,
       ensureSpeechServerRunning,
+      ensureKokoroReady,
+      synthesizeToWav,
       speak,
       stopSpeaking,
+      resetToDefaults,
     }
   },
   {
     persist: {
       storage: demoAwareStorage,
-      pick: ['enabled', 'autoSpeakOnVoiceInput', 'fallback'],
+      pick: ['enabled', 'selectedEngine', 'selectedKokoroVoice', 'fallback'],
     },
   },
 )

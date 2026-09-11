@@ -78,7 +78,7 @@
           {{ verifyStatus === 'loading' ? 'Starting…' : 'Save & start' }}
         </button>
         <p v-if="verifyError" class="text-xs text-destructive">{{ verifyError }}</p>
-        <ul v-if="urls.length" class="text-xs font-mono space-y-1 pt-2 break-all">
+        <ul v-if="urls.length" class="list-disc pl-5 text-xs font-mono space-y-1 pt-2 break-all">
           <li v-for="(url, i) in urls" :key="i">
             <button type="button" class="text-primary underline text-left" @click="openUrl(url)">
               {{ url }}

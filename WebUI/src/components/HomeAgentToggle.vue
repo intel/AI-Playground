@@ -42,26 +42,12 @@
     >
       <Cog6ToothIcon class="w-4 h-4" />
     </button>
-
-    <button
-      v-if="debugToolsEnabled"
-      type="button"
-      title="Mock channel (dev) — drive the Home Agent for e2e testing"
-      aria-label="Toggle mock channel panel"
-      class="transition-colors"
-      :class="
-        homeAgent.showMockPanel ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-      "
-      @click="homeAgent.toggleMockPanel()"
-    >
-      <BeakerIcon class="w-4 h-4" />
-    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Cog6ToothIcon, BeakerIcon } from '@heroicons/vue/24/solid'
+import { Cog6ToothIcon } from '@heroicons/vue/24/solid'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import { useSetupWizard } from '@/assets/js/store/setupWizard'
 import { useBackendServices } from '@/assets/js/store/backendServices'
@@ -72,8 +58,6 @@ const homeAgent = useHomeAgent()
 const setupWizard = useSetupWizard()
 const backendServices = useBackendServices()
 const errors = useErrors()
-
-const debugToolsEnabled = window.envVars.debugToolsEnabled
 
 const isAvailable = computed(() => homeAgent.isAvailable)
 const isInstalled = computed(

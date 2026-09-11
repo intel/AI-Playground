@@ -5,24 +5,24 @@
          SideModalBase with hide-header) off the card content. -->
     <section
       role="group"
-      :aria-label="`${selectedPreset.name} preset information`"
+      :aria-label="`${displayName} preset information`"
       :data-aipg-preset-name="selectedPreset.name"
       class="flex flex-col gap-3 rounded-lg border border-border bg-muted/40 p-3 pr-8"
     >
       <div class="flex flex-row items-start gap-3">
         <div
-          :aria-label="selectedPreset.name"
+          :aria-label="displayName"
           class="relative shrink-0 w-28 h-28 rounded-lg overflow-hidden border border-border shadow-md"
         >
           <img
             v-if="selectedPreset.image"
             class="absolute inset-0 w-full h-full object-cover"
             :src="selectedPreset.image"
-            :alt="selectedPreset.name"
+            :alt="displayName"
           />
           <div class="absolute bottom-0 w-full bg-background/60 text-center py-1">
             <span class="text-foreground text-sm font-semibold">
-              {{ selectedPreset.name }}
+              {{ displayName }}
             </span>
           </div>
         </div>
@@ -69,6 +69,7 @@
 import { computed, watch, onMounted } from 'vue'
 import { usePresets } from '@/assets/js/store/presets'
 import { useBackendServices } from '@/assets/js/store/backendServices'
+import { useOemBranding } from '@/assets/js/store/oemBranding'
 import { extendedDescriptionText } from '@/assets/js/help/presetHelp'
 import { Label } from '@/components/ui/label'
 import VariantSelector, { type VariantOption } from '@/components/VariantSelector.vue'
@@ -91,6 +92,7 @@ const emits = defineEmits<{
 
 const presetsStore = usePresets()
 const backendServices = useBackendServices()
+const oemBranding = useOemBranding()
 
 const filteredPresets = computed(() => {
   return presetsStore.getPresetsByCategories(props.categories || [], props.type)
@@ -104,6 +106,12 @@ const selectedPreset = computed(() => {
   if (!selectedPresetName.value) return null
   return filteredPresets.value.find((p) => p.name === selectedPresetName.value) || null
 })
+
+// What the user reads. Differs from `selectedPreset.name` (the preset's identity)
+// only where an OEM co-brands the feature, e.g. "Acer Game Agent".
+const displayName = computed(() =>
+  selectedPreset.value ? oemBranding.presetLabel(selectedPreset.value.name) : '',
+)
 
 const activeVariantName = computed(() => {
   if (!selectedPresetName.value) return null

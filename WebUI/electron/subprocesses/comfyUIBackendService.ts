@@ -1,4 +1,4 @@
-import { ChildProcess, spawn } from 'node:child_process'
+import { ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import path from 'node:path'
 import fs from 'fs'
@@ -20,6 +20,7 @@ import {
   installBackendWithExtra,
   installExtraWheels,
   pipInstallRequirementsFromFile,
+  venvIsUsable,
 } from './uvBasedBackends/uv.ts'
 import {
   COMFYUI_DEPS_MARKER_FILENAME,
@@ -28,7 +29,7 @@ import {
   type ComfyUiDepsMarker,
 } from './comfyUiRevision.ts'
 import { ProcessError } from './osProcessHelper.ts'
-import { killStaleProcessesByCommandLine } from './processLifecycle.ts'
+import { killStaleProcesses, spawnBackend } from './processLifecycle.ts'
 import { getMediaDir } from '../util.ts'
 import { packagedResourcesRoot, writableConfigRoot } from '../aipgRoot.ts'
 import {
@@ -521,6 +522,22 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     this.appLogger.info(`Checking if comfyUI directories exist: ${dirsExist}`, this.name)
     if (!dirsExist) return false
 
+    // The directory alone proves nothing. The Windows uninstaller's `RMDir /r`
+    // cannot remove the deeply nested paths a ComfyUI install creates
+    // (custom_nodes, site-packages), so it leaves a husk of the checkout behind.
+    // On the next install that husk made this check report "set up", the app
+    // auto-started it, the spawn failed, and ComfyUI showed as failed (red, with
+    // a Repair button) where it should have shown as not installed. Require the
+    // entrypoint we actually spawn (`main.py`) to be present.
+    const entrypoint = path.join(this.serviceDir, 'main.py')
+    if (!filesystem.existsSync(entrypoint)) {
+      this.appLogger.info(
+        `ComfyUI directory exists but ${entrypoint} is missing — treating as not installed`,
+        this.name,
+      )
+      return false
+    }
+
     const installedVersion = await this.getCurrentVersion()
     if (installedVersion) {
       this.appLogger.info(`comfyUI version ${installedVersion} detected`, this.name)
@@ -571,12 +588,14 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         this.getEffectiveVariant(),
       )
 
-      // If venv doesn't exist, service is not set up
-      if (!checkDetails.venvExists) {
+      // Dir-only leftover .venv (no interpreter) or uv reporting 'create' is
+      // not installed — do not auto-start a backend that cannot boot.
+      if (!checkDetails.venvExists || checkDetails.needsInstallation) {
         this.appLogger.info(
-          `Service ${this.name} venv does not exist, needs installation`,
+          `Service ${this.name} venv is missing or incomplete, needs installation`,
           this.name,
         )
+        this.environmentMismatchError = null
         return false
       }
 
@@ -692,6 +711,70 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     } catch {
       return null
     }
+  }
+
+  /**
+   * Remove the whole ComfyUI checkout, retrying a few times — after the backend
+   * process is killed Windows can take a moment to release directory handles.
+   * On Linux/macOS a read-only directory in the tree fails removal with EACCES
+   * (unlink/rmdir needs write permission on the parent), so the read-only bit is
+   * stripped up front and again on EACCES. Throws an actionable error if the tree
+   * ultimately cannot be removed, rather than letting a later `git clone` fail
+   * with a confusing "destination path already exists".
+   *
+   * Model weights are not affected: they live in `../models/ComfyUI`, referenced
+   * through the generated extra_model_paths.yaml.
+   */
+  private async removeServiceDirWithRetries(context: 'reinstall' | 'uninstall'): Promise<void> {
+    if (!filesystem.existsSync(this.serviceDir)) return
+    await restoreTreeWritePermissions(this.serviceDir)
+    let lastError: unknown
+    const attempts = 5
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      try {
+        // Async: a ComfyUI checkout is a large tree (venv + custom_nodes), and
+        // removeSync would freeze the whole Electron main process while it walks it.
+        await filesystem.remove(this.serviceDir)
+        lastError = undefined
+        break
+      } catch (removeError) {
+        lastError = removeError
+        if ((removeError as NodeJS.ErrnoException)?.code === 'EACCES') {
+          await restoreTreeWritePermissions(this.serviceDir)
+        }
+        // No point waiting after the final attempt.
+        if (attempt < attempts - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+        }
+      }
+    }
+    if (lastError) {
+      throw new Error(
+        `Failed to remove existing ComfyUI directory ${this.serviceDir} for ${context}. ` +
+          `Close any program holding files there (a running ComfyUI, an IDE indexing the ` +
+          `folder, or a terminal/Explorer window inside it) and try again. Cause: ${lastError}`,
+      )
+    }
+  }
+
+  /**
+   * Remove the entire checkout, not just the venv as the base class does. The
+   * clone, custom_nodes, the deps marker and the variant marker all live in
+   * `serviceDir`; leaving them behind means the markers claim a revision/variant
+   * for an environment that no longer exists, and `serviceIsSetUp` sees a husk.
+   */
+  async uninstall(): Promise<void> {
+    await this.stop()
+    this.appLogger.info(`removing ComfyUI service directory`, this.name)
+    await this.removeServiceDirWithRetries('uninstall')
+    this.appLogger.info(`removed ComfyUI service directory`, this.name)
+    this.isSetUp = false
+    this.setStatus('notInstalled')
+    this.clearLastStartupError()
+    // Marker-derived state now describes a directory that is gone.
+    this.usableXpuConfirmed = null
+    this.variantMismatchToastSent = false
+    this.environmentMismatchError = null
   }
 
   private async writeDepsMarker(marker: ComfyUiDepsMarker): Promise<void> {
@@ -953,41 +1036,26 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
         )
       }
 
-      // Fallback: wipe the directory so the caller re-clones. Retry a few times —
-      // after the backend process is killed Windows can take a moment to release
-      // directory handles. Surface a clear, actionable error if it ultimately
-      // cannot be removed rather than letting `git clone` fail later with a
-      // confusing "destination path already exists" message.
-      // On Linux/macOS a read-only directory in the tree fails removal with EACCES
-      // (unlink/rmdir needs write permission on the parent); strip the read-only
-      // bit up front, and again on EACCES, so the wipe-and-reclone path works.
-      await restoreTreeWritePermissions(this.serviceDir)
-      let lastError: unknown
-      for (let attempt = 0; attempt < 5; attempt++) {
-        try {
-          filesystem.removeSync(this.serviceDir)
-          lastError = undefined
-          break
-        } catch (removeError) {
-          lastError = removeError
-          if ((removeError as NodeJS.ErrnoException)?.code === 'EACCES') {
-            await restoreTreeWritePermissions(this.serviceDir)
-          }
-          await new Promise((resolve) => setTimeout(resolve, 1000))
-        }
-      }
-      if (lastError) {
-        throw new Error(
-          `Failed to remove existing ComfyUI directory ${this.serviceDir} for reinstall. ` +
-            `Close any program holding files there (a running ComfyUI, an IDE indexing the ` +
-            `folder, or a terminal/Explorer window inside it) and try again. Cause: ${lastError}`,
-        )
-      }
+      // Fallback: wipe the directory so the caller re-clones.
+      await this.removeServiceDirWithRetries('reinstall')
       return false
     }
 
     const setupComfyUiBaseService = async (): Promise<void> => {
-      installHijacks()
+      // Awaited: un-awaited, this was a floating git clone whose rejection became
+      // an unhandled promise rejection, and the install continued as if the
+      // hijacks were in place. They are only *needed* by the XPU variant (whose
+      // model_management.py gets patched to import them), so a failure is fatal
+      // there and a warning otherwise.
+      try {
+        await installHijacks()
+      } catch (e) {
+        if (this.comfyUiVariant === 'xpu') throw e
+        this.appLogger.warn(
+          `ipex_to_cuda hijacks unavailable (${e}); continuing for variant '${this.comfyUiVariant}' which does not use them`,
+          this.name,
+        )
+      }
       if (await checkServiceDir()) {
         this.appLogger.info('comfyUI already cloned, skipping', this.name)
       } else {
@@ -1012,6 +1080,13 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
           this.name,
         )
       }
+
+      // Drop a venv husk (directory without an interpreter) before installing —
+      // `uv sync` into such a tree produces an environment that can never boot.
+      // Unlike the other python backends ComfyUI keeps a *usable* venv, since
+      // custom nodes install dependencies into it at runtime that no lockfile
+      // knows about; wiping it on every setup run would destroy them.
+      await this.removeUnusablePythonEnv()
 
       if (useLocked) {
         let needsInstall = true
@@ -1059,7 +1134,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
           existingMarker?.mode === 'flexible' &&
           markerMatches &&
           !variantChanged &&
-          filesystem.existsSync(this.pythonEnvDir)
+          venvIsUsable(this.pythonEnvDir)
         ) {
           needsInstall = false
           this.appLogger.info(
@@ -1326,11 +1401,24 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
           debugMessage: 'ComfyUI Manager installation complete',
         }
       } catch (error) {
-        // Log warning but don't fail setup
+        // The Manager is optional, so this does not fail the install — but the
+        // setup used to report unqualified success, leaving the user to discover
+        // the missing Manager later. Say so in the progress log and on screen.
         this.appLogger.warn(
           `Failed to install ComfyUI Manager: ${error}. Continuing setup.`,
           this.name,
         )
+        this.win.webContents.send('show-toast', {
+          type: 'warning',
+          message:
+            'ComfyUI was installed, but the ComfyUI Manager custom node could not be installed. Custom node management will be unavailable — reinstall ComfyUI to retry.',
+        })
+        yield {
+          serviceName: this.name,
+          step: currentStep,
+          status: 'executing',
+          debugMessage: `ComfyUI Manager installation failed and was skipped: ${error}`,
+        }
       }
 
       // Locked ref: uv.lock + pyproject; other refs: requirements.txt + UV torch config
@@ -1441,12 +1529,10 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     }
   }
 
+  protected readonly serverEntryScript = 'main.py'
+
   getPythonBinaryPath() {
-    return path.join(
-      this.pythonEnvDir,
-      process.platform === 'win32' ? 'Scripts' : 'bin',
-      process.platform === 'win32' ? 'python.exe' : 'python',
-    )
+    return this.venvPythonPath
   }
 
   async detectDevices() {
@@ -1781,11 +1867,10 @@ except Exception as e:
     // backend's python binary path, which is unique to ComfyUI's env dir. The
     // port is picked fresh each launch, so an orphan sits on a *different* port
     // and would otherwise run beside the new instance → GPU out-of-memory.
-    await killStaleProcessesByCommandLine(this.getPythonBinaryPath(), {
-      name: this.name,
-      label: 'ComfyUI',
-      appLogger: this.appLogger,
-    })
+    await killStaleProcesses(
+      [{ name: this.name, label: 'ComfyUI', signatures: this.orphanSignatures() }],
+      { appLogger: this.appLogger },
+    )
 
     // Clear any stale SQLite WAL/SHM sidecars from a crashed run that would
     // otherwise block ComfyUI from opening its database.
@@ -1942,9 +2027,8 @@ except Exception as e:
       true,
     )
     const pythonBinary = this.getPythonBinaryPath()
-    const apiProcess = spawn(pythonBinary, parameters, {
+    const apiProcess = spawnBackend(pythonBinary, parameters, {
       cwd: this.serviceDir,
-      windowsHide: true,
       // Build a fresh env object instead of mutating process.env — otherwise the
       // injected LD_LIBRARY_PATH / device-selector vars would leak into every
       // later child process spawned from the main Electron process.

@@ -11,10 +11,11 @@
     "llamaCPP": "unsloth/Qwen3.5-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf"
   },
   "systemPrompt": "You are a helpful AI assistant with access to tools. You can call functions to generate images, process workflows, and perform various tasks. Use tools when appropriate to help the user accomplish their goals.",
-  "contextSize": 8192,
-  "maxNewTokens": 2048,
+  "contextSize": 32768,
+  "maxNewTokens": 8192,
   "advancedMode": true,
   "enableRAG": true,
+  "supportsPhisonKmRag": true,
   "showTools": true,
   "toolsEnabledByDefault": true,
   "requiredModels": []

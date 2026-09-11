@@ -1,4 +1,4 @@
-import { ChildProcess, spawn } from 'node:child_process'
+import { ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
@@ -7,6 +7,7 @@ import { app, BrowserWindow, ipcMain, net, safeStorage } from 'electron'
 import { LocalSettings } from '../main.ts'
 import { GitService, LongLivedPythonApiService, createEnhancedErrorDetails } from './service.ts'
 import { aipgBaseDir, checkBackend, installBackend } from './uvBasedBackends/uv.ts'
+import { spawnBackend } from './processLifecycle.ts'
 
 // ── Channel-agnostic types ────────────────────────────────────────────────
 // Mirrored from WebUI/src/assets/js/store/channels/types.ts. Keeping a local
@@ -260,6 +261,11 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
         debugMessage: 'installing dependencies',
       }
 
+      // Install into a fresh venv — see `prepareCleanPythonEnv`. A repair over a
+      // venv whose files are broken but whose dist-info survived (interrupted
+      // install, app reinstall) is otherwise a no-op that reports success.
+      await this.prepareCleanPythonEnv()
+
       await installBackend(this.serviceFolder)
 
       yield {
@@ -316,14 +322,9 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
       AIPG_LOOPBACK_TOKEN: this.loopbackAuthToken,
     }
 
-    const pythonBinary = path.join(
-      this.pythonEnvDir,
-      process.platform === 'win32' ? 'Scripts' : 'bin',
-      process.platform === 'win32' ? 'python.exe' : 'python',
-    )
-    const apiProcess = spawn(pythonBinary, ['web_api.py', '--port', this.port.toString()], {
+    const pythonBinary = this.venvPythonPath
+    const apiProcess = spawnBackend(pythonBinary, ['web_api.py', '--port', this.port.toString()], {
       cwd: this.serviceDir,
-      windowsHide: true,
       env: { ...process.env, ...additionalEnvVariables },
     })
 

@@ -21,6 +21,7 @@ import { useTextInference } from './textInference'
 import type { IndexedDocument, ValidFileExtension } from './textInference'
 import { useSpeechToText } from './speechToText'
 import { useTextToSpeech } from './textToSpeech'
+import { useQwen3TextToSpeech } from './qwen3TextToSpeech'
 import { base64ToBlob, transcribeAudioBlob } from '@/lib/transcribe'
 import { synthesizeSpeech, bytesToBase64 } from '@/lib/synthesizeSpeech'
 import { markdownToSpeechText } from '@/lib/markdownToSpeech'
@@ -53,20 +54,12 @@ import { isAppError, extractMessage, createAppError, createCancellation } from '
 import { useErrors } from './errors'
 import { createTelegramAdapter } from './channels/telegramAdapter'
 import { createSlackAdapter } from './channels/slackAdapter'
-import { createMockAdapter, mockChannelBus, type MockInboundMessage } from './channels/mockAdapter'
 import { createLocalWebAdapter } from './channels/localWebAdapter'
 
 // ── Channel registry ────────────────────────────────────────────────────────
-// Kinds we manage in this store. Adding a third one means appending to this
+// Kinds we manage in this store. Adding a fourth one means appending to this
 // list and dropping in a new adapter — no other edits to this file.
-//
-// The dev-only `mock` channel bypasses IPC and the Python backend entirely so
-// e2e tests can drive the full Home Agent message pipeline. It is only managed
-// when debug tools are enabled (i.e. `npm run dev`).
-const MOCK_ENABLED = !!window.envVars?.debugToolsEnabled
-const KINDS = (
-  MOCK_ENABLED ? ['telegram', 'slack', 'local-web', 'mock'] : ['telegram', 'slack', 'local-web']
-) as readonly ChannelKind[]
+const KINDS = ['telegram', 'slack', 'local-web'] as readonly ChannelKind[]
 
 /**
  * Pending state for the interactive `/imgGen` preset picker.
@@ -145,14 +138,6 @@ export const useHomeAgent = defineStore(
     const errors = useErrors()
 
     /**
-     * Mirrors `isHomeAgentEnabled` from settings.json. Hydrated once on store
-     * setup. When false, every Home Agent surface (UI, polling, auto-activate)
-     * is held inert — defense in depth on top of the main process refusing to
-     * register the backend / IPC handlers / preset.
-     */
-    const isFeatureEnabled = ref(false)
-
-    /**
      * Master Home Agent on/off — the single title-bar toggle. Persisted so the
      * agent resumes (or stays off) across restarts. A channel only runs when
      * the master is on AND the channel itself is enabled + verified.
@@ -170,7 +155,6 @@ export const useHomeAgent = defineStore(
       telegram: emptyPrefs(),
       slack: emptyPrefs(),
       discord: emptyPrefs(),
-      mock: emptyPrefs(),
       'local-web': emptyPrefs(),
     })
 
@@ -180,7 +164,6 @@ export const useHomeAgent = defineStore(
       telegram: emptyRuntimeState('telegram'),
       slack: emptyRuntimeState('slack'),
       discord: emptyRuntimeState('discord'),
-      mock: emptyRuntimeState('mock'),
       'local-web': emptyRuntimeState('local-web'),
     })
 
@@ -190,7 +173,6 @@ export const useHomeAgent = defineStore(
       telegram: [] as ChannelQueueItem[],
       slack: [] as ChannelQueueItem[],
       discord: [] as ChannelQueueItem[],
-      mock: [] as ChannelQueueItem[],
       'local-web': [] as ChannelQueueItem[],
     } satisfies Record<ChannelKind, ChannelQueueItem[]>
 
@@ -201,7 +183,6 @@ export const useHomeAgent = defineStore(
       telegram: createTelegramAdapter(),
       slack: createSlackAdapter(),
       discord: null, // populated when Discord lands
-      mock: MOCK_ENABLED ? createMockAdapter() : null,
       'local-web': createLocalWebAdapter(),
     }
 
@@ -293,14 +274,6 @@ export const useHomeAgent = defineStore(
       showSettings.value = false
     }
 
-    /** Visibility flag for the dev-only mock channel panel (toggled from the
-     *  beaker button next to the Home Agent setup gear). */
-    const showMockPanel = ref(false)
-
-    function toggleMockPanel(): void {
-      showMockPanel.value = !showMockPanel.value
-    }
-
     /**
      * Per-thread summary cache for the bare `/load` menu. Keyed by conversation
      * key; entries are invalidated whenever the conversation grows (we compare
@@ -317,18 +290,13 @@ export const useHomeAgent = defineStore(
     // True once at least one channel has actually been set up (verified). The
     // master toggle is meaningless until then — there is nothing for it to turn
     // on — so the title-bar toggle stays disabled and reads "Off", mirroring the
-    // Home Agent preset, which is disabled until a channel is live. The mock
-    // channel (dev only, gated by debug tools via MOCK_ENABLED) counts so e2e
-    // tests can still drive the toggle without verifying real credentials.
-    const hasConfiguredChannel = computed(
-      () => MOCK_ENABLED || KINDS.some((k) => channelPrefs[k].verified),
-    )
+    // Home Agent preset, which is disabled until a channel is live.
+    const hasConfiguredChannel = computed(() => KINDS.some((k) => channelPrefs[k].verified))
 
     const isAvailable = computed(
       () =>
-        isFeatureEnabled.value &&
         backendServices.info.find((s) => s.serviceName === 'home-agent-backend')?.status ===
-          'running',
+        'running',
     )
 
     const homeAgentBaseUrl = computed(
@@ -345,14 +313,6 @@ export const useHomeAgent = defineStore(
      */
     function recomputeActive() {
       for (const kind of KINDS) {
-        // The mock channel needs neither the home-agent backend nor verified
-        // credentials — only the chat LLM backend, which `chatStore.generate`
-        // ensures on demand. Activate it whenever debug tools + the master
-        // switch are on so e2e tests can drive it immediately.
-        if (kind === 'mock') {
-          channels.mock.active = MOCK_ENABLED && masterEnabled.value
-          continue
-        }
         channels[kind].active =
           isAvailable.value &&
           masterEnabled.value &&
@@ -375,32 +335,28 @@ export const useHomeAgent = defineStore(
     // starts (or restarts if creds changed). One watcher per kind so each
     // can decide its own "credentials ready" predicate without coupling.
     for (const kind of KINDS) {
-      // The mock channel has no backend bot, so it skips credential injection;
-      // every other kind injects once its required secrets are present.
-      if (kind !== 'mock') {
-        watch(
-          [isAvailable, () => channels[kind].config, () => channelPrefs[kind].identity],
-          ([avail, config, identity]) => {
-            if (!avail) return
-            // Readiness + identity threading are fully data-driven via
-            // CHANNEL_FIELD_SPEC — no per-kind branching. A channel injects once
-            // every required secret is present; the identity (chatId / userId /
-            // …) is folded back into its config key if missing.
-            const spec = CHANNEL_FIELD_SPEC[kind]
-            const payload: Record<string, string | undefined> = {
-              ...(config as Record<string, string>),
-            }
-            if (spec.requiredSecrets.some((field) => !payload[field])) return
-            if (identity && !payload[spec.identityField]) {
-              payload[spec.identityField] = identity ?? undefined
-            }
-            window.electronAPI.homeAgent.channel
-              .inject(kind, payload)
-              .catch((e: unknown) => console.error(`homeAgent: inject(${kind}) failed:`, e))
-          },
-          { flush: 'post', immediate: true, deep: true },
-        )
-      }
+      watch(
+        [isAvailable, () => channels[kind].config, () => channelPrefs[kind].identity],
+        ([avail, config, identity]) => {
+          if (!avail) return
+          // Readiness + identity threading are fully data-driven via
+          // CHANNEL_FIELD_SPEC — no per-kind branching. A channel injects once
+          // every required secret is present; the identity (chatId / userId /
+          // …) is folded back into its config key if missing.
+          const spec = CHANNEL_FIELD_SPEC[kind]
+          const payload: Record<string, string | undefined> = {
+            ...(config as Record<string, string>),
+          }
+          if (spec.requiredSecrets.some((field) => !payload[field])) return
+          if (identity && !payload[spec.identityField]) {
+            payload[spec.identityField] = identity ?? undefined
+          }
+          window.electronAPI.homeAgent.channel
+            .inject(kind, payload)
+            .catch((e: unknown) => console.error(`homeAgent: inject(${kind}) failed:`, e))
+        },
+        { flush: 'post', immediate: true, deep: true },
+      )
 
       // Per-channel polling lifecycle.
       watch(
@@ -1040,9 +996,16 @@ export const useHomeAgent = defineStore(
     }
 
     /**
-     * Send a synthesized voice reply when the inbound message was itself a
-     * voice message and Text To Speech is enabled. Best-effort: failures are
-     * logged and never break the (already-delivered) text reply.
+     * Send a synthesized voice reply when the inbound message was itself a voice
+     * message and "Speak replies" is on for the Home Agent preset. That toggle sits
+     * on the Text To Speech tool row in Settings → Built-in tools, so the tool must
+     * be enabled too; it is read from the preset's stored settings because the live
+     * refs may already hold the desktop user's preset again. Best-effort: failures
+     * are logged and never break the (already-delivered) text reply.
+     *
+     * Synthesis goes through whichever engine the user selected, Qwen3 included.
+     * Nothing here may prompt: a remote sender cannot answer a download popup on
+     * the host, so a missing model simply means no voice reply.
      */
     async function maybeSendVoiceReply(
       adapter: ChannelAdapter,
@@ -1054,9 +1017,23 @@ export const useHomeAgent = defineStore(
       const trimmed = markdownToSpeechText(text ?? '').trim()
       if (!trimmed) return
       const textToSpeech = useTextToSpeech()
-      if (!textToSpeech.enabled || !textToSpeech.autoSpeakOnVoiceInput) return
+      if (!useTextInference().speakRepliesAllowed(HOME_AGENT_CHAT_PRESET_NAME)) return
 
       try {
+        if (textToSpeech.selectedEngine === 'qwen3') {
+          const qwen3 = useQwen3TextToSpeech()
+          // `synthesize` would open the download popup for a missing model, so
+          // check first and bail out instead.
+          if (!qwen3.isBackendSetUp() || !(await qwen3.isModelInstalled())) return
+          const { audioBase64, mediaType } = await qwen3.synthesize({ text: trimmed })
+          await adapter.voice(audioBase64, mediaType || 'audio/wav', meta)
+          return
+        }
+        // Kokoro / external endpoint. `available` covers exactly those two.
+        if (!textToSpeech.available) return
+        // Start the OVMS speech server on demand (no dialog; no-op if already up or
+        // the model isn't installed — a configured fallback still serves).
+        await textToSpeech.ensureSpeechServerRunning()
         const endpoint = await textToSpeech.resolveSpeech()
         if (!endpoint) return
         // Request WAV — it's universally supported by TTS servers (OVMS and
@@ -1305,11 +1282,22 @@ export const useHomeAgent = defineStore(
       meta?: InboundMeta,
     ): Promise<string | null> {
       const speechToText = useSpeechToText()
+      // Start the selected engine's server on demand. Both are dialog-free (a
+      // remote sender can't answer a download popup) and no-op when the backend or
+      // model isn't installed — a configured fallback still serves. The standalone
+      // sidecar needs this explicitly: its endpoint resolves from the registered
+      // service's baseUrl whether or not the process is running, so without the
+      // start below transcription would just fail to connect.
+      if (speechToText.effectiveSttEngine === 'standalone') {
+        await speechToText.ensureStandaloneServerRunning()
+      } else {
+        await speechToText.ensureTranscriptionServerRunning()
+      }
       const endpoint = await speechToText.resolveTranscription()
       if (!endpoint) {
         await reply(
           adapter,
-          '⚠️ No speech-to-text is available. Enable Speech To Text (OVMS) or configure a fallback transcription endpoint in Settings.',
+          '⚠️ No speech-to-text is available. Install the OpenVINO backend or the standalone Whisper backend, or configure a fallback transcription endpoint in the Speech to Text preset settings.',
           meta,
         )
         return null
@@ -2287,12 +2275,7 @@ export const useHomeAgent = defineStore(
 
     async function processChannelMessages(kind: ChannelKind) {
       try {
-        // The mock channel sources inbound messages from the in-memory bus
-        // instead of the IPC/HTTP poll — no backend round-trip.
-        const msgs =
-          kind === 'mock'
-            ? mockChannelBus.drainInbound()
-            : await window.electronAPI.homeAgent.channel.poll(kind)
+        const msgs = await window.electronAPI.homeAgent.channel.poll(kind)
         if (!msgs || msgs.length === 0) return
         const queue = messageQueues[kind]
         for (const msg of msgs) {
@@ -2355,81 +2338,6 @@ export const useHomeAgent = defineStore(
     function stopPolling(kind: ChannelKind) {
       disposePoll(kind)
       messageQueues[kind].length = 0
-    }
-
-    // ── Mock channel drive API (dev only) ────────────────────────────────────
-    // Lets e2e tests (and the dev panel) inject inbound traffic and assert on
-    // captured outbound replies without IPC or the Python backend.
-
-    /** Inject a text/photo/audio/document message as if it arrived from a
-     *  remote channel, then drain immediately so the reply is produced without
-     *  waiting for the 2s poll tick. */
-    async function mockSend(
-      text: string,
-      opts?: Partial<Omit<MockInboundMessage, 'text' | 'callback'>>,
-    ): Promise<void> {
-      mockChannelBus.pushInbound({ text, ...opts })
-      await processChannelMessages('mock')
-      await mockWaitForIdle()
-    }
-
-    /** Inject an inline-keyboard tap (e.g. an `/imgGen` preset button). */
-    async function mockSendCallback(callback: string): Promise<void> {
-      mockChannelBus.pushInbound({ callback })
-      await processChannelMessages('mock')
-      await mockWaitForIdle()
-    }
-
-    /** Route a media URL through the real outbound media-send path so the
-     *  image/video/3D delivery (including the rendered 3D thumbnail "screenshot"
-     *  and the `.glb` document) can be verified without a full generation. The
-     *  `kind` is inferred from the extension when omitted. */
-    async function mockSendMedia(
-      url: string,
-      opts?: { kind?: 'image' | 'video' | 'model3d'; caption?: string },
-    ): Promise<void> {
-      const adapter = adapters.mock
-      if (!adapter) return
-      const caption = opts?.caption ?? ''
-      const lower = url.toLowerCase()
-      const kind =
-        opts?.kind ??
-        (lower.endsWith('.glb') || lower.endsWith('.gltf')
-          ? 'model3d'
-          : /\.(mp4|webm|mov)(\?|$)/.test(lower)
-            ? 'video'
-            : 'image')
-      if (kind === 'model3d') {
-        await send3DModelToChannel(adapter, url, caption)
-      } else if (kind === 'video') {
-        await sendVideoToChannel(adapter, url, caption)
-      } else {
-        await sendImageToChannel(adapter, url, caption)
-      }
-    }
-
-    /** Captured outbound events the mock adapter recorded so far. */
-    const mockOutbox = computed(() => mockChannelBus.outbox)
-
-    /** Reset both the inbound queue and the captured outbox. */
-    function mockClear(): void {
-      mockChannelBus.clear()
-    }
-
-    /** Resolve once the mock drain loop is idle and its queue is empty. */
-    function mockWaitForIdle(timeoutMs = 120_000): Promise<void> {
-      const deadline = Date.now() + timeoutMs
-      return new Promise<void>((resolve) => {
-        const check = () => {
-          const idle = !drainBusyByKind.mock && messageQueues.mock.length === 0
-          if (idle || Date.now() > deadline) {
-            resolve()
-            return
-          }
-          setTimeout(check, 50)
-        }
-        check()
-      })
     }
 
     // ── Config / activation API (channel-agnostic) ──────────────────────────
@@ -2534,17 +2442,6 @@ export const useHomeAgent = defineStore(
      *  in-memory secret config and back-fills identity when it is missing. */
     async function initConfig() {
       try {
-        try {
-          const localSettings = await window.electronAPI.getLocalSettings()
-          isFeatureEnabled.value = !!localSettings.isHomeAgentEnabled
-        } catch (e) {
-          console.error('homeAgent.initConfig: getLocalSettings failed:', e)
-          isFeatureEnabled.value = false
-        }
-        if (!isFeatureEnabled.value) {
-          for (const k of KINDS) channels[k] = emptyRuntimeState(k)
-          return
-        }
         for (const kind of KINDS) {
           const cfg = await window.electronAPI.homeAgent.channel.loadConfig(kind)
           if (cfg) {
@@ -2587,24 +2484,6 @@ export const useHomeAgent = defineStore(
 
     void initConfig()
 
-    // Expose a programmatic drive surface for e2e automation (chrome-devtools
-    // MCP, scripts, …). Dev-only — guarded by debug tools so it never ships in
-    // production builds.
-    if (MOCK_ENABLED) {
-      window.__homeAgentMock = {
-        send: (text: string, opts?: Partial<Omit<MockInboundMessage, 'text' | 'callback'>>) =>
-          mockSend(text, opts),
-        sendCallback: (callback: string) => mockSendCallback(callback),
-        sendMedia: (
-          url: string,
-          opts?: { kind?: 'image' | 'video' | 'model3d'; caption?: string },
-        ) => mockSendMedia(url, opts),
-        outbox: () => mockChannelBus.outbox.slice(),
-        clear: () => mockClear(),
-        waitForIdle: (timeoutMs?: number) => mockWaitForIdle(timeoutMs),
-      }
-    }
-
     // ── Read-only convenience getters ───────────────────────────────────────
     // External consumers (setup composables, setup-step components) read these.
     // They are NOT used for persistence — `channelPrefs` is persisted directly.
@@ -2614,7 +2493,6 @@ export const useHomeAgent = defineStore(
     const slackUserId = computed(() => channelPrefs.slack.identity ?? '')
 
     return {
-      isFeatureEnabled,
       isHomeAgentActive,
       // Master title-bar switch + persisted per-channel prefs.
       masterEnabled,
@@ -2640,9 +2518,6 @@ export const useHomeAgent = defineStore(
       showSettings,
       openSettings,
       closeSettings,
-      // Dev-only mock channel panel visibility
-      showMockPanel,
-      toggleMockPanel,
       // Bare-/load summary cache (persisted)
       summaryCache,
       summarizeConversation,
@@ -2658,13 +2533,6 @@ export const useHomeAgent = defineStore(
       isRemoteTurnActive,
       handleRemoteModelDownload,
       resetHomeAgentConfig,
-      // Dev-only mock channel drive API (no-ops when debug tools are disabled).
-      mockSend,
-      mockSendCallback,
-      mockSendMedia,
-      mockOutbox,
-      mockClear,
-      mockWaitForIdle,
     }
   },
   {

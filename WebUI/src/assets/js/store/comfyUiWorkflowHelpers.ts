@@ -27,6 +27,27 @@ export const findKeysByTitle = (
     .filter(([_key, value]) => (value as any)?.['_meta']?.title === title)
     .map(([key, _value]) => key)
 
+/** The name the workflow gives a node, which is what a person recognizes it by. */
+export const nodeTitle = (workflow: ComfyUIApiWorkflow, nodeId: string): string | undefined => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const title = (workflow[nodeId] as any)?.['_meta']?.title
+  return typeof title === 'string' ? title : undefined
+}
+
+/**
+ * The model files a loader node was pointed at, in the order it lists them (a
+ * dual CLIP loader names two). Loaders spell the file in an input whose name
+ * ends in `_name` — `ckpt_name`, `unet_name`, `clip_name1` — which is all the
+ * different loader classes have in common.
+ */
+export const loaderModelNames = (workflow: ComfyUIApiWorkflow, nodeId: string): string[] => {
+  const inputs = workflow[nodeId]?.inputs
+  if (!inputs || typeof inputs !== 'object') return []
+  return Object.entries(inputs)
+    .filter(([name, value]) => /_name\d*$/.test(name) && typeof value === 'string')
+    .map(([, value]) => value as string)
+}
+
 export const findKeysByClassType = (workflow: ComfyUIApiWorkflow, classType: string) =>
   Object.entries(workflow)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

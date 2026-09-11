@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pong</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a2e;
+            font-family: 'Courier New', monospace;
+        }
+        #gameCanvas {
+            border: 4px solid #eee;
+            box-shadow: 0 0 30px rgba(255,255,255,0.2);
+        }
+        #instructions {
+            position: absolute;
+            top: 20px;
+            color: #fff;
+            text-align: center;
+            font-size: 16px;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div id="instructions">Mouse to control left paddle | AI controls right paddle</div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const BALL_RADIUS = 8;
+        const PADDLE_WIDTH = 15;
+        const PADDLE_HEIGHT = 100;
+        const WIN_SCORE = 5;
+        let ball = { x: 400, y: 300, dx: 5, dy: 5, speed: 7 };
+        let leftPaddle = { x: 30, y: 250, width: PADDLE_WIDTH, height: PADDLE_HEIGHT };
+        let rightPaddle = { x: 740, y: 250, width: PADDLE_WIDTH, height: PADDLE_HEIGHT };
+        let scores = { left: 0, right: 0 };
+        let aiTargetY = 250;
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            leftPaddle.y = e.clientY - rect.top - PADDLE_HEIGHT / 2;
+            if (leftPaddle.y < 0) leftPaddle.y = 0;
+            if (leftPaddle.y > 500) leftPaddle.y = 500;
+        });
+        function resetBall() {
+            ball.x = 400; ball.y = 300; ball.speed = 7; ball.dx = -ball.dx; ball.dy = (Math.random() < 0.5 ? -5 : 5);
+        }
+        function initBall() {
+            ball.x = 400; ball.y = 300; ball.dx = 5; ball.dy = (Math.random() < 0.5 ? -5 : 5);
+            aiTargetY = 250;
+        }
+        function checkPaddleCollision() {
+            // Left paddle
+            if (ball.x - BALL_RADIUS < leftPaddle.x + leftPaddle.width && ball.y > leftPaddle.y && ball.y < leftPaddle.y + leftPaddle.height) {
+                let collidePoint = ball.y - (leftPaddle.y + PADDLE_HEIGHT / 2);
+                collidePoint = collidePoint / (PADDLE_HEIGHT / 2);
+                let angleRad = (Math.PI / 4) * collidePoint;
+                let speed = ball.speed;
+                ball.dx = speed * Math.cos(angleRad);
+                ball.dy = speed * Math.sin(angleRad);
+                ball.speed += 0.5;
+                ball.x = leftPaddle.x + leftPaddle.width + BALL_RADIUS;
+            }
+            // Right paddle
+            if (ball.x + BALL_RADIUS > rightPaddle.x && ball.y > rightPaddle.y && ball.y < rightPaddle.y + rightPaddle.height) {
+                let collidePoint = ball.y - (rightPaddle.y + PADDLE_HEIGHT / 2);
+                collidePoint = collidePoint / (PADDLE_HEIGHT / 2);
+                let angleRad = (Math.PI / 4) * collidePoint;
+                let speed = ball.speed;
+                ball.dx = -speed * Math.cos(angleRad);
+                ball.dy = speed * Math.sin(angleRad);
+                ball.speed += 0.5;
+                ball.x = rightPaddle.x - BALL_RADIUS;
+            }
+        }
+        function checkWallCollision() {
+            if (ball.y - BALL_RADIUS < 0 || ball.y + BALL_RADIUS > 600) ball.dy = -ball.dy;
+        }
+        // AI movement with dampening - tracks ball with some delay
+        function updateAI() {
+            // Move target towards ball position with dampening factor
+            aiTargetY = ball.y;
+            // Apply dampening - only move 30% of the way each frame
+            let aiSpeed = 5;
+            rightPaddle.y += (aiTargetY - rightPaddle.y) * 0.3;
+            // Clamp to bounds
+            if (rightPaddle.y < 0) rightPaddle.y = 0;
+            if (rightPaddle.y > 500) rightPaddle.y = 500;
+        }
+        function update() {
+            if (scores.left >= WIN_SCORE || scores.right >= WIN_SCORE) {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0,0,800,600);
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 64px Courier New'; ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER', 400, 300);
+                ctx.font = '32px Courier New'; ctx.fillText(scores.left >= WIN_SCORE ? 'LEFT PLAYER WINS!' : 'COMPUTER WINS!', 400, 350);
+                return;
+            }
+            checkPaddleCollision(); checkWallCollision(); updateAI();
+            ball.x += ball.dx; ball.y += ball.dy;
+            if (ball.x < 0) { scores.right++; resetBall(); }
+            if (ball.x > 800) { scores.left++; resetBall(); }
+        }
+        function draw() {
+            ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0,0,800,600);
+            ctx.setLineDash([10, 15]); ctx.beginPath(); ctx.moveTo(400, 0); ctx.lineTo(400, 600); ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 48px Courier New'; ctx.textAlign = 'center'; ctx.fillText(scores.left, 200, 60); ctx.fillText(scores.right, 600, 60);
+            ctx.fillStyle = '#fff'; ctx.fillRect(leftPaddle.x, leftPaddle.y, leftPaddle.width, leftPaddle.height);
+            ctx.fillRect(rightPaddle.x, rightPaddle.y, rightPaddle.width, rightPaddle.height);
+            ctx.beginPath(); ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill(); ctx.closePath();
+        }
+        function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
+        initBall(); gameLoop();
+        canvas.addEventListener('click', () => { if (scores.left >= WIN_SCORE || scores.right >= WIN_SCORE) { scores.left = 0; scores.right = 0; initBall(); } });
+    </script>
+</body>
+</html>

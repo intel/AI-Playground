@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Vector Circuit</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: #02040a;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    color: #9ef;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #wrap {
+    position: relative;
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  canvas {
+    display: block;
+    width: 100%; height: 100%;
+    background: #02040a;
+  }
+  #hud {
+    position: absolute; inset: 0; pointer-events: none;
+    display: flex; flex-direction: column;
+  }
+  #topbar {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 10px 14px; gap: 12px;
+    text-shadow: 0 0 8px #0ff4;
+    font-size: 13px; letter-spacing: 0.08em;
+  }
+  #topbar .label { opacity: 0.55; font-size: 10px; letter-spacing: 0.18em; }
+  #topbar .val { color: #6ff; font-weight: 600; font-size: 16px; }
+  #lives { color: #f6a; }
+  #overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at center, #041018ee 0%, #02040af2 70%);
+    pointer-events: auto; text-align: center; padding: 24px;
+  }
+  #overlay.hidden { display: none; }
+  #overlay h1 {
+    font-size: clamp(28px, 7vw, 54px);
+    font-weight: 700; letter-spacing: 0.12em;
+    color: #6ff;
+    text-shadow: 0 0 20px #0ff, 0 0 40px #0af8;
+    margin-bottom: 8px;
+  }
+  #overlay .sub {
+    color: #8ad; font-size: 14px; letter-spacing: 0.2em;
+    margin-bottom: 22px; text-transform: uppercase;
+  }
+  #overlay p {
+    max-width: 420px; line-height: 1.55; color: #9bc;
+    font-size: 14px; margin-bottom: 10px;
+  }
+  #overlay .hint {
+    margin-top: 18px; color: #6ff; font-size: 13px;
+    letter-spacing: 0.15em; animation: pulse 1.4s ease-in-out infinite;
+  }
+  #overlay .scoreline { margin-top: 12px; font-size: 18px; color: #fff; }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 1; }
+  }
+  #touch {
+    position: absolute; inset: 0; pointer-events: none;
+    display: none;
+  }
+  #touch.show { display: block; }
+  .pad {
+    position: absolute; pointer-events: auto;
+    border-radius: 50%;
+    background: rgba(0, 200, 255, 0.08);
+    border: 1px solid rgba(0, 220, 255, 0.25);
+    width: 120px; height: 120px;
+  }
+  #padLeft { left: 18px; bottom: 18px; }
+  #padRight { right: 18px; bottom: 18px; }
+  .pad-inner {
+    position: absolute; left: 50%; top: 50%;
+    width: 48px; height: 48px; margin: -24px 0 0 -24px;
+    border-radius: 50%;
+    background: rgba(0, 220, 255, 0.2);
+    border: 1px solid rgba(120, 240, 255, 0.5);
+  }
+  #btnFire {
+    position: absolute; right: 150px; bottom: 40px;
+    width: 72px; height: 72px; border-radius: 50%;
+    pointer-events: auto;
+    background: rgba(255, 80, 140, 0.15);
+    border: 1px solid rgba(255, 120, 180, 0.45);
+    color: #f9a; font-size: 11px; letter-spacing: 0.12em;
+    display: flex; align-items: center; justify-content: center;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="hud">
+    <div id="topbar">
+      <div><div class="label">SCORE</div><div class="val" id="scoreEl">0</div></div>
+      <div style="text-align:center"><div class="label">LEVEL</div><div class="val" id="levelEl">1</div></div>
+      <div style="text-align:right"><div class="label">SHIPS</div><div class="val" id="lives">▲▲▲</div></div>
+    </div>
+  </div>
+  <div id="overlay">
+    <h1>VECTOR CIRCUIT</h1>
+    <div class="sub">Omega Race Style</div>
+    <p>Pilot your arrowhead through laser-bounded arenas. Bounce off the walls, destroy enemy drones, and dodge chaotic mines.</p>
+    <p><b>← →</b> rotate &nbsp; <b>↑</b> thrust &nbsp; <b>Space / Z</b> fire<br/>
+       Touch: left stick steer, right stick thrust/turn, FIRE button</p>
+    <div class="hint">PRESS SPACE OR TAP TO START</div>
+  </div>
+  <div id="touch">
+    <div class="pad" id="padLeft"><div class="pad-inner" id="stickL"></div></div>
+    <div class="pad" id="padRight"><div class="pad-inner" id="stickR"></div></div>
+    <div id="btnFire">FIRE</div>
+  </div>
+</div>
+<script>
+(() => {
+  "use strict";
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+  const overlay = document.getElementById("overlay");
+  const scoreEl = document.getElementById("scoreEl");
+  const levelEl = document.getElementById("levelEl");
+  const livesEl = document.getElementById("lives");
+  const touchUI = document.getElementById("touch");
+
+  let W = 0, H = 0, CX = 0, CY = 0, SCALE = 1;
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+  function resize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    CX = W * 0.5;
+    CY = H * 0.5;
+    SCALE = Math.min(W, H) / 900;
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  let actx = null;
+  function ensureAudio() {
+    if (!actx) {
+      try { actx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch (_) { return; }
+    }
+    if (actx.state === "suspended") actx.resume();
+  }
+  function beep(freq, dur, type, vol, slide) {
+    if (!actx) return;
+    const t0 = actx.currentTime;
+    const o = actx.createOscillator();
+    const g = actx.createGain();
+    o.type = type || "square";
+    o.frequency.setValueAtTime(freq, t0);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, slide), t0 + dur);
+    g.gain.setValueAtTime(vol || 0.05, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  function sfxShoot() { beep(880, 0.08, "square", 0.04, 220); }
+  function sfxBounce() { beep(180, 0.09, "triangle", 0.06, 90); }
+  function sfxHit() { beep(120, 0.25, "sawtooth", 0.07, 40); }
+  function sfxKill() { beep(520, 0.12, "square", 0.05, 80); beep(260, 0.2, "triangle", 0.04, 60); }
+  function sfxMine() { beep(90, 0.35, "sawtooth", 0.05, 30); }
+  function sfxLevel() {
+    beep(440, 0.1, "square", 0.05);
+    setTimeout(function(){ beep(660, 0.12, "square", 0.05); }, 100);
+    setTimeout(function(){ beep(880, 0.18, "square", 0.05); }, 220);
+  }
+  function sfxDie() { beep(300, 0.4, "sawtooth", 0.08, 40); }
+
+  const keys = Object.create(null);
+  const input = { turn: 0, thrust: 0, fire: false, firePressed: false };
+
+  window.addEventListener("keydown", function(e) {
+    keys[e.code] = true;
+    if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].indexOf(e.code) >= 0) e.preventDefault();
+    if (e.code === "Space" || e.code === "KeyZ" || e.code === "Enter") {
+      if (state !== "play") startFromOverlay();
+      else input.firePressed = true;
+    }
+  });
+  window.addEventListener("keyup", function(e) { keys[e.code] = false; });
+
+  const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+  if (isTouch) touchUI.classList.add("show");
+
+  const sticks = {
+    L: { active: false, id: null, x: 0, y: 0 },
+    R: { active: false, id: null, x: 0, y: 0 },
+  };
+  let touchFire = false;
+
+  function padCenter(el) {
+    const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2, r: r.width / 2 };
+  }
+  function setStick(which, dx, dy, maxR) {
+    const len = Math.hypot(dx, dy) || 1;
+    const cl = Math.min(len, maxR * 0.55);
+    sticks[which].x = (dx / len) * cl;
+    sticks[which].y = (dy / len) * cl;
+    const el = which === "L" ? stickL : stickR;
+    el.style.transform = "translate(" + sticks[which].x + "px, " + sticks[which].y + "px)";
+  }
+  const stickL = document.getElementById("stickL");
+  const stickR = document.getElementById("stickR");
+  const padLeft = document.getElementById("padLeft");
+  const padRight = document.getElementById("padRight");
+  const btnFire = document.getElementById("btnFire");
+
+  function bindPad(el, which) {
+    el.addEventListener("pointerdown", function(e) {
+      e.preventDefault();
+      el.setPointerCapture(e.pointerId);
+      sticks[which].active = true;
+      sticks[which].id = e.pointerId;
+      const c = padCenter(el);
+      setStick(which, e.clientX - c.x, e.clientY - c.y, c.r);
+      if (state !== "play") startFromOverlay();
+    });
+    el.addEventListener("pointermove", function(e) {
+      if (!sticks[which].active || sticks[which].id !== e.pointerId) return;
+      const c = padCenter(el);
+      setStick(which, e.clientX - c.x, e.clientY - c.y, c.r);
+    });
+    function end(e) {
+      if (sticks[which].id !== e.pointerId) return;
+      sticks[which].active = false;
+      sticks[which].id = null;
+      sticks[which].x = sticks[which].y = 0;
+      (which === "L" ? stickL : stickR).style.transform = "translate(0,0)";
+    }
+    el.addEventListener("pointerup", end);
+    el.addEventListener("pointercancel", end);
+  }
+  bindPad(padLeft, "L");
+  bindPad(padRight, "R");
+  btnFire.addEventListener("pointerdown", function(e) {
+    e.preventDefault();
+    touchFire = true;
+    input.firePressed = true;
+    if (state !== "play") startFromOverlay();
+  });
+  btnFire.addEventListener("pointerup", function() { touchFire = false; });
+  btnFire.addEventListener("pointercancel", function() { touchFire = false; });
+  overlay.addEventListener("pointerdown", function() { startFromOverlay(); });
+
+  function pollInput() {
+    let turn = 0, thrust = 0, fire = false;
+    if (keys["ArrowLeft"] || keys["KeyA"]) turn -= 1;
+    if (keys["ArrowRight"] || keys["KeyD"]) turn += 1;
+    if (keys["ArrowUp"] || keys["KeyW"]) thrust = 1;
+    if (keys["Space"] || keys["KeyZ"]) fire = true;
+    if (sticks.L.active) {
+      turn += Math.max(-1, Math.min(1, sticks.L.x / 30));
+      if (sticks.L.y < -18) thrust = 1;
+    }
+    if (sticks.R.active) {
+      turn += Math.max(-1, Math.min(1, sticks.R.x / 30));
+      if (sticks.R.y < -12) thrust = 1;
+    }
+    if (touchFire) fire = true;
+    input.turn = Math.max(-1, Math.min(1, turn));
+    input.thrust = thrust;
+    input.fire = fire;
+  }
+
+  const TAU = Math.PI * 2;
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function dist(ax, ay, bx, by) { return Math.hypot(bx - ax, by - ay); }
+  function norm(x, y) {
+    const l = Math.hypot(x, y) || 1;
+    return { x: x / l, y: y / l };
+  }
+  function dot(ax, ay, bx, by) { return ax * bx + ay * by; }
+
+  function pointInPoly(px, py, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y;
+      const inter = ((yi > py) !== (yj > py)) &&
+        (px < (xj - xi) * (py - yi) / ((yj - yi) || 1e-12) + xi);
+      if (inter) inside = !inside;
+    }
+    return inside;
+  }
+
+  function closestOnSeg(px, py, ax, ay, bx, by) {
+    const abx = bx - ax, aby = by - ay;
+    const t = clamp(dot(px - ax, py - ay, abx, aby) / (abx * abx + aby * aby || 1e-12), 0, 1);
+    return { x: ax + abx * t, y: ay + aby * t, t: t };
+  }
+  function regularPoly(n, r, rotOff) {
+    if (rotOff == null) rotOff = -Math.PI / 2;
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = rotOff + (i / n) * TAU;
+      pts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+    }
+    return pts;
+  }
+  function rectPoly(hw, hh) {
+    return [
+      { x: -hw, y: -hh }, { x: hw, y: -hh },
+      { x: hw, y: hh }, { x: -hw, y: hh },
+    ];
+  }
+  function zShape() {
+    const o = [
+      { x: -0.95, y: -0.75 }, { x: 0.35, y: -0.75 }, { x: 0.35, y: -0.35 },
+      { x: 0.95, y: -0.35 }, { x: 0.95, y: 0.75 }, { x: -0.35, y: 0.75 },
+      { x: -0.35, y: 0.35 }, { x: -0.95, y: 0.35 },
+    ];
+    const inn = [
+      { x: -0.45, y: -0.4 }, { x: 0.05, y: -0.4 }, { x: 0.05, y: -0.1 },
+      { x: 0.45, y: -0.1 }, { x: 0.45, y: 0.4 }, { x: -0.05, y: 0.4 },
+      { x: -0.05, y: 0.1 }, { x: -0.45, y: 0.1 },
+    ];
+    return { outer: o, inner: inn, name: "Z-CIRCUIT" };
+  }
+  function hourglass() {
+    return {
+      outer: [
+        { x: -0.9, y: -0.85 }, { x: 0.9, y: -0.85 }, { x: 0.25, y: 0 },
+        { x: 0.9, y: 0.85 }, { x: -0.9, y: 0.85 }, { x: -0.25, y: 0 },
+      ],
+      inner: null, name: "HOURGLASS",
+    };
+  }
+  function stadium() {
+    const pts = [];
+    const n = 16;
+    for (let i = 0; i <= n; i++) {
+      const a = -Math.PI / 2 + (i / n) * Math.PI;
+      pts.push({ x: 0.4 + Math.cos(a) * 0.55, y: Math.sin(a) * 0.7 });
+    }
+    for (let i = 0; i <= n; i++) {
+      const a = Math.PI / 2 + (i / n) * Math.PI;
+      pts.push({ x: -0.4 + Math.cos(a) * 0.55, y: Math.sin(a) * 0.7 });
+    }
+    return { outer: pts, inner: rectPoly(0.28, 0.22), name: "STADIUM" };
+  }
+  function starish() {
+    const s = [];
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (i / 10) * TAU;
+      const r = i % 2 === 0 ? 0.95 : 0.55;
+      s.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+    }
+    return { outer: s, inner: regularPoly(5, 0.22), name: "STARFIELD" };
+  }
+  function diamond() {
+    return {
+      outer: [{ x: 0, y: -0.95 }, { x: 0.85, y: 0 }, { x: 0, y: 0.95 }, { x: -0.85, y: 0 }],
+      inner: [{ x: 0, y: -0.28 }, { x: 0.28, y: 0 }, { x: 0, y: 0.28 }, { x: -0.28, y: 0 }],
+      name: "DIAMOND",
+    };
+  }
+  function crossShape() {
+    const t = 0.38;
+    const o = [
+      { x: -t, y: -0.95 }, { x: t, y: -0.95 }, { x: t, y: -t },
+      { x: 0.95, y: -t }, { x: 0.95, y: t }, { x: t, y: t },
+      { x: t, y: 0.95 }, { x: -t, y: 0.95 }, { x: -t, y: t },
+      { x: -0.95, y: t }, { x: -0.95, y: -t }, { x: -t, y: -t },
+    ];
+    return { outer: o, inner: rectPoly(0.18, 0.18), name: "CROSSHAIR" };
+  }
+  function LShape() {
+    const o = [
+      { x: -0.9, y: -0.9 }, { x: 0.15, y: -0.9 }, { x: 0.15, y: 0.15 },
+      { x: 0.9, y: 0.15 }, { x: 0.9, y: 0.9 }, { x: -0.9, y: 0.9 },
+    ];
+    const inn = [
+      { x: -0.35, y: -0.35 }, { x: -0.05, y: -0.35 }, { x: -0.05, y: 0.35 },
+      { x: -0.35, y: 0.35 },
+    ];
+    return { outer: o, inner: inn, name: "L-BAY" };
+  }
+  function pentagon() {
+    return { outer: regularPoly(5, 0.95), inner: regularPoly(5, 0.28, Math.PI / 5), name: "PENTAGON" };
+  }
+  function hexagon() {
+    return { outer: regularPoly(6, 0.95, 0), inner: regularPoly(6, 0.3, 0), name: "HEXAGON" };
+  }
+  function triangle() {
+    return { outer: regularPoly(3, 0.98), inner: regularPoly(3, 0.28, Math.PI / 3), name: "TRIANGLE" };
+  }
+  function squareTrack() {
+    return { outer: rectPoly(0.92, 0.72), inner: rectPoly(0.38, 0.28), name: "RECTANGLE" };
+  }
+  function octagon() {
+    return { outer: regularPoly(8, 0.95), inner: regularPoly(8, 0.32), name: "OCTAGON" };
+  }
+
+  const LEVEL_SHAPES = [
+    squareTrack, octagon, triangle, hexagon, zShape, diamond,
+    crossShape, hourglass, stadium, LShape, pentagon, starish,
+  ];
+
+  function buildArena(levelIndex) {
+    const fn = LEVEL_SHAPES[levelIndex % LEVEL_SHAPES.length];
+    const def = fn();
+    const aspect = W / Math.max(H, 1);
+    const yScale = aspect > 1.2 ? 0.85 : 1;
+    const s = Math.min(W, H) * 0.44;
+    const map = function(poly) {
+      return poly.map(function(p) {
+        return { x: CX + p.x * s, y: CY + p.y * s * yScale };
+      });
+    };
+    const outer = map(def.outer);
+    const inner = def.inner ? map(def.inner) : null;
+
+    function edgesOf(poly) {
+      const edges = [];
+      for (let i = 0; i < poly.length; i++) {
+        const a = poly[i], b = poly[(i + 1) % poly.length];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const len = Math.hypot(dx, dy) || 1;
+        let nx = -dy / len, ny = dx / len;
+        const mx = (a.x + b.x) * 0.5, my = (a.y + b.y) * 0.5;
+        const testX = mx + nx * 4, testY = my + ny * 4;
+        const inOuter = pointInPoly(testX, testY, outer);
+        const inInner = inner ? pointInPoly(testX, testY, inner) : false;
+        const playable = inOuter && !inInner;
+        if (!playable) { nx = -nx; ny = -ny; }
+        edges.push({ a: a, b: b, nx: nx, ny: ny, len: len });
+      }
+      return edges;
+    }
+    const edges = edgesOf(outer);
+    if (inner) {
+      const ie = edgesOf(inner);
+      for (let i = 0; i < ie.length; i++) edges.push(ie[i]);
+    }
+    return { outer: outer, inner: inner, edges: edges, name: def.name };
+  }
+
+  function isPlayable(x, y, arena) {
+    if (!pointInPoly(x, y, arena.outer)) return false;
+    if (arena.inner && pointInPoly(x, y, arena.inner)) return false;
+    return true;
+  }
+
+  function findSpawn(arena, preferAngle) {
+    for (let i = 0; i < 40; i++) {
+      const a = preferAngle != null ? preferAngle + (Math.random() - 0.5) * 0.8 : Math.random() * TAU;
+      const r = 0.55 + Math.random() * 0.25;
+      const s = Math.min(W, H) * 0.3 * r;
+      const x = CX + Math.cos(a) * s;
+      const y = CY + Math.sin(a) * s * 0.85;
+      if (isPlayable(x, y, arena) && wallDist(x, y, arena) > 28) return { x: x, y: y };
+    }
+    for (let k = 0; k < 30; k++) {
+      const x = CX + (Math.random() - 0.5) * W * 0.4;
+      const y = CY + (Math.random() - 0.5) * H * 0.4;
+      if (isPlayable(x, y, arena) && wallDist(x, y, arena) > 24) return { x: x, y: y };
+    }
+    return { x: CX, y: CY - Math.min(W, H) * 0.25 };
+  }
+
+  function wallDist(x, y, arena) {
+    let minD = Infinity;
+    for (let i = 0; i < arena.edges.length; i++) {
+      const e = arena.edges[i];
+      const c = closestOnSeg(x, y, e.a.x, e.a.y, e.b.x, e.b.y);
+      const d = dist(x, y, c.x, c.y);
+      if (d < minD) minD = d;
+    }
+    return minD;
+  }
+
+  function collideWalls(ent, arena, radius, bounce) {
+    let bounced = false;
+    for (let iter = 0; iter < 3; iter++) {
+      let best = null;
+      for (let i = 0; i < arena.edges.length; i++) {
+        const e = arena.edges[i];
+        const c = closestOnSeg(ent.x, ent.y, e.a.x, e.a.y, e.b.x, e.b.y);
+        const dx = ent.x - c.x, dy = ent.y - c.y;
+        const d = Math.hypot(dx, dy);
+        if (d < radius) {
+          const pen = radius - d;
+          if (!best || pen > best.pen) {
+            let nx = e.nx, ny = e.ny;
+            if (d > 0.001) {
+              const sx = dx / d, sy = dy / d;
+              nx = sx; ny = sy;
+              if (!isPlayable(c.x + nx * 6, c.y + ny * 6, arena)) {
+                nx = -nx; ny = -ny;
+              }
+            }
+            best = { pen: pen, nx: nx, ny: ny };
+          }
+        }
+      }
+      if (!best) break;
+      ent.x += best.nx * (best.pen + 0.5);
+      ent.y += best.ny * (best.pen + 0.5);
+      const vn = ent.vx * best.nx + ent.vy * best.ny;
+      if (vn < 0) {
+        const rest = bounce != null ? bounce : 0.85;
+        ent.vx -= (1 + rest) * vn * best.nx;
+        ent.vy -= (1 + rest) * vn * best.ny;
+        bounced = true;
+      }
+    }
+    if (!isPlayable(ent.x, ent.y, arena)) {
+      const dx = CX - ent.x, dy = CY - ent.y;
+      const n = norm(dx, dy);
+      for (let k = 0; k < 20 && !isPlayable(ent.x, ent.y, arena); k++) {
+        ent.x += n.x * 4;
+        ent.y += n.y * 4;
+      }
+      ent.vx *= 0.5; ent.vy *= 0.5;
+      bounced = true;
+    }
+    return bounced;
+  }
+  let state = "title";
+  let score = 0, lives = 3, level = 1;
+  let arena = null;
+  let player = null;
+  let bullets = [];
+  let enemies = [];
+  let eBullets = [];
+  let mines = [];
+  let particles = [];
+  let lasers = [];
+  let invuln = 0;
+  let levelTimer = 0;
+  let clearTimer = 0;
+  let shake = 0;
+  let message = "";
+  let messageT = 0;
+  let lastT = 0;
+  let fireCD = 0;
+  let thrustGlow = 0;
+
+  function makePlayer(pos) {
+    return {
+      x: pos.x, y: pos.y, vx: 0, vy: 0,
+      angle: -Math.PI / 2, r: 11, alive: true, respawnT: 0,
+    };
+  }
+
+  function spawnEnemy(arena, levelNum) {
+    const pos = findSpawn(arena, Math.random() * TAU);
+    if (player && dist(pos.x, pos.y, player.x, player.y) < 100) {
+      const p2 = findSpawn(arena, player.angle + Math.PI);
+      pos.x = p2.x; pos.y = p2.y;
+    }
+    const a = Math.random() * TAU;
+    const speed = 35 + levelNum * 4;
+    return {
+      x: pos.x, y: pos.y,
+      vx: Math.cos(a) * speed * 0.3,
+      vy: Math.sin(a) * speed * 0.3,
+      angle: a, r: 14,
+      hp: 1 + Math.floor((levelNum - 1) / 4),
+      fireCD: 1.2 + Math.random() * 1.5,
+      mineCD: 4 + Math.random() * 5,
+      turnT: 0,
+      type: Math.random() < 0.25 ? "heavy" : "drone",
+      pulse: Math.random() * TAU,
+    };
+  }
+
+  function spawnMine(x, y, levelNum) {
+    const a = Math.random() * TAU;
+    const sp = 60 + Math.random() * 80 + levelNum * 5;
+    return {
+      x: x, y: y,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      r: 9, life: 12 + Math.random() * 6, chaos: 0,
+      spin: Math.random() * TAU, spinV: (Math.random() - 0.5) * 8,
+    };
+  }
+
+  function addBullet(x, y, angle, speed, friendly) {
+    return {
+      x: x, y: y,
+      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+      life: friendly ? 1.1 : 1.6, r: 3, friendly: !!friendly,
+    };
+  }
+
+  function burst(x, y, color, n, speed) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * TAU;
+      const s = (Math.random() * 0.6 + 0.4) * (speed || 160);
+      particles.push({
+        x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+        life: 0.3 + Math.random() * 0.5, max: 0.8, color: color,
+        size: 1.5 + Math.random() * 2.5,
+      });
+    }
+  }
+
+  function wallPulse(edge) {
+    lasers.push({
+      a: { x: edge.a.x, y: edge.a.y },
+      b: { x: edge.b.x, y: edge.b.y },
+      life: 0.25, max: 0.25,
+    });
+  }
+
+  function updateHUD() {
+    scoreEl.textContent = String(score);
+    levelEl.textContent = String(level);
+    livesEl.textContent = "▲".repeat(Math.max(0, lives)) || "—";
+  }
+
+  function startFromOverlay() {
+    ensureAudio();
+    if (state === "title" || state === "gameover") {
+      score = 0; lives = 3; level = 1;
+      startLevel();
+      state = "play";
+      overlay.classList.add("hidden");
+    } else if (state === "levelclear") {
+      level++;
+      startLevel();
+      state = "play";
+      overlay.classList.add("hidden");
+    }
+  }
+
+  function startLevel() {
+    arena = buildArena(level - 1);
+    const spawn = findSpawn(arena, -Math.PI / 2);
+    player = makePlayer(spawn);
+    player.angle = -Math.PI / 2;
+    bullets = []; eBullets = []; mines = []; particles = []; lasers = [];
+    invuln = 1.5; fireCD = 0; levelTimer = 0; clearTimer = 0;
+    message = arena.name; messageT = 2.2;
+    const count = Math.min(2 + Math.floor(level * 1.2), 10);
+    enemies = [];
+    for (let i = 0; i < count; i++) enemies.push(spawnEnemy(arena, level));
+    sfxLevel();
+    updateHUD();
+  }
+
+  function killPlayer() {
+    if (invuln > 0 || !player.alive) return;
+    burst(player.x, player.y, "#6ff", 28, 220);
+    burst(player.x, player.y, "#f6a", 16, 160);
+    sfxDie();
+    shake = 10;
+    lives--;
+    updateHUD();
+    player.alive = false;
+    player.respawnT = 1.4;
+    if (lives < 0) {
+      state = "gameover";
+      showOverlayGameOver();
+    }
+  }
+
+  function showOverlayGameOver() {
+    overlay.classList.remove("hidden");
+    overlay.innerHTML =
+      "<h1>SIGNAL LOST</h1>" +
+      '<div class="sub">Game Over</div>' +
+      '<div class="scoreline">SCORE ' + score + " · LEVEL " + level + "</div>" +
+      '<div class="hint">PRESS SPACE OR TAP TO REBOOT</div>';
+  }
+
+  function showOverlayLevelClear() {
+    overlay.classList.remove("hidden");
+    overlay.innerHTML =
+      "<h1>SECTOR CLEAR</h1>" +
+      '<div class="sub">' + (arena ? arena.name : "") + " → NEXT SHAPE</div>" +
+      '<div class="scoreline">SCORE ' + score + "</div>" +
+      '<div class="hint">PRESS SPACE OR TAP FOR NEXT LEVEL</div>';
+  }
+
+  function update(dt) {
+    if (state !== "play") {
+      updateParticles(dt);
+      return;
+    }
+    levelTimer += dt;
+    if (messageT > 0) messageT -= dt;
+    if (invuln > 0) invuln -= dt;
+    if (shake > 0) shake = Math.max(0, shake - dt * 30);
+    if (fireCD > 0) fireCD -= dt;
+    pollInput();
+
+    if (player && !player.alive) {
+      player.respawnT -= dt;
+      if (player.respawnT <= 0 && lives >= 0) {
+        const sp = findSpawn(arena, -Math.PI / 2);
+        player = makePlayer(sp);
+        invuln = 2;
+      }
+    }
+
+    if (player && player.alive) {
+      player.angle += input.turn * 3.6 * dt;
+      if (input.thrust) {
+        player.vx += Math.cos(player.angle) * 280 * dt;
+        player.vy += Math.sin(player.angle) * 280 * dt;
+        thrustGlow = Math.min(1, thrustGlow + dt * 6);
+        if (Math.random() < 0.6) {
+          const back = player.angle + Math.PI;
+          particles.push({
+            x: player.x + Math.cos(back) * 10,
+            y: player.y + Math.sin(back) * 10,
+            vx: Math.cos(back) * 80 + (Math.random() - 0.5) * 40,
+            vy: Math.sin(back) * 80 + (Math.random() - 0.5) * 40,
+            life: 0.15 + Math.random() * 0.15, max: 0.3,
+            color: Math.random() < 0.5 ? "#6ff" : "#ff8",
+            size: 1.5 + Math.random() * 2,
+          });
+        }
+      } else {
+        thrustGlow = Math.max(0, thrustGlow - dt * 4);
+      }
+      const drag = Math.pow(0.42, dt);
+      player.vx *= drag; player.vy *= drag;
+      const sp = Math.hypot(player.vx, player.vy);
+      if (sp > 340) {
+        player.vx = (player.vx / sp) * 340;
+        player.vy = (player.vy / sp) * 340;
+      }
+      player.x += player.vx * dt;
+      player.y += player.vy * dt;
+
+      if (collideWalls(player, arena, player.r, 0.92)) {
+        sfxBounce();
+        let bestE = null, bestD = Infinity;
+        for (let i = 0; i < arena.edges.length; i++) {
+          const e = arena.edges[i];
+          const c = closestOnSeg(player.x, player.y, e.a.x, e.a.y, e.b.x, e.b.y);
+          const d = dist(player.x, player.y, c.x, c.y);
+          if (d < bestD) { bestD = d; bestE = e; }
+        }
+        if (bestE) wallPulse(bestE);
+        shake = Math.max(shake, 3);
+      }
+
+      if ((input.fire || input.firePressed) && fireCD <= 0) {
+        fireCD = 0.16;
+        bullets.push(addBullet(
+          player.x + Math.cos(player.angle) * 14,
+          player.y + Math.sin(player.angle) * 14,
+          player.angle, 520, true
+        ));
+        sfxShoot();
+        input.firePressed = false;
+      }
+    }
+    input.firePressed = false;
+
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      b.life -= dt;
+      if (!isPlayable(b.x, b.y, arena) || wallDist(b.x, b.y, arena) < 2) {
+        burst(b.x, b.y, "#8ff", 4, 60);
+        bullets.splice(i, 1);
+        continue;
+      }
+      if (b.life <= 0) { bullets.splice(i, 1); continue; }
+      let hit = false;
+      for (let j = enemies.length - 1; j >= 0; j--) {
+        const e = enemies[j];
+        if (dist(b.x, b.y, e.x, e.y) < e.r + 4) {
+          bullets.splice(i, 1); hit = true;
+          e.hp--;
+          burst(e.x, e.y, "#f8a", 8, 120);
+          if (e.hp <= 0) {
+            score += e.type === "heavy" ? 250 : 100;
+            burst(e.x, e.y, "#f6a", 22, 200);
+            burst(e.x, e.y, "#fff", 10, 140);
+            sfxKill();
+            enemies.splice(j, 1);
+            updateHUD();
+          } else {
+            sfxHit(); score += 25; updateHUD();
+          }
+          break;
+        }
+      }
+      if (hit) continue;
+      for (let j = mines.length - 1; j >= 0; j--) {
+        const m = mines[j];
+        if (dist(b.x, b.y, m.x, m.y) < m.r + 4) {
+          bullets.splice(i, 1);
+          score += 75;
+          burst(m.x, m.y, "#fa0", 18, 180);
+          sfxMine();
+          mines.splice(j, 1);
+          updateHUD();
+          break;
+        }
+      }
+    }
+    for (let ei = 0; ei < enemies.length; ei++) {
+      const e = enemies[ei];
+      e.pulse += dt * 4;
+      e.turnT -= dt;
+      e.fireCD -= dt;
+      e.mineCD -= dt;
+      if (e.turnT <= 0) {
+        e.turnT = 0.6 + Math.random() * 1.2;
+        if (player && player.alive && Math.random() < 0.7) {
+          e.angle = Math.atan2(player.y - e.y, player.x - e.x) + (Math.random() - 0.5) * 0.9;
+        } else {
+          e.angle += (Math.random() - 0.5) * 1.5;
+        }
+      }
+      const spd = e.type === "heavy" ? 28 + level * 2 : 42 + level * 3;
+      e.vx = lerp(e.vx, Math.cos(e.angle) * spd, 1 - Math.pow(0.05, dt));
+      e.vy = lerp(e.vy, Math.sin(e.angle) * spd, 1 - Math.pow(0.05, dt));
+      e.x += e.vx * dt;
+      e.y += e.vy * dt;
+      if (collideWalls(e, arena, e.r, 1)) {
+        e.angle = Math.atan2(e.vy, e.vx);
+      }
+      if (player && player.alive && e.fireCD <= 0) {
+        const d = dist(e.x, e.y, player.x, player.y);
+        if (d < 420) {
+          const aim = Math.atan2(player.y - e.y, player.x - e.x);
+          const ang = aim + (Math.random() - 0.5) * 0.25 * (e.type === "heavy" ? 0.4 : 1);
+          eBullets.push(addBullet(e.x + Math.cos(ang) * 16, e.y + Math.sin(ang) * 16, ang, 210 + level * 8, false));
+          e.fireCD = (e.type === "heavy" ? 1.1 : 1.6) + Math.random() * 1.2 - Math.min(level, 8) * 0.05;
+          beep(240, 0.06, "square", 0.03, 120);
+        }
+      }
+      if (e.mineCD <= 0 && mines.length < 6 + level) {
+        mines.push(spawnMine(e.x, e.y, level));
+        e.mineCD = 6 + Math.random() * 5 - Math.min(level, 6) * 0.3;
+        burst(e.x, e.y, "#fa6", 6, 50);
+        beep(70, 0.15, "triangle", 0.04);
+      }
+      if (player && player.alive && invuln <= 0 && dist(e.x, e.y, player.x, player.y) < e.r + player.r) {
+        killPlayer();
+      }
+    }
+
+    for (let i = eBullets.length - 1; i >= 0; i--) {
+      const b = eBullets[i];
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      b.life -= dt;
+      if (!isPlayable(b.x, b.y, arena) || b.life <= 0) {
+        eBullets.splice(i, 1);
+        continue;
+      }
+      if (player && player.alive && invuln <= 0 && dist(b.x, b.y, player.x, player.y) < player.r + 3) {
+        eBullets.splice(i, 1);
+        killPlayer();
+      }
+    }
+
+    for (let i = mines.length - 1; i >= 0; i--) {
+      const m = mines[i];
+      m.life -= dt;
+      m.chaos += dt;
+      m.spin += m.spinV * dt;
+      if (Math.random() < 0.08) {
+        const a = Math.random() * TAU;
+        const f = 200 + Math.random() * 300;
+        m.vx += Math.cos(a) * f * dt * 10;
+        m.vy += Math.sin(a) * f * dt * 10;
+      }
+      m.vx += Math.sin(m.chaos * 7.3 + m.spin) * 40 * dt;
+      m.vy += Math.cos(m.chaos * 5.1 + m.spin) * 40 * dt;
+      const msp = Math.hypot(m.vx, m.vy);
+      if (msp > 220) { m.vx = m.vx / msp * 220; m.vy = m.vy / msp * 220; }
+      m.x += m.vx * dt;
+      m.y += m.vy * dt;
+      collideWalls(m, arena, m.r, 1.05);
+      if (m.life <= 0) {
+        burst(m.x, m.y, "#fa0", 10, 100);
+        mines.splice(i, 1);
+        continue;
+      }
+      if (player && player.alive && invuln <= 0 && dist(m.x, m.y, player.x, player.y) < m.r + player.r) {
+        burst(m.x, m.y, "#fa0", 20, 200);
+        mines.splice(i, 1);
+        sfxMine();
+        killPlayer();
+      }
+    }
+
+    updateParticles(dt);
+    for (let i = lasers.length - 1; i >= 0; i--) {
+      lasers[i].life -= dt;
+      if (lasers[i].life <= 0) lasers.splice(i, 1);
+    }
+
+    if (enemies.length === 0 && mines.length === 0 && player && player.alive) {
+      clearTimer += dt;
+      if (clearTimer > 0.8) {
+        score += 500 + level * 100;
+        updateHUD();
+        state = "levelclear";
+        showOverlayLevelClear();
+        sfxLevel();
+      }
+    } else {
+      clearTimer = 0;
+    }
+  }
+
+  function updateParticles(dt) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.vx *= Math.pow(0.15, dt);
+      p.vy *= Math.pow(0.15, dt);
+      p.life -= dt;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  function draw() {
+    ctx.save();
+    if (shake > 0) {
+      ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+    }
+    ctx.fillStyle = "#02040a";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#ffffff";
+    for (let i = 0; i < 60; i++) {
+      const sx = ((i * 97 + 546) % 1000) / 1000 * W;
+      const sy = ((i * 53 + 1218) % 1000) / 1000 * H;
+      ctx.globalAlpha = 0.15 + (i % 5) * 0.08;
+      ctx.fillRect(sx, sy, 1.5, 1.5);
+    }
+    ctx.globalAlpha = 1;
+    if (arena) drawArena(arena);
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      ctx.globalAlpha = clamp(p.life / p.max, 0, 1);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, TAU);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    for (let i = 0; i < mines.length; i++) drawMine(mines[i]);
+    for (let i = 0; i < enemies.length; i++) drawEnemy(enemies[i]);
+    for (let i = 0; i < bullets.length; i++) {
+      const b = bullets[i];
+      ctx.save();
+      ctx.strokeStyle = "#9ff";
+      ctx.shadowColor = "#0ff";
+      ctx.shadowBlur = 8;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(b.x - b.vx * 0.012, b.y - b.vy * 0.012);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+    for (let i = 0; i < eBullets.length; i++) {
+      const b = eBullets[i];
+      ctx.save();
+      ctx.strokeStyle = "#f68";
+      ctx.shadowColor = "#f06";
+      ctx.shadowBlur = 8;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(b.x - b.vx * 0.012, b.y - b.vy * 0.012);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (player && player.alive) {
+      const blink = invuln > 0 && Math.floor(invuln * 12) % 2 === 0;
+      if (!blink) drawShip(player.x, player.y, player.angle, thrustGlow);
+    }
+    if (messageT > 0 && message) {
+      ctx.save();
+      ctx.globalAlpha = clamp(messageT, 0, 1);
+      ctx.font = "600 " + Math.floor(18 * Math.min(SCALE * 1.4, 1.2)) + "px Segoe UI, sans-serif";
+      ctx.fillStyle = "#6ff";
+      ctx.textAlign = "center";
+      ctx.shadowColor = "#0ff";
+      ctx.shadowBlur = 12;
+      ctx.fillText(message, CX, H * 0.18);
+      ctx.font = "400 " + Math.floor(12 * Math.min(SCALE * 1.4, 1.2)) + "px Segoe UI, sans-serif";
+      ctx.fillStyle = "#8ad";
+      ctx.shadowBlur = 0;
+      ctx.fillText("DESTROY ALL HOSTILES", CX, H * 0.18 + 22);
+      ctx.restore();
+    }
+    if (state === "play" && levelTimer < 4) {
+      ctx.save();
+      ctx.globalAlpha = clamp(4 - levelTimer, 0, 1) * 0.7;
+      ctx.font = "11px Segoe UI, sans-serif";
+      ctx.fillStyle = "#6ab";
+      ctx.textAlign = "center";
+      ctx.fillText("BOUNCE OFF LASER WALLS  ·  SHOOT DRONES & MINES", CX, H - 28);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+  function drawArena(ar) {
+    ctx.save();
+    ctx.beginPath();
+    pathPoly(ar.outer);
+    ctx.fillStyle = "rgba(0, 30, 50, 0.35)";
+    ctx.fill();
+    if (ar.inner) {
+      ctx.beginPath();
+      pathPoly(ar.inner);
+      ctx.fillStyle = "#02040a";
+      ctx.fill();
+    }
+    ctx.save();
+    ctx.beginPath();
+    pathPoly(ar.outer);
+    ctx.clip();
+    ctx.strokeStyle = "rgba(0, 180, 220, 0.06)";
+    ctx.lineWidth = 1;
+    const step = 36;
+    for (let x = 0; x < W; x += step) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    for (let y = 0; y < H; y += step) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+    if (ar.inner) {
+      ctx.beginPath();
+      pathPoly(ar.inner);
+      ctx.fillStyle = "#02040a";
+      ctx.fill();
+    }
+    ctx.restore();
+    drawLaserPoly(ar.outer, "#0ff", 1);
+    if (ar.inner) drawLaserPoly(ar.inner, "#f6a", 1);
+    for (let i = 0; i < lasers.length; i++) {
+      const L = lasers[i];
+      const a = L.life / L.max;
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255," + a + ")";
+      ctx.shadowColor = "#fff";
+      ctx.shadowBlur = 20 * a;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(L.a.x, L.a.y);
+      ctx.lineTo(L.b.x, L.b.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  function pathPoly(poly) {
+    ctx.moveTo(poly[0].x, poly[0].y);
+    for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x, poly[i].y);
+    ctx.closePath();
+  }
+
+  function drawLaserPoly(poly, color, w) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 16;
+    ctx.lineWidth = 3 * w;
+    ctx.lineJoin = "round";
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    pathPoly(poly);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.2 * w;
+    ctx.globalAlpha = 0.9;
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.9;
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i];
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawShip(x, y, angle, thrust) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.shadowColor = "#0ff";
+    ctx.shadowBlur = 12;
+    ctx.strokeStyle = "#6ff";
+    ctx.fillStyle = "rgba(0, 255, 255, 0.12)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(14, 0);
+    ctx.lineTo(-10, 9);
+    ctx.lineTo(-6, 0);
+    ctx.lineTo(-10, -9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(4, 0);
+    ctx.lineTo(-4, 0);
+    ctx.stroke();
+    if (thrust > 0.05) {
+      ctx.strokeStyle = "#ff8";
+      ctx.shadowColor = "#f80";
+      ctx.shadowBlur = 10;
+      ctx.globalAlpha = 0.5 + thrust * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(-6, 0);
+      ctx.lineTo(-12 - thrust * 10 - Math.random() * 4, (Math.random() - 0.5) * 4);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawEnemy(e) {
+    ctx.save();
+    ctx.translate(e.x, e.y);
+    ctx.rotate(e.angle);
+    const col = e.type === "heavy" ? "#f6a" : "#f84";
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 10;
+    ctx.strokeStyle = col;
+    ctx.fillStyle = e.type === "heavy" ? "rgba(255,100,160,0.12)" : "rgba(255,100,60,0.1)";
+    ctx.lineWidth = 2;
+    if (e.type === "heavy") {
+      ctx.beginPath();
+      ctx.moveTo(12, 0);
+      ctx.lineTo(0, 10);
+      ctx.lineTo(-12, 0);
+      ctx.lineTo(0, -10);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, 4 + Math.sin(e.pulse) * 1.5, 0, TAU);
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(11, 0);
+      ctx.lineTo(-8, 8);
+      ctx.lineTo(-3, 0);
+      ctx.lineTo(-8, -8);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawMine(m) {
+    ctx.save();
+    ctx.translate(m.x, m.y);
+    ctx.rotate(m.spin);
+    const pulse = 0.7 + Math.sin(m.chaos * 10) * 0.3;
+    ctx.shadowColor = "#fa0";
+    ctx.shadowBlur = 12 * pulse;
+    ctx.strokeStyle = "#fa0";
+    ctx.fillStyle = "rgba(255,160,0,0.15)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    const spikes = 6;
+    for (let i = 0; i < spikes; i++) {
+      const a0 = (i / spikes) * TAU;
+      const a1 = a0 + TAU / spikes / 2;
+      const r0 = 8, r1 = 4;
+      if (i === 0) ctx.moveTo(Math.cos(a0) * r0, Math.sin(a0) * r0);
+      else ctx.lineTo(Math.cos(a0) * r0, Math.sin(a0) * r0);
+      ctx.lineTo(Math.cos(a1) * r1, Math.sin(a1) * r1);
+    }
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0, 2.5, 0, TAU);
+    ctx.fillStyle = "#fff";
+    ctx.globalAlpha = pulse;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function frame(t) {
+    const tSec = t * 0.001;
+    let dt = lastT ? tSec - lastT : 0.016;
+    lastT = tSec;
+    dt = Math.min(dt, 0.05);
+    update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  function initTitle() {
+    arena = buildArena(0);
+    player = null;
+    enemies = [];
+    for (let i = 0; i < 3; i++) enemies.push(spawnEnemy(arena, 1));
+    updateHUD();
+  }
+  initTitle();
+  requestAnimationFrame(frame);
+
+  window.__game = {
+    get state() { return state; },
+    get score() { return score; },
+    get level() { return level; },
+    startFromOverlay: startFromOverlay,
+  };
+})();
+</script>
+</body>
+</html>

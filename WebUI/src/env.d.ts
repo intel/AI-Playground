@@ -2,59 +2,22 @@ declare interface Window {
   __AIPG_DEMO_MODE__?: boolean
   chrome: Chrome
   electronAPI: electronAPI
-  envVars: { platformTitle: string; productVersion: string; debugToolsEnabled: boolean }
-  // Dev-only Home Agent mock-channel drive surface (see channels/mockAdapter.ts).
-  // Only attached when debug tools are enabled.
-  __homeAgentMock?: HomeAgentMockApi
-}
-
-type HomeAgentMockInboundOpts = {
-  chat_id?: string
-  channel?: string
-  ts?: string
-  images?: Array<{ mime: string; data_base64: string }>
-  audio?: Array<{ mime: string; data_base64: string }>
-  documents?: Array<{ filename: string; mime: string; data_base64: string }>
-}
-
-type HomeAgentMockOutboundEvent = {
-  kind:
-    | 'reply'
-    | 'photo'
-    | 'video'
-    | 'voice'
-    | 'document'
-    | 'keyboard'
-    | 'keyboardEdit'
-    | 'draftUpdate'
-    | 'draftFinal'
-    | 'typingStart'
-    | 'typingStop'
-  text?: string
-  caption?: string
-  filename?: string
-  mime?: string
-  base64?: string
-  buttons?: Array<Array<{ text: string; callbackData: string }>>
-  meta?: { channel?: string; ts?: string; chatId?: string }
-  ts: number
-}
-
-type HomeAgentMockApi = {
-  send(text: string, opts?: HomeAgentMockInboundOpts): Promise<void>
-  sendCallback(callback: string): Promise<void>
-  sendMedia(
-    url: string,
-    opts?: { kind?: 'image' | 'video' | 'model3d'; caption?: string },
-  ): Promise<void>
-  outbox(): HomeAgentMockOutboundEvent[]
-  clear(): void
-  waitForIdle(timeoutMs?: number): Promise<void>
+  envVars: {
+    platformTitle: string
+    productVersion: string
+    debugToolsEnabled: boolean
+    /** Short commit this build came from; '' when it could not be determined. */
+    gitCommit: string
+    /** Release tag on that commit; '' when the build is not from a tag. */
+    gitTag: string
+  }
 }
 
 interface ImportMetaEnv {
   readonly VITE_PLATFORM_TITLE: string
   readonly VITE_DEBUG_TOOLS: 'true' | undefined
+  readonly VITE_GIT_COMMIT: string | undefined
+  readonly VITE_GIT_TAG: string | undefined
 }
 
 interface ImportMeta {
@@ -109,18 +72,16 @@ type ProductMode = 'studio' | 'essentials' | 'nvidia'
 
 /** Mirrors electron/main LocalSettingsSchema (renderer copy for IPC typing). */
 type LocalSettings = {
-  debug: boolean
-  deviceArchOverride: 'bmg' | 'acm' | 'arl_h' | 'wcl' | 'lnl' | 'mtl' | null
-  isAdminExec: boolean
-  availableThemes: Array<'dark' | 'lnl' | 'bmg' | 'light'>
-  currentTheme: 'dark' | 'lnl' | 'bmg' | 'light'
   productMode?: ProductMode
   isDemoModeEnabled: boolean
   demoModeResetInSeconds: number | null
   demoModePasscode?: string
-  isHomeAgentEnabled: boolean
-  isCloudModeEnabled: boolean
-  isQwen3TtsEnabled?: boolean
+  isAgentPresetEnabled?: boolean
+  /** Shows the machine-level debug controls in Settings → Developer. */
+  showDebugSettingsInUI?: boolean
+  oemVendorOverride?: string | null
+  /** Components switched off in the setup wizard; not auto-started at launch. */
+  disabledBackends?: string[]
   languageOverride: string | null
   remoteRepository: string
   huggingfaceEndpoint: string
@@ -129,6 +90,17 @@ type LocalSettings = {
   preferredDevice: PreferredDevice | null
   /** Dev unpackaged: set via settings-dev.json / userData overlay. */
   PhisonSSDdetected?: boolean
+  /** Linux: user accepted obfuscated-on-disk secrets when no OS keyring is available. */
+  allowPlaintextSecretStorage?: boolean
+}
+
+/** Mirrors electron/laminar LaminarConfigSchema (renderer copy for IPC typing). */
+type LaminarConfig = {
+  projectApiKey: string
+  /** Scheme and host only — the SDK takes the ports separately. */
+  baseUrl: string
+  httpPort: number
+  grpcPort: number
 }
 
 type DeviceCategory = 'dgpu' | 'igpu' | 'npu' | 'cpu' | 'unknown'
@@ -272,7 +244,45 @@ type WebSearchResults = {
 
 type DemoModePage = 'chat' | 'imageGen' | 'imageEdit' | 'video'
 type WorkflowModeType = 'imageGen' | 'imageEdit' | 'video'
-type ModeType = 'chat' | WorkflowModeType
+// 'audio' hosts the speech presets (Text to Speech / Speech to Text). Like 'chat'
+// it runs on chat-type presets and renders its turns in the Chat view, but it has
+// its own preset category, picker and settings panel.
+type ChatLikeModeType = 'chat' | 'audio'
+type ModeType = ChatLikeModeType | 'agent' | WorkflowModeType
+
+// Agent Mode (Pi coding agent) — see src/types/agentIpc.ts.
+type AgentModeModelConfig = import('./types/agentIpc').AgentModeModelConfig
+type AgentToolSpec = import('./types/agentIpc').AgentToolSpec
+type AgentCapabilityInfo = import('./types/agentIpc').AgentCapabilityInfo
+type AgentModeTurnConfig = import('./types/agentIpc').AgentModeTurnConfig
+
+/** Streaming output of a running tool, keyed by the tool call it belongs to. */
+type AgentToolProgress = {
+  turnId: string
+  toolCallId: string
+  toolName: string
+  text: string
+}
+
+type GameLibraryEntry = import('./types/agentIpc').GameLibraryEntry
+type ArcadeCatalogEntry = import('./types/agentIpc').ArcadeCatalogEntry
+
+/** An image a tool produced, shown to the user under that tool's card. */
+type AgentToolImage = {
+  toolCallId: string
+  /** The image itself, inlined — it never enters the model's context. */
+  dataUri: string
+  /** What the image is, e.g. the workspace path it was saved to. */
+  label: string
+}
+
+type AgentToolExecuteRequest = {
+  requestId: string
+  /** Model-side tool call id, matching the UI message part (progress keying). */
+  toolCallId: string
+  toolName: string
+  input: Record<string, unknown>
+}
 
 type electronAPI = {
   startDrag: (fileName: string) => void
@@ -290,6 +300,7 @@ type electronAPI = {
   ): Promise<{ releaseTag?: string; version?: string } | undefined>
   getGitHubRepoUrl(): Promise<string>
   openDevTools(): void
+  setVerboseAgentLogging(enabled: boolean): void
   getDeveloperSettings(): Promise<{ openDevConsoleOnStartup: boolean }>
   openUrl(url: string): void
   changeWindowMessageFilter(): void
@@ -299,7 +310,6 @@ type electronAPI = {
     maxChatContentHeight: number
   }>
   getLocaleSettings(): Promise<LocaleSettings>
-  getThemeSettings(): Promise<ThemeSettings>
   updateLocalSettings(updates: Partial<LocalSettings>): Promise<{ success: boolean }>
   getLocalSettings(): Promise<LocalSettings>
   detectHardwareForModeRecommendation(): Promise<HardwareRecommendationResult>
@@ -321,10 +331,14 @@ type electronAPI = {
   saveGeneratedAudio(
     audioBase64: string,
     filename: string,
+    /** `overwrite`: replace an existing file of that name instead of suffixing `_1`. */
+    options?: { overwrite?: boolean },
   ): Promise<{ success: boolean; filePath?: string; error?: string }>
   readLocalAudioAsDataUri(
     filePath: string,
   ): Promise<{ success: boolean; dataUri?: string; error?: string }>
+  /** Delete a generated audio file. Confined to the app's audio directory. */
+  deleteGeneratedAudio(filePath: string): Promise<{ success: boolean; error?: string }>
   readAipgMediaAsBase64(
     url: string,
   ): Promise<{ success: true; data: string } | { success: false; error: string }>
@@ -333,8 +347,15 @@ type electronAPI = {
   screenChange(callback: (width: number, height: number) => void): void
   webServiceExit(callback: (serviceName: string, normalExit: string) => void): void
   existsPath(path: string): Promise<boolean>
-  addDocumentToRAGList(doc: IndexedDocument): Promise<IndexedDocument>
+  addDocumentToRAGList(
+    doc: IndexedDocument,
+    phisonKmConfig?: PhisonKmIngestConfig,
+  ): Promise<IndexedDocument>
   embedInputUsingRag(embedInquiry: EmbedInquiry): Promise<LangchainDocument[]>
+  // mergedGroups here carries `content` (derived from splitDB just before the call) —
+  // this WarmupRequest payload is transient IPC, never persisted, unlike the
+  // boundary-only MergedGroup stored on IndexedDocument.
+  warmupKVCacheForDocument(request: WarmupRequest): Promise<{ success: boolean }>
   getEmbeddingServerUrl(
     serviceName: string,
   ): Promise<{ success: boolean; url?: string; error?: string }>
@@ -346,13 +367,32 @@ type electronAPI = {
   updateModelPaths(modelPaths: ModelPaths): Promise<ModelLists>
   restorePathsSettings(): Promise<void>
   loadModels(): Promise<Model[]>
+  /**
+   * Local Laminar tracing settings, or null when tracing is off (the default).
+   * Read in main from `external/laminar.dev.json` (then
+   * `external/laminar.localhost.json`) so the project API key never lands in
+   * the renderer bundle. Dev-only (see electron/laminar.ts).
+   */
+  getLaminarConfig(): Promise<LaminarConfig | null>
+  /**
+   * Forward one AI SDK telemetry event (already serialized to JSON) to the
+   * Laminar integration running in main. Fire-and-forget.
+   */
+  laminarTelemetryEvent(name: string, payload: string): void
   zoomIn(): Promise<void>
   zoomOut(): Promise<void>
   getDownloadedGGUFLLMs(): Promise<string[]>
   getDownloadedOpenVINOLLMModels(): Promise<string[]>
   getDownloadedEmbeddingModels(): Promise<Model[]>
   getComfyUIModels(modelType: string): Promise<string[]>
+  scanModelLibrary(): Promise<import('./assets/js/models/types').ModelLibraryScan>
+  showModelInFolder(modelPath: string): Promise<{ success: boolean; error?: string }>
+  deleteModelPath(modelPath: string): Promise<{ success: boolean; error?: string }>
   getPlatform(): Promise<NodeJS.Platform>
+  safeStorage: {
+    isEncryptionAvailable(): Promise<boolean>
+    enablePlainTextEncryption(): Promise<{ success: boolean; error?: string }>
+  }
   openImageWithSystem(url: string): void
   openImageInFolder(url: string): void
   setFullScreen(enable: boolean): void
@@ -367,6 +407,8 @@ type electronAPI = {
   getComfyUiDefaultParameters(): Promise<string>
   getLlamaCppDefaultParameters(): Promise<string>
   detectPhisonSsd(): Promise<{ detected: boolean }>
+  /** Which OEM this machine came from, for partner co-branding. */
+  detectOem(): Promise<{ vendor: string; manufacturer: string; overridden: boolean }>
   getServices(): Promise<ApiServiceInformation[]>
   getBackendAuthToken(serviceName: string): Promise<string>
   updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus>
@@ -377,7 +419,7 @@ type electronAPI = {
   detectDevices(serviceName: string): Promise<void>
   startService(serviceName: string): Promise<BackendStatus>
   stopService(serviceName: string): Promise<BackendStatus>
-  setUpService(serviceName: string): void
+  setUpService(serviceName: string): Promise<void>
   onServiceSetUpProgress(callback: (data: SetupProgress) => void): void
   onServiceInfoUpdate(callback: (service: ApiServiceInformation) => void): void
   onShowToast(callback: (data: { type: string; message: string }) => void): void
@@ -386,6 +428,7 @@ type electronAPI = {
     llmModelName: string,
     embeddingModelName?: string,
     contextSize?: number,
+    modelArgs?: string,
   ): Promise<{ success: boolean; error?: string }>
   ensureComfyUIBackendRunning(): Promise<{
     success: boolean
@@ -482,6 +525,68 @@ type electronAPI = {
           },
     ): Promise<void>
     removeServer(serverId: string): Promise<void>
+  }
+  agentMode: {
+    startTurn(
+      turnId: string,
+      prompt: string,
+      config: AgentModeTurnConfig,
+    ): Promise<{ success: boolean; error?: string }>
+    cancel(): Promise<void>
+    resetSession(): Promise<void>
+    deleteSession(sessionId: string): Promise<{ success: boolean; error?: string }>
+    /**
+     * Copy an attached file into the workspace, so the agent can reach it with
+     * its file tools. Resolves with the workspace-relative path it was saved as.
+     */
+    importAttachment(
+      workspaceDir: string,
+      name: string,
+      bytes: Uint8Array,
+    ): Promise<{ success: boolean; path?: string; error?: string }>
+    listCapabilities(options: {
+      workspaceDir?: string
+      toolSpecs?: AgentToolSpec[]
+      mcpServerIds?: string[]
+    }): Promise<AgentCapabilityInfo[]>
+    onStreamChunk(callback: (data: { turnId: string; chunk: unknown }) => void): () => void
+    onToolProgress(callback: (data: AgentToolProgress) => void): () => void
+    onToolImage(callback: (data: AgentToolImage) => void): () => void
+    onTurnDone(callback: (data: { turnId: string }) => void): () => void
+    onExecuteTool(callback: (data: AgentToolExecuteRequest) => void): () => void
+    submitToolResult(requestId: string, result: unknown, error?: string): Promise<void>
+  }
+  games: {
+    list(): Promise<GameLibraryEntry[]>
+    read(dir: string): Promise<GameLibraryEntry | null>
+    /**
+     * Mints a folder for a new game; `name` is a starting point, not final.
+     * `scaffold: false` leaves it empty for a preset that writes the game whole.
+     * The rest is provenance, recorded once and never patched afterwards.
+     */
+    create(
+      name?: string,
+      options?: {
+        scaffold?: boolean
+        backend?: string
+        startingModel?: string
+        initialPrompt?: string
+      },
+    ): Promise<GameLibraryEntry>
+    publish(
+      dir: string,
+      fields: { name?: string; description?: string },
+    ): Promise<{ success: boolean; error?: string; game?: GameLibraryEntry }>
+    openFolder(dir?: string): Promise<void>
+    play(dir: string): Promise<{ success: boolean; error?: string }>
+    openArcade(): Promise<{ success: boolean; error?: string; path?: string }>
+    /** Everything the arcade page could list; samples only on an Acer machine. */
+    arcadeCatalog(): Promise<ArcadeCatalogEntry[]>
+    setArcadeShown(target: {
+      kind: 'user' | 'sample'
+      id: string
+      shown: boolean
+    }): Promise<{ success: boolean; error?: string }>
   }
   webBrowser: {
     navigate(url: string): Promise<WebPageSnapshot>
@@ -863,6 +968,7 @@ type BackendServiceName =
   | 'openvino-backend'
   | 'home-agent-backend'
   | 'qwen3-tts-backend'
+  | 'whisper-backend'
 
 type InferenceDevice = {
   id: string
@@ -909,13 +1015,24 @@ type StorageTarget = {
   selected: boolean
 }
 
+// The catalog entry `loadModels` returns. Mirrors `ModelSchema` in
+// src/types/shared.ts, which is what the main process parses models.json with.
 type Model = {
   name: string
-  type: 'undefined' | 'embedding' | 'openVINO' | 'llamaCPP'
-  default: boolean
+  mmproj?: string
+  type: 'undefined' | 'embedding' | 'openVINO' | 'llamaCPP' | 'cloud'
+  default?: boolean
   downloaded?: boolean | undefined
-  backend?: 'openVINO' | 'llamaCPP' | undefined
+  backend?: 'openVINO' | 'llamaCPP' | 'cloud' | undefined
   supportsToolCalling?: boolean
+  toolParser?: string
   supportsVision?: boolean
+  supportsReasoning?: boolean
+  supportsCoding?: boolean
+  supportsThinkingToggle?: boolean
   maxContextSize?: number
+  inferenceDefaults?: import('@/types/shared').InferenceDefaults
+  llamaCppArgs?: string
+  npuSupport?: boolean
+  largeMoe?: boolean
 }

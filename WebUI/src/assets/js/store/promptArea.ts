@@ -1,29 +1,11 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
+import { MODE_TO_CATEGORIES, MODE_TO_PRESET_TYPE } from '@/lib/presetModes'
 import { usePresetSwitching } from './presetSwitching'
 import { useBackendServices } from './backendServices'
 import { useDialogStore } from './dialogs'
 import { useSetupWizard } from './setupWizard'
-
-/**
- * Maps a mode to its corresponding preset categories.
- */
-const modeToCategories: Record<ModeType, string[]> = {
-  chat: ['chat'],
-  imageGen: ['create-images'],
-  imageEdit: ['edit-images'],
-  video: ['create-videos'],
-}
-
-/**
- * Maps a mode to its corresponding preset type.
- */
-const modeToPresetType: Record<ModeType, 'chat' | 'comfy'> = {
-  chat: 'chat',
-  imageGen: 'comfy',
-  imageEdit: 'comfy',
-  video: 'comfy',
-}
+import { usePresets } from './presets'
 
 export const usePromptStore = defineStore('prompt', () => {
   const setupWizard = useSetupWizard()
@@ -82,13 +64,13 @@ export const usePromptStore = defineStore('prompt', () => {
 
     if (!options.skipPresetSwitch) {
       // Get categories for this mode
-      const categories = modeToCategories[mode]
-      const presetType = modeToPresetType[mode]
+      const categories = MODE_TO_CATEGORIES[mode]
+      const presetType = MODE_TO_PRESET_TYPE[mode]
 
-      // Switch to last-used preset for this mode using orchestrator
-      presetSwitching.switchToLastUsedForCategory(categories, presetType, {
-        skipModeSwitch: true, // We already set the mode above
-      })
+      // Switch to last-used preset for this mode using orchestrator. The mode is
+      // deliberately NOT pinned here: chat and agent share the chat category, so
+      // the preset that comes back decides which of the two actually renders.
+      presetSwitching.switchToLastUsedForCategory(categories, presetType)
     }
     return true
   }
@@ -133,8 +115,49 @@ export const usePromptStore = defineStore('prompt', () => {
     currentMode.value = mode
   }
 
+  /**
+   * Set the mode a freshly selected preset belongs to. Used by the preset
+   * switching orchestrator on foreground switches: the preset itself may move the
+   * app between Chat and Agent Mode, and that is a deliberate user choice, so
+   * `userSelectedMode` follows (UI such as the status bar reads it).
+   */
+  function setModeForPreset(mode: ModeType) {
+    currentMode.value = mode
+    userSelectedMode.value = mode
+  }
+
   function injectPromptText(text: string) {
     injectedPromptText.value = text
+  }
+
+  /**
+   * Follow the persisted active preset into its mode, once the preset catalog has
+   * loaded. The active preset survives a restart but the mode does not (it starts
+   * at 'chat'), so without this an Audio preset selected before the last shutdown
+   * would come back under the Chat mode. Only for launches with no configured
+   * landing page — an explicit one wins.
+   */
+  function alignModeToActivePreset(): void {
+    const presets = usePresets()
+    const activePresetOnceLoaded = () =>
+      presets.presets.length > 0 ? presets.activePresetName : null
+
+    /** Returns whether a decision was reached (so the watcher can stop). */
+    const align = (presetName: string | null): boolean => {
+      if (!presetName) return false
+      const mode = usePresetSwitching().getModeForPreset(presetName)
+      // Only chat-type presets are followed. A stale ComfyUI preset is reconciled to
+      // a chat preset on startup (see textInference), so following it would land the
+      // app in a mode whose active preset is about to be replaced anyway.
+      if (mode !== 'chat' && mode !== 'audio') return true
+      if (mode !== currentMode.value) setCurrentMode(mode, { skipPresetSwitch: true })
+      return true
+    }
+
+    if (align(activePresetOnceLoaded())) return
+    const stop = watch(activePresetOnceLoaded, (presetName) => {
+      if (align(presetName)) stop()
+    })
   }
 
   return {
@@ -145,6 +168,7 @@ export const usePromptStore = defineStore('prompt', () => {
     getCurrentMode,
     setCurrentMode,
     setModeOnly,
+    setModeForPreset,
     submitPrompt,
     cancelProcessing,
     registerSubmitCallback,
@@ -152,5 +176,6 @@ export const usePromptStore = defineStore('prompt', () => {
     registerCancelCallback,
     unregisterCancelCallback,
     injectPromptText,
+    alignModeToActivePreset,
   }
 })

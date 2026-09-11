@@ -9,11 +9,19 @@ export const BUILTIN_TOOLS = [
   'visualizeObjectDetections',
   'captureScreenshot',
   'browseWeb',
-  'synthesizeTextToSpeech',
 ] as const
 
 /** Preset-backed tools that expose per-workflow switches inside a collapsible. */
 const WORKFLOW_TOOLS = ['comfyUI', 'comfyUiImageEdit'] as const
+
+/**
+ * The two speech tools are NOT in `BUILTIN_TOOLS`: they are children of a
+ * collapsible "Speech" group (SettingsBuiltinTools.vue `speechChildren`), not
+ * top-level rows. reka unmounts collapsed content, so their switches do not exist
+ * until the group is expanded — treating them like a normal built-in tool made
+ * every toggle wait 15s for an element that was never mounted.
+ */
+const SPEECH_TOOLS = ['synthesizeTextToSpeech', 'transcribeAudio'] as const
 
 /**
  * Page object for the tool-selection controls in the Chat settings sidebar
@@ -74,6 +82,33 @@ export class ToolSettingsPage {
     await anySwitch.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {})
   }
 
+  /** Header row of the "Speech" group, located via its own master checkbox. */
+  private get speechHeader(): Locator {
+    return this.region
+      .locator('#builtin-tool-speech')
+      .locator('xpath=ancestor::div[contains(@class,"justify-between")][1]')
+  }
+
+  /** Expand the "Speech" group so its two sub-tool switches are mounted. */
+  private async expandSpeech(): Promise<void> {
+    const firstChild = this.builtinToolToggle(SPEECH_TOOLS[0])
+    if (await firstChild.isVisible().catch(() => false)) return
+    const trigger = this.speechHeader.getByRole('button', { name: /enabled/ })
+    if (!(await trigger.isVisible().catch(() => false))) return
+    await trigger.click()
+    await firstChild.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {})
+  }
+
+  /** Set both speech sub-tools, expanding the group first. */
+  private async setSpeechTools(enabled: boolean): Promise<void> {
+    await this.expandSpeech()
+    for (const name of SPEECH_TOOLS) {
+      const toggle = this.builtinToolToggle(name)
+      if (!(await toggle.isVisible().catch(() => false))) continue
+      await setRekaToggle(toggle, enabled)
+    }
+  }
+
   /** Enable exactly one workflow of a tool (by name), disabling all others. */
   private async keepOnlyWorkflow(toolName: string, keepName: string): Promise<void> {
     await this.expandWorkflows(toolName)
@@ -112,6 +147,7 @@ export class ToolSettingsPage {
     for (const name of BUILTIN_TOOLS) {
       await setRekaToggle(this.builtinToolToggle(name), name === 'comfyUI')
     }
+    await this.setSpeechTools(false)
     await this.keepOnlyWorkflow('comfyUI', 'Draft Image')
     return true
   }
@@ -131,6 +167,7 @@ export class ToolSettingsPage {
     for (const name of BUILTIN_TOOLS) {
       await setRekaToggle(this.builtinToolToggle(name), name !== 'captureScreenshot')
     }
+    await this.setSpeechTools(true)
     for (const toolName of WORKFLOW_TOOLS) {
       await this.enableAllWorkflows(toolName)
     }

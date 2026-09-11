@@ -7,10 +7,10 @@ import type { ChannelAdapter, DraftStream, ImgGenPhaseInput, RawPart } from './a
 import {
   DRAFT_SPINNER_FRAMES,
   DRAFT_THROTTLE_MS,
-  reasoningElapsedMsFromParts,
   renderGenericToolMarker,
   stripAipgMediaReferences,
 } from './adapterHelpers'
+import { reasoningElapsedMsFromParts } from '@/lib/reasoningTimings'
 
 /** Lightweight HTML → Slack mrkdwn conversion for the hand-authored UI
  *  strings (HELP_MESSAGE, status banners). Limited to the set of tags those

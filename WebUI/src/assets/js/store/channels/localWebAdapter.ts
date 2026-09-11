@@ -7,11 +7,8 @@
 
 import type { ChannelAdapter, DraftStream, RawPart } from './adapter'
 import { successRef } from './adapter'
-import {
-  reasoningElapsedMsFromParts,
-  renderGenericToolMarker,
-  stripAipgMediaReferences,
-} from './adapterHelpers'
+import { renderGenericToolMarker, stripAipgMediaReferences } from './adapterHelpers'
+import { reasoningElapsedMsFromParts } from '@/lib/reasoningTimings'
 
 /** SSE can handle frequent updates (Telegram throttles more for Bot API limits). */
 const LOCAL_WEB_DRAFT_THROTTLE_MS = 200

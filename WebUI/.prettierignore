@@ -1,3 +1,6 @@
 src/auto-import.d.ts
 workflows_intel/
 *.whl
+# The sample games are shipped as the agent wrote them; reformatting them would
+# only make the bundled copy diverge from the game that was play-tested.
+external/arcade-samples/

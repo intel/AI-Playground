@@ -10,10 +10,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ChevronDownIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/solid'
+import { ChevronDownIcon, MagnifyingGlassIcon, StarIcon } from '@heroicons/vue/24/solid'
 import ModelCapabilities from './ModelCapabilities.vue'
 import CapabilityIcons from './CapabilityIcons.vue'
 import { modelHasCapability, type CapabilityKey } from '@/assets/js/capabilities'
+import { sortFavoritesFirst } from '@/assets/js/models/favorites'
 
 const textInference = useTextInference()
 const presetsStore = usePresets()
@@ -58,6 +59,7 @@ const items = computed(() => {
     vision: activePreset?.type === 'chat' && activePreset.requiresVision === true,
     toolCalling: activePreset?.type === 'chat' && activePreset.requiresToolCalling === true,
     reasoning: activePreset?.type === 'chat' && activePreset.requiresReasoning === true,
+    coding: activePreset?.type === 'chat' && activePreset.requiresCoding === true,
     npuSupport: activePreset?.type === 'chat' && activePreset.requiresNpuSupport === true,
     txt2TxtOnly: activePreset?.type === 'chat' && activePreset.filterTxt2TxtOnly === true,
     largeMoeOnly: activePreset?.type === 'chat' && activePreset.filterLargeMoeOnly === true,
@@ -65,8 +67,7 @@ const items = computed(() => {
   }
   const searchLc = search.value.trim().toLowerCase()
 
-  return textInference.llmModels
-    .filter((m) => m.type === textInference.backend)
+  return sortFavoritesFirst(textInference.llmModels.filter((m) => m.type === textInference.backend))
     .filter((m) => {
       // Case-insensitive substring search on the visible label (last path segment).
       // Applied to every backend, including cloud.
@@ -92,6 +93,10 @@ const items = computed(() => {
       if (requirements.vision && !m.supportsVision) return false
       if (requirements.toolCalling && !m.supportsToolCalling) return false
       if (requirements.reasoning && !m.supportsReasoning) return false
+      // Game Agent asks the model to write a whole game in one file; the small
+      // general-purpose models in the list cannot, so they are hidden rather than
+      // left to disappoint.
+      if (requirements.coding && !m.supportsCoding) return false
       if (requirements.npuSupport && !m.npuSupport) return false
       if (textInference.backend === 'openVINO') {
         if (textInference.runningOnOpenvinoNpu && !m.npuSupport) return false
@@ -112,6 +117,7 @@ const items = computed(() => {
           (requirements.vision && m.supportsVision) ||
           (requirements.toolCalling && m.supportsToolCalling) ||
           (requirements.reasoning && m.supportsReasoning) ||
+          (requirements.coding && m.supportsCoding) ||
           (requirements.npuSupport && m.npuSupport)
 
         // Show basic models in txt2txt presets only if they don't have vision/reasoning
@@ -135,6 +141,7 @@ const items = computed(() => {
       supportsReasoning: item.supportsReasoning,
       maxContextSize: item.maxContextSize,
       npuSupport: item.npuSupport,
+      favorite: item.favorite === true,
     }))
 })
 
@@ -232,6 +239,7 @@ watchEffect(() => {
               class="w-2 h-2 rounded-full mr-2 shrink-0"
               :class="item.active ? 'bg-primary' : 'bg-muted-foreground'"
             ></div>
+            <StarIcon v-if="item.favorite" class="size-3 mr-1.5 shrink-0 text-primary" />
             <span class="flex-1 truncate">{{ item.label }}</span>
             <div class="flex gap-1 ml-2 shrink-0">
               <CapabilityIcons

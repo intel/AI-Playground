@@ -12,7 +12,9 @@ import { useTextInference } from '../store/textInference'
 import { usePresetSwitching } from '../store/presetSwitching'
 import { usePromptStore } from '../store/promptArea'
 import { useDeveloperSettings } from '../store/developerSettings'
-import { stopChatBackends, restartChatBackend } from './chatBackends'
+import { DEV_PRESET_NAMES, dummyWorkflowsOnly } from '../store/devPresets'
+import { stopChatBackends, returnGpuToChat } from './chatBackends'
+import { comfyRunsWaiting, queueComfyRun } from './mediaPipeline'
 import { imageUrlToDataUri } from '@/lib/utils'
 import { isCancellation } from '../errors/appError'
 
@@ -127,7 +129,12 @@ function findLatestImageInConversation(messages: ModelMessage[]): string | null 
       for (const part of msg.content) {
         if (
           part.type === 'tool-result' &&
-          (part.toolName === 'comfyUI' || part.toolName === 'comfyUiImageEdit')
+          // 'media' is the thin delegation tool (tools/media.ts): its
+          // model-facing output carries the same slim `images` array, so a
+          // follow-up edit can chain off a delegated generation.
+          (part.toolName === 'comfyUI' ||
+            part.toolName === 'comfyUiImageEdit' ||
+            part.toolName === 'media')
         ) {
           const image = extractImageGenToolResult(part)
           if (image?.imageUrl) return image.imageUrl
@@ -150,7 +157,7 @@ function findLatestImageInConversation(messages: ModelMessage[]): string | null 
 // Image selection priority:
 // 1. Image dragged into the current prompt (explicit user intent)
 // 2. Most recent image in conversation by message position (generated or uploaded)
-function findSourceImage(messages: ModelMessage[]): string | null {
+export function findSourceImage(messages: ModelMessage[]): string | null {
   return findImageInCurrentPrompt(messages) ?? findLatestImageInConversation(messages)
 }
 
@@ -166,6 +173,9 @@ export function getAvailableEditWorkflows(): Array<{
     .filter((p: Preset) => {
       if (!(p.type === 'comfy' && p.backend === 'comfyui')) return false
       if (p.toolCategory !== 'edit-images') return false
+      // Dev-only override (Settings › Developer): offer only the instant dummy
+      // workflows, so a verification run can't wander into a real model.
+      if (dummyWorkflowsOnly()) return DEV_PRESET_NAMES.has(p.name)
       // Honour the per-workflow sub-checkboxes (Settings › Built-in tools).
       return textInference.isWorkflowPresetEnabled(p.name)
     })
@@ -240,9 +250,22 @@ function saveCurrentState(
   return restoreState
 }
 
-export async function executeImageEdit(
+/**
+ * Runs one edit for a tool call. Shares ComfyUI and the global generation store
+ * with every other media run, so concurrent callers queue — see mediaPipeline.ts.
+ */
+export function executeImageEdit(
   args: ImageEditArgs,
   messages: ModelMessage[],
+  options: { abortSignal?: AbortSignal } = {},
+): Promise<ImageEditToolOutput> {
+  return queueComfyRun(() => runImageEdit(args, messages, options), options.abortSignal)
+}
+
+async function runImageEdit(
+  args: ImageEditArgs,
+  messages: ModelMessage[],
+  options: { abortSignal?: AbortSignal } = {},
 ): Promise<ImageEditToolOutput> {
   console.log('[ComfyUIImageEdit Tool] Starting generation with args:', args)
 
@@ -392,11 +415,16 @@ export async function executeImageEdit(
     imageGeneration.currentState = 'no_start'
     imageGeneration.stepText = ''
 
+    // Cancelled while the preset was switching or a model downloading — don't
+    // queue a prompt nobody is waiting for.
+    if (options.abortSignal?.aborted) return createErrorResult('Image edit cancelled.')
+
     await comfyUi.generate([imageId], 'imageEdit', sourceImageUrl)
 
     const result = await new Promise<ImageEditToolOutput>((resolve) => {
       let timeout: ReturnType<typeof setTimeout> | null = null
       let stopWatcher: (() => void) | null = null
+      let stopListeningForAbort: (() => void) | null = null
 
       const cleanup = () => {
         if (timeout) {
@@ -407,6 +435,27 @@ export async function executeImageEdit(
           stopWatcher()
           stopWatcher = null
         }
+        if (stopListeningForAbort) {
+          stopListeningForAbort()
+          stopListeningForAbort = null
+        }
+      }
+
+      // ComfyUI has the prompt already; only an interrupt stops the render (and
+      // settles the item this watcher waits on).
+      const onAbort = () => {
+        cleanup()
+        void comfyUi.stop()
+        resolve(createErrorResult('Image edit cancelled.'))
+      }
+      if (options.abortSignal) {
+        if (options.abortSignal.aborted) {
+          onAbort()
+          return
+        }
+        const signal = options.abortSignal
+        signal.addEventListener('abort', onAbort, { once: true })
+        stopListeningForAbort = () => signal.removeEventListener('abort', onAbort)
       }
 
       // (Re)arm the idle watchdog. Called on every progress signal so the timer
@@ -526,10 +575,11 @@ export async function executeImageEdit(
     // Keep the activity alive through cleanup (GPU free + chat backend restart) so
     // the window before the LLM's final response isn't silent.
     await restoreState()
-    if (!useDeveloperSettings().keepModelsLoaded) {
+    // Queued generations want ComfyUI loaded and not the LLM, so the last run out
+    // of the lane does the swapping back (see comfyRunsWaiting).
+    if (!useDeveloperSettings().keepModelsLoaded && !comfyRunsWaiting()) {
       activities.update(toolActivityId, { label: i18nState.COM_ACTIVITY_RELOADING_CHAT })
-      await comfyUi.free()
-      await restartChatBackend()
+      await returnGpuToChat(() => comfyUi.free())
     }
     finishToolActivity()
   }
@@ -681,7 +731,10 @@ export const comfyUiImageEdit = tool({
     return getToolDefinition().inputSchema
   },
   outputSchema: ImageEditToolOutputSchema,
-  execute: async (args: ImageEditArgs, { messages }: { messages: ModelMessage[] }) => {
-    return await executeImageEdit(args, messages)
+  execute: async (
+    args: ImageEditArgs,
+    { messages, abortSignal }: { messages: ModelMessage[]; abortSignal?: AbortSignal },
+  ) => {
+    return await executeImageEdit(args, messages, { abortSignal })
   },
 })

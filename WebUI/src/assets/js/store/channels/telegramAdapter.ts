@@ -9,10 +9,10 @@ import {
   DRAFT_THROTTLE_MS,
   escapeHtml,
   newDraftId,
-  reasoningElapsedMsFromParts,
   renderGenericToolMarker,
   stripAipgMediaReferences,
 } from './adapterHelpers'
+import { reasoningElapsedMsFromParts } from '@/lib/reasoningTimings'
 
 const PARSE_MODE = 'HTML' as const
 

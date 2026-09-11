@@ -1,0 +1,13 @@
+{
+  "id": "vector-circuit",
+  "name": "Vector Circuit",
+  "description": "Fly an arrowhead ship through laser-walled arenas that change shape each level—bounce off the rails, blast drones, and dodge chaotic mines.",
+  "entry": "index.html",
+  "icon": "icon.png",
+  "published": true,
+  "createdAt": 1786487162810,
+  "updatedAt": 1786488037005,
+  "backend": "cloud",
+  "startingModel": "Grok 4.5",
+  "initialPrompt": "Create an Omega Race style vector arcade game where you shoot at enemies in a contained track outside and inside track where the sides of the track are boundaries that the ship will bounce off if colliding. Change this so at each level the track changes geometric shape, first a rectangle, then an octagon, then a triangle."
+}

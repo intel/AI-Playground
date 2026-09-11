@@ -1,5 +1,6 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { ref, computed } from 'vue'
+import { MODE_TO_CATEGORIES, MODE_TO_PRESET_TYPE, presetToMode } from '@/lib/presetModes'
 import { usePresets, type Preset, type ChatPreset } from './presets'
 import { useTextInference } from './textInference'
 import { useImageGenerationPresets } from './imageGenerationPresets'
@@ -12,28 +13,6 @@ import { useSetupWizard } from './setupWizard'
 import { useErrors } from './errors'
 
 /**
- * Maps a preset to its corresponding UI mode based on type and category.
- */
-function presetToMode(preset: Preset): ModeType {
-  if (preset.type === 'chat') {
-    return 'chat'
-  }
-
-  // ComfyUI presets - map by category
-  switch (preset.category) {
-    case 'create-images':
-      return 'imageGen'
-    case 'edit-images':
-      return 'imageEdit'
-    case 'create-videos':
-      return 'video'
-    default:
-      // Default to imageGen for unknown categories
-      return 'imageGen'
-  }
-}
-
-/**
  * Backend service name mapping for chat presets
  */
 const backendToService = {
@@ -44,21 +23,6 @@ const backendToService = {
 } as const
 
 type LlmBackend = keyof typeof backendToService
-
-/** Duplicated from promptArea to avoid pulling presetSwitching into that module's import graph. */
-const MODE_TO_CATEGORIES: Record<ModeType, string[]> = {
-  chat: ['chat'],
-  imageGen: ['create-images'],
-  imageEdit: ['edit-images'],
-  video: ['create-videos'],
-}
-
-const MODE_TO_PRESET_TYPE: Record<ModeType, 'chat' | 'comfy'> = {
-  chat: 'chat',
-  imageGen: 'comfy',
-  imageEdit: 'comfy',
-  video: 'comfy',
-}
 
 /** Presets that require high system/GPU memory (24GB system or 16GB GPU) */
 const HIGH_MEMORY_PRESETS = new Set([
@@ -154,8 +118,10 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
     }
 
     if (!options.skipModeSwitch) {
-      const mode = presetToMode(preset)
-      promptStore.setModeOnly(mode)
+      // A preset switch that is allowed to move the mode is a foreground one (picker,
+      // settings), so it counts as the user's chosen context — unlike `setModeOnly`,
+      // which background tool calls use to borrow a mode without disturbing the UI.
+      promptStore.setModeForPreset(presetToMode(preset))
     }
 
     if (preset.type === 'chat') {
@@ -195,10 +161,15 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
         throw new Error(`Preset not found: ${presetName}`)
       }
 
-      // 2. For chat presets, verify backend availability. A TTS preset has no LLM
-      //    backend (it drives Qwen3-TTS directly), so it can always be selected —
-      //    readiness is surfaced later as an install banner in the settings panel.
-      if (preset.type === 'chat' && !(preset as ChatPreset).ttsPreset) {
+      // 2. For chat presets, verify backend availability. TTS / STT presets have no
+      //    LLM backend (they drive Qwen3-TTS / OVMS Whisper directly), so they can
+      //    always be selected — readiness is surfaced later as an install banner in
+      //    the settings panel.
+      if (
+        preset.type === 'chat' &&
+        !(preset as ChatPreset).ttsPreset &&
+        !(preset as ChatPreset).sttPreset
+      ) {
         const chatPreset = preset as ChatPreset
         const hasAvailableBackend = chatPreset.backends.some((b) => isBackendAvailable(b))
 
@@ -323,7 +294,23 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
         return
       }
     }
-    await switchToLastUsedForCategory(categories, presetType, { skipModeSwitch: true })
+    await switchToLastUsedForCategory(categories, presetType)
+  }
+
+  /**
+   * Align the UI mode with the active preset.
+   *
+   * The prompt store is not persisted, so the app always boots into chat mode while
+   * the active preset is restored from disk. An agent preset lives in the chat
+   * category, so without this the app would render Chat with, say, Game Agent
+   * active. Called once boot completes.
+   */
+  function syncModeWithActivePreset(): void {
+    const name = presets.activePresetName
+    const preset = name ? presets.presets.find((p) => p.name === name) : undefined
+    if (!preset) return
+    const mode = presetToMode(preset)
+    if (mode !== promptStore.currentMode) promptStore.setModeForPreset(mode)
   }
 
   return {
@@ -337,6 +324,7 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
     switchVariant,
     switchToLastUsedForCategory,
     reconcileActivePresetAfterCatalogReload,
+    syncModeWithActivePreset,
 
     // Utilities
     getModeForPreset,

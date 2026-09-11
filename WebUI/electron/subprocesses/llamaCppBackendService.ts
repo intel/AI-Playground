@@ -1,13 +1,22 @@
-import { exec, execFile, spawn, type ChildProcess } from 'node:child_process'
+import { exec, execFile, type ChildProcess } from 'node:child_process'
+import { createServer as createTcpServer } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { promisify } from 'node:util'
 import * as filesystem from 'fs-extra'
-import { app, net, type BrowserWindow } from 'electron'
+import { app, type BrowserWindow } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
 import { packagedResourcesRoot } from '../aipgRoot.ts'
 import { createEnhancedErrorDetails, type ApiService, type ErrorDetails } from './service.ts'
-import { terminateProcessTree, waitForServerReadyOrThrow } from './processLifecycle.ts'
+import { fetchInstallArtifact } from './fetchInstallArtifact.ts'
+import {
+  spawnBackend,
+  terminateProcessTree,
+  waitForServerReadyOrThrow,
+  type ProcessSignature,
+} from './processLifecycle.ts'
 import {
   vulkanDeviceSelectorEnv,
   withSelectedDevice,
@@ -27,7 +36,14 @@ const execAsync = promisify(exec)
 // (Battlemage/B-series) drivers into a device-lost/TDR reset mid-decode. The
 // tiled FA kernel keeps dispatches small and is the stable path on modern Arc
 // Vulkan builds. Users can still override to `-fa off` in backend settings.
-export const LLAMACPP_DEFAULT_PARAMETERS = '--gpu-layers 999 --log-prefix --jinja --no-mmap -fa on'
+//
+// --cache-ram 16384: raise the host-RAM prompt cache (default 8 GiB) so a
+// large parked context — e.g. the parent conversation's KV state while a
+// nested tool agent or Agent Mode subrequest runs on another slot — survives
+// the switch and is restored instead of re-prefilled (idle-slot saving is on
+// by default and depends on this cache).
+export const LLAMACPP_DEFAULT_PARAMETERS =
+  '--gpu-layers 999 --log-prefix --jinja --no-mmap -fa on --cache-ram 16384'
 const platformExtension = process.platform === 'win32' ? 'zip' : 'tar.gz'
 type StorageTarget = {
   id: string
@@ -50,11 +66,64 @@ const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]'])
  * The caller is expected to also append a trailing `--host 127.0.0.1` so even
  * a future llama-server default change cannot expose the port.
  */
+/**
+ * The build number in `llama-server --version` output, as the `b<number>` tag
+ * releases are named after — that tag is what the app pins, downloads and
+ * compares against, so anything else is not a version we can act on.
+ *
+ * Two spellings exist in the wild: builds up to ~b9800 printed
+ * `version: 9590 (d2462f8f7)`, newer ones print a semver-ish string and put the
+ * build number in the parenthesis: `version: 0.1.1-dev (build 10472, commit
+ * 60eeeb608)`. Reading the new form first keeps the leading `0` of the semver
+ * from being mistaken for a build number.
+ */
+export function parseLlamaCppBuildNumber(versionOutput: string): string | undefined {
+  const build =
+    versionOutput.match(/\(\s*build\s+(\d+)/)?.[1] ??
+    versionOutput.match(/version:\s*(\d+)\s*\(/)?.[1]
+  return build ? `b${build}` : undefined
+}
+
+/**
+ * Split a parameter string into argv tokens the way a shell would, so a flag
+ * can carry a sentence: `--reasoning-budget-message "time to act"` is two
+ * tokens, not four. The quotes are shell syntax and are dropped — these tokens
+ * go straight to `spawn`, with no shell to strip them later.
+ */
+export function splitParameterString(raw: string): string[] {
+  const tokens: string[] = []
+  let current = ''
+  let pending = false
+  let quote: '"' | "'" | null = null
+  for (const char of raw) {
+    if (quote) {
+      if (char === quote) quote = null
+      else current += char
+      continue
+    }
+    if (char === '"' || char === "'") {
+      quote = char
+      pending = true
+      continue
+    }
+    if (/\s/.test(char)) {
+      if (pending) tokens.push(current)
+      current = ''
+      pending = false
+      continue
+    }
+    current += char
+    pending = true
+  }
+  if (pending) tokens.push(current)
+  return tokens
+}
+
 export function sanitizeUserLlamaCppParameters(
   raw: string,
   warn?: (msg: string) => void,
 ): string[] {
-  const tokens = raw.split(/\s+/).filter(Boolean)
+  const tokens = splitParameterString(raw)
   const out: string[] = []
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i]
@@ -91,6 +160,36 @@ export function sanitizeUserLlamaCppParameters(
   return out
 }
 
+/**
+ * The LLM server's command line.
+ *
+ * Order carries meaning: llama-server lets a later occurrence of a flag win, so
+ * the flags a model asks for (`models.json` `llamaCppArgs`) sit ahead of the
+ * user's parameter box — a model can recommend speculative decoding, and a user
+ * who typed a conflicting flag by hand still overrides it. `--host` is appended
+ * last so nothing can move the server off loopback.
+ */
+export function buildLlmServerArgs(options: {
+  modelPath: string
+  port: number
+  contextSize: number
+  modelParameters: string[]
+  userParameters: string[]
+}): string[] {
+  return [
+    '--model',
+    options.modelPath,
+    '--port',
+    options.port.toString(),
+    '--ctx-size',
+    options.contextSize.toString(),
+    ...options.modelParameters,
+    ...options.userParameters,
+    '--host',
+    '127.0.0.1',
+  ]
+}
+
 interface LlamaServerProcess {
   process: ChildProcess
   port: number
@@ -102,6 +201,20 @@ interface LlamaServerProcess {
 }
 
 const execFileAsync = promisify(execFile)
+
+/**
+ * Whether a server can listen on `port` on loopback right now. Asked with a bind
+ * attempt because that is the only thing that answers it: `get-port` refuses a
+ * port it handed out in the last 15 seconds (its guard against two callers
+ * racing for one), which is exactly the window a server restart falls into.
+ */
+async function canListenOn(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const probe = createTcpServer()
+    probe.once('error', () => resolve(false))
+    probe.listen({ host: '127.0.0.1', port }, () => probe.close(() => resolve(true)))
+  })
+}
 
 export class LlamaCppBackendService implements ApiService {
   readonly name = 'llama-cpp-backend' as BackendServiceName
@@ -125,13 +238,25 @@ export class LlamaCppBackendService implements ApiService {
   currentStatus: BackendStatus = 'uninitializedStatus'
   isSetUp: boolean = false
   desiredStatus: BackendStatus = 'uninitializedStatus'
+  /** True while an install runs for this service — see `ApiService.setUpInProgress`. */
+  setUpInProgress: boolean = false
 
   // Model server processes
   private llamaLlmProcess: LlamaServerProcess | null = null
   private llamaEmbeddingProcess: LlamaServerProcess | null = null
   private currentLlmModel: string | null = null
   private currentContextSize: number | null = null
+  /** The model's own `llamaCppArgs` the running LLM server was launched with. */
+  private currentModelArgs: string | null = null
+  /**
+   * The full command line the running LLM server was launched with. Flags are
+   * baked into the process, so this is the only place the effective sampling /
+   * offload / speculative-decoding setup of a turn can be read back from.
+   */
+  private currentLlmServerArgs: string[] | null = null
   private currentEmbeddingModel: string | null = null
+  /** Port the LLM server last ran on, so a relaunch can take it back. */
+  private lastLlmPort: number | null = null
 
   // Store last startup error details for persistence
   private lastStartupErrorDetails: ErrorDetails | null = null
@@ -177,6 +302,19 @@ export class LlamaCppBackendService implements ApiService {
     return llamaCppPhison.getZipPathForVariant(this.serviceDir, variant, platformExtension)
   }
 
+  /** Both variants: an orphan may predate a switch of the selected build. */
+  orphanSignatures(): ProcessSignature[] {
+    return (['standard', 'ssd-offload'] as const).map((variant) => [
+      llamaCppPhison.getActiveLlamaCppExePath(this.serviceDir, variant),
+    ])
+  }
+
+  ownedPids(): number[] {
+    return [this.llamaLlmProcess?.process.pid, this.llamaEmbeddingProcess?.process.pid].filter(
+      (pid): pid is number => pid !== undefined,
+    )
+  }
+
   constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
     this.name = name
     this.port = port
@@ -208,9 +346,10 @@ export class LlamaCppBackendService implements ApiService {
     llmModelName: string,
     embeddingModelName?: string,
     contextSize?: number,
+    modelArgs?: string,
   ): Promise<void> {
     this.appLogger.info(
-      `Ensuring LlamaCPP backend readiness for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}, Context: ${contextSize ?? 'default'}`,
+      `Ensuring LlamaCPP backend readiness for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}, Context: ${contextSize ?? 'default'}, Model args: ${modelArgs ?? 'none'}`,
       this.name,
     )
 
@@ -225,11 +364,14 @@ export class LlamaCppBackendService implements ApiService {
       const needsLlmRestart =
         this.currentLlmModel !== llmModelName ||
         (contextSize && contextSize !== this.currentContextSize) ||
+        // Model flags are baked into the command line, so a catalog update that
+        // changes them only takes effect on a relaunch.
+        (modelArgs ?? '') !== (this.currentModelArgs ?? '') ||
         !llmServerResponsive
 
       if (needsLlmRestart) {
         await this.stopLlamaLlmServer()
-        await this.startLlamaLlmServer(llmModelName, contextSize)
+        await this.startLlamaLlmServer(llmModelName, contextSize, modelArgs)
         this.appLogger.info(`LLM server ready with model: ${llmModelName}`, this.name)
       } else {
         this.appLogger.info(`LLM server already running with model: ${llmModelName}`, this.name)
@@ -491,6 +633,11 @@ export class LlamaCppBackendService implements ApiService {
     }
   }
 
+  /** The running LLM server's command line, or null when none is running. */
+  llmServerArgs(): string[] | null {
+    return this.llamaLlmProcess ? this.currentLlmServerArgs : null
+  }
+
   setStatus(status: BackendStatus) {
     this.currentStatus = status
     this.updateStatus()
@@ -566,16 +713,17 @@ export class LlamaCppBackendService implements ApiService {
         env: {
           ...process.env,
         },
-        timeout: 10000,
+        // Generous, because the first run of a freshly downloaded build is the
+        // slow one: macOS verifies every new binary and dylib before it starts,
+        // which took the better part of ten seconds on an M-series machine.
+        timeout: 30000,
       })
-      const versionMatch = result.stderr.match(/version:\s*(\d+)\s*\([^)]+\)/m)
+      const build = parseLlamaCppBuildNumber(result.stderr)
       this.appLogger.info(
-        `probeInstalledVersionInDir: ${result.stdout}, ${result.stderr}, ${versionMatch}`,
+        `probeInstalledVersionInDir: ${result.stdout}, ${result.stderr}, ${build}`,
         this.name,
       )
-      if (versionMatch && versionMatch[1]) {
-        return { version: `b${versionMatch[1]}` }
-      }
+      if (build) return { version: build }
     } catch (e) {
       this.appLogger.warn(`probeInstalledVersionInDir failed: ${e}`, this.name)
     }
@@ -734,15 +882,68 @@ export class LlamaCppBackendService implements ApiService {
     }
 
     // Using electron net for better proxy support
-    const response = await net.fetch(downloadUrl)
+    const response = await fetchInstallArtifact(downloadUrl)
     if (!response.ok || response.status !== 200 || !response.body) {
       throw new Error(`Failed to download Llamacpp: ${response.statusText}`)
     }
 
-    const buffer = await response.arrayBuffer()
-    await filesystem.writeFile(zipPath, Buffer.from(buffer))
+    // Stream to disk rather than buffering the whole archive in memory (these
+    // builds are hundreds of MB, and the CUDA ones considerably more).
+    try {
+      await pipeline(
+        Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]),
+        filesystem.createWriteStream(zipPath),
+      )
+    } catch (e) {
+      // A partial file would later fail extraction with a confusing error, and
+      // `downloadLlamacpp` is retried on the next attempt — remove it now.
+      filesystem.removeSync(zipPath)
+      throw new Error(`Failed to download Llamacpp: ${e}`)
+    }
 
-    this.appLogger.info(`Llamacpp zip file downloaded successfully`, this.name)
+    // These assets are GitHub release binaries resolved from a user-selectable
+    // version, so there is no published checksum to pin against (unlike the
+    // portable-git archive, whose exact release is hardcoded). Validate what can
+    // be validated: the full advertised length arrived, and what arrived is an
+    // archive rather than an HTML error page or a proxy interstitial.
+    await this.assertDownloadedArchiveIsIntact(zipPath, response.headers.get('content-length'))
+
+    this.appLogger.info(`Llamacpp archive downloaded successfully`, this.name)
+  }
+
+  private async assertDownloadedArchiveIsIntact(
+    archivePath: string,
+    contentLengthHeader: string | null,
+  ): Promise<void> {
+    const failAndRemove = (reason: string): never => {
+      filesystem.removeSync(archivePath)
+      throw new Error(`Failed to download Llamacpp: ${reason}`)
+    }
+
+    const { size } = await filesystem.stat(archivePath)
+    const expectedSize = Number(contentLengthHeader)
+    if (contentLengthHeader && Number.isFinite(expectedSize) && size !== expectedSize) {
+      failAndRemove(`download truncated (${size} of ${expectedSize} bytes)`)
+    }
+
+    // Match the format actually downloaded (`platformExtension`): a zip on
+    // Windows, a gzipped tarball everywhere else. Checking for the zip signature
+    // unconditionally would reject every valid Linux/macOS download.
+    const [signature, formatName] =
+      platformExtension === 'zip'
+        ? [Buffer.from([0x50, 0x4b, 0x03, 0x04]), 'zip archive'] // 'PK\x03\x04'
+        : [Buffer.from([0x1f, 0x8b]), 'gzip archive']
+
+    const header = Buffer.alloc(signature.length)
+    const handle = await filesystem.open(archivePath, 'r')
+    try {
+      await filesystem.read(handle, header, 0, signature.length, 0)
+    } finally {
+      await filesystem.close(handle)
+    }
+    if (!header.equals(signature)) {
+      failAndRemove(`downloaded file is not a ${formatName}`)
+    }
   }
 
   private resolveDownloadUrl(): string {
@@ -1059,6 +1260,15 @@ export class LlamaCppBackendService implements ApiService {
   }
 
   async start(): Promise<BackendStatus> {
+    // An install is rewriting this service's directory right now — don't report it
+    // as ready mid-install (the binaries it would serve may not exist yet).
+    if (this.setUpInProgress) {
+      this.appLogger.info(
+        `start() ignored for ${this.name}: an installation is in progress`,
+        this.name,
+      )
+      return this.currentStatus
+    }
     // In this architecture, model servers are started on-demand via ensureBackendReadiness
     // This method is kept for ApiService interface compatibility
     if (this.currentStatus === 'running') {
@@ -1129,15 +1339,33 @@ export class LlamaCppBackendService implements ApiService {
     }
   }
 
+  /**
+   * The port for the LLM server, preferring the one it last ran on.
+   *
+   * A relaunch of the same server is frequent — every media generation frees the
+   * GPU and takes it back — and moving it costs anything that holds its URL for
+   * longer than one request. Asking `get-port` during a restart always moves it,
+   * since it will not return a port it just handed out, so the previous port is
+   * checked directly and only a genuinely occupied one leads to a fresh pick.
+   */
+  private async allocateLlmPort(): Promise<number> {
+    if (this.lastLlmPort !== null && (await canListenOn(this.lastLlmPort))) {
+      return this.lastLlmPort
+    }
+    return getPort({ port: portNumbers(39100, 39199) })
+  }
+
   // Model server management methods
   private async startLlamaLlmServer(
     modelRepoId: string,
     contextSize?: number,
+    modelArgs?: string,
   ): Promise<LlamaServerProcess> {
     try {
       const modelPath = this.resolveModelPath(modelRepoId)
 
-      const port = await getPort({ port: portNumbers(39100, 39199) })
+      const port = await this.allocateLlmPort()
+      this.lastLlmPort = port
       this.updatePort(port)
       this.updateStatus()
       const ctxSize = contextSize ?? 8192
@@ -1150,20 +1378,26 @@ export class LlamaCppBackendService implements ApiService {
       const userParameters = sanitizeUserLlamaCppParameters(this.llamaCppParametersString, (msg) =>
         this.appLogger.warn(msg, this.name, true),
       )
-      const args = [
-        '--model',
+      // Flags the model itself asks for (models.json `llamaCppArgs`), e.g.
+      // speculative decoding off a model's own MTP head. Sanitized like the
+      // user's, because the catalog can be refreshed from a remote repo. They
+      // go first so a flag the user typed by hand still wins.
+      const modelParameters = sanitizeUserLlamaCppParameters(modelArgs ?? '', (msg) =>
+        this.appLogger.warn(msg, this.name, true),
+      )
+      if (modelParameters.length > 0) {
+        this.appLogger.info(
+          `Model ${modelRepoId} requests llama-server flags: ${modelParameters.join(' ')}`,
+          this.name,
+        )
+      }
+      const args = buildLlmServerArgs({
         modelPath,
-        '--port',
-        port.toString(),
-        '--ctx-size',
-        ctxSize.toString(),
-        ...userParameters,
-        // Force-append --host AFTER user params so we always win, even if
-        // the user tried to inject their own --host. Defense in depth on
-        // top of llama-server's documented default (127.0.0.1).
-        '--host',
-        '127.0.0.1',
-      ]
+        port,
+        contextSize: ctxSize,
+        modelParameters,
+        userParameters,
+      })
 
       const modelFolder = path.dirname(modelPath)
       // find mmproj*.gguf file in the same folder
@@ -1178,9 +1412,8 @@ export class LlamaCppBackendService implements ApiService {
         this.appLogger.info(`Using mmproj file ${mmprojFile} for model ${modelRepoId}`, this.name)
       }
 
-      const childProcess = spawn(this.getActiveLlamaCppExePath(), args, {
+      const childProcess = spawnBackend(this.getActiveLlamaCppExePath(), args, {
         cwd: this.getActiveLlamaCppDir(),
-        windowsHide: true,
         env: this.llamaModelServerEnv(),
       })
 
@@ -1261,6 +1494,7 @@ export class LlamaCppBackendService implements ApiService {
           this.llamaLlmProcess = null
           this.currentLlmModel = null
           this.currentContextSize = null
+          this.currentModelArgs = null
         }
       })
 
@@ -1275,6 +1509,8 @@ export class LlamaCppBackendService implements ApiService {
       this.llamaLlmProcess = llamaProcess
       this.currentLlmModel = modelRepoId
       this.currentContextSize = ctxSize
+      this.currentModelArgs = modelArgs ?? null
+      this.currentLlmServerArgs = args
 
       this.appLogger.info(`LLM server ready for model: ${modelRepoId}`, this.name)
       return llamaProcess
@@ -1319,9 +1555,8 @@ export class LlamaCppBackendService implements ApiService {
         '127.0.0.1',
       ]
 
-      const childProcess = spawn(this.getActiveLlamaCppExePath(), args, {
+      const childProcess = spawnBackend(this.getActiveLlamaCppExePath(), args, {
         cwd: this.getActiveLlamaCppDir(),
-        windowsHide: true,
         env: this.llamaModelServerEnv(),
       })
 
@@ -1399,6 +1634,7 @@ export class LlamaCppBackendService implements ApiService {
       this.llamaLlmProcess = null
       this.currentLlmModel = null
       this.currentContextSize = null
+      this.currentModelArgs = null
     }
   }
 

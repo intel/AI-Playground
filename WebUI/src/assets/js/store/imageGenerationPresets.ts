@@ -38,6 +38,7 @@ import { PresetRequirementsData, useDialogStore } from './dialogs'
 import { getMissingComfyuiBackendModels } from './imageGenerationUtils'
 import { useHomeAgent } from './homeAgent'
 import { imageUrlToDataUri, saveImageToMediaInput } from '@/lib/utils'
+import { withTraceSpan } from '@/lib/laminarSpans'
 import {
   getDemoModeInputImage,
   getDemoModeSketchInputImage,
@@ -703,16 +704,28 @@ export const useImageGenerationPresets = defineStore(
       // throw (when a required model is unavailable), this matters.
       const downloadList = await getMissingModels()
       if (downloadList.length === 0) return
-      return new Promise<void>((resolve, reject) => {
-        // On a remote Home Agent turn there is nobody at the desktop to act on
-        // the download modal; route the approval + progress to the channel
-        // (mirrored into the desktop window) instead of getting stuck.
-        if (homeAgent.isRemoteTurnActive()) {
-          homeAgent.handleRemoteModelDownload(downloadList).then(resolve).catch(reject)
-        } else {
-          dialogStore.showDownloadDialog(downloadList, resolve, reject)
-        }
-      })
+      // Traced only when something is actually missing: a `models.download` span
+      // in a trace means multi-GB files were fetched before generating, which is
+      // usually the reason a first run took so much longer than the next.
+      return withTraceSpan(
+        'models.download',
+        () =>
+          new Promise<void>((resolve, reject) => {
+            // On a remote Home Agent turn there is nobody at the desktop to act on
+            // the download modal; route the approval + progress to the channel
+            // (mirrored into the desktop window) instead of getting stuck.
+            if (homeAgent.isRemoteTurnActive()) {
+              homeAgent.handleRemoteModelDownload(downloadList).then(resolve).catch(reject)
+            } else {
+              dialogStore.showDownloadDialog(downloadList, resolve, reject)
+            }
+          }),
+        {
+          attributes: {
+            'aipg.models': downloadList.map((model) => model.repo_id).join(', ') || undefined,
+          },
+        },
+      )
     }
 
     /**

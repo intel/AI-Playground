@@ -58,6 +58,7 @@
             </Popover>
           </template>
           <textarea
+            v-if="!isSttPreset"
             id="prompt-input"
             aria-label="Prompt"
             ref="textareaRef"
@@ -75,6 +76,58 @@
             :disabled="isTextAreaDisabled"
             @keydown="fastGenerate"
           ></textarea>
+
+          <!-- STT preset: record from the mic or upload an audio file to transcribe.
+               No text prompt — the transcript is appended as a chat turn. -->
+          <div
+            v-else
+            class="flex h-48 w-full flex-col items-center justify-center gap-4 rounded-md border border-border bg-background/50 px-4 pb-16 pt-3"
+          >
+            <p v-if="!sttAvailable" class="text-sm text-amber-500">
+              <template v-if="productModeStore.isNvidiaModeSelected">
+                Install the standalone Whisper backend from Settings → Installation Management, or
+                set an external transcription endpoint in this preset's settings, to transcribe
+                speech.
+              </template>
+              <template v-else>
+                Install the OpenVINO backend or standalone Whisper backend, or set an external
+                transcription endpoint in this preset's settings, to transcribe speech.
+              </template>
+            </p>
+            <template v-else>
+              <Button
+                id="stt-record-button"
+                class="bg-primary hover:bg-primary/80 text-primary-foreground rounded-lg px-4 py-2"
+                :disabled="audioRecorder.isTranscribing"
+                @click="handleRecordingClick"
+              >
+                <i
+                  class="svg-icon w-5 h-5 mr-2"
+                  :class="audioRecorder.isRecording ? 'i-record-active' : 'i-record'"
+                ></i>
+                {{
+                  audioRecorder.isTranscribing
+                    ? 'Transcribing…'
+                    : audioRecorder.isRecording
+                      ? 'Stop recording'
+                      : 'Record'
+                }}
+              </Button>
+              <Label
+                htmlFor="stt-file-upload"
+                class="cursor-pointer text-sm text-muted-foreground underline hover:text-foreground"
+              >
+                or upload an audio file
+              </Label>
+              <input
+                type="file"
+                id="stt-file-upload"
+                class="hidden"
+                accept="audio/*"
+                @change="handleSttFileUpload"
+              />
+            </template>
+          </div>
           <div class="absolute bottom-14 left-3 flex gap-2">
             <div
               v-for="preview in imagePreview"
@@ -90,6 +143,21 @@
                 @click="removeImage(preview.id)"
                 class="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background rounded-full p-0.5 text-muted-foreground hover:text-destructive"
                 title="Remove image"
+              >
+                <XMarkIcon class="size-4" />
+              </button>
+            </div>
+            <div
+              v-for="(file, index) in agentMode.attachments"
+              :key="`${file.name}-${index}`"
+              class="self-center flex items-center gap-1 px-1 py-0.5 text-xs bg-primary/20 border border-primary/30 rounded-md group"
+            >
+              <PaperClipIcon class="size-4 flex-none" />
+              <span class="truncate max-w-40" :title="file.name">{{ file.name }}</span>
+              <button
+                @click="agentMode.removeAttachment(index)"
+                class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                title="Remove attachment"
               >
                 <XMarkIcon class="size-4" />
               </button>
@@ -135,7 +203,9 @@
               </PopoverAnchor>
               <PopoverTrigger as-child>
                 <Button
-                  :variant="promptStore.getCurrentMode() === mode ? 'default' : 'secondary'"
+                  :variant="
+                    buttonModeFor(promptStore.getCurrentMode()) === mode ? 'default' : 'secondary'
+                  "
                   :id="'mode-button-' + mode"
                   @pointerenter="(e: PointerEvent) => onPickerPointerEnter(mode, e)"
                   @pointerdown="onPickerPointerDown"
@@ -167,7 +237,7 @@
                       <TooltipTrigger as-child>
                         <button
                           type="button"
-                          :aria-label="preset.name"
+                          :aria-label="oemBranding.presetLabel(preset.name)"
                           :aria-pressed="presetsStore.activePresetName === preset.name"
                           :aria-disabled="!presetGate(preset).enabled"
                           :data-aipg-preset-name="preset.name"
@@ -185,20 +255,20 @@
                           <img
                             v-if="preset.image"
                             :src="preset.image"
-                            :alt="preset.name"
+                            :alt="oemBranding.presetLabel(preset.name)"
                             class="absolute inset-0 w-full h-full object-cover"
                           />
                           <div class="absolute bottom-0 w-full bg-background/70 px-0.5 py-0.5">
                             <span
                               class="block text-foreground text-[9px] leading-tight font-medium text-center truncate"
                             >
-                              {{ preset.name }}
+                              {{ oemBranding.presetLabel(preset.name) }}
                             </span>
                           </div>
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="top" class="z-[40011] max-w-[260px]">
-                        <p class="font-semibold">{{ preset.name }}</p>
+                        <p class="font-semibold">{{ oemBranding.presetLabel(preset.name) }}</p>
                         <p v-if="preset.description" class="mt-1 text-primary-foreground/80">
                           {{ preset.description }}
                         </p>
@@ -233,17 +303,12 @@
               id="microphone-button"
               class="bg-muted hover:bg-muted/80 text-foreground rounded-lg px-3 py-1.5"
               variant="secondary"
-              v-if="
-                promptStore.getCurrentMode() === 'chat' && !productModeStore.isNvidiaModeSelected
-              "
+              v-if="promptStore.getCurrentMode() === 'chat'"
               @click="handleRecordingClick"
               :disabled="
-                (!speechToText.enabled && !audioRecorder.isRecording) ||
-                audioRecorder.isTranscribing
+                (!sttAvailable && !audioRecorder.isRecording) || audioRecorder.isTranscribing
               "
-              :title="
-                !speechToText.enabled ? 'Enable Speech To Text in settings to use voice input' : ''
-              "
+              :title="sttAvailable ? '' : sttUnavailableHint"
             >
               <i
                 v-if="!audioRecorder.isTranscribing"
@@ -272,33 +337,37 @@
             >
               {{ mapModeToLabel(promptStore.getCurrentMode()) }} Settings
             </Button>
-            <Button
-              v-if="readyForNewSubmit"
-              @click="handleSubmitPromptClick"
-              id="send-button"
-              aria-label="Send"
-              class="px-3 py-1.5 bg-primary hover:bg-primary/80 rounded-lg text-sm min-w-[44px]"
-            >
-              →
-            </Button>
-            <Button
-              v-else-if="!isStopping"
-              @click="handleCancelClick"
-              aria-label="Stop generating"
-              aria-busy="true"
-              class="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm min-w-[44px] flex items-center justify-center"
-            >
-              <i class="svg-icon w-4 h-4 i-stop"></i>
-            </Button>
-            <Button
-              v-else
-              disabled
-              aria-label="Stopping"
-              aria-busy="true"
-              class="px-3 py-1.5 bg-red-400 cursor-not-allowed rounded-lg text-sm min-w-[44px] flex items-center justify-center"
-            >
-              <i class="svg-icon w-4 h-4 i-loading"></i>
-            </Button>
+            <!-- Send / stop / loading cluster — hidden for the STT preset, which
+                 submits via its own record/upload controls. -->
+            <template v-if="!isSttPreset">
+              <Button
+                v-if="readyForNewSubmit"
+                @click="handleSubmitPromptClick"
+                id="send-button"
+                aria-label="Send"
+                class="px-3 py-1.5 bg-primary hover:bg-primary/80 rounded-lg text-sm min-w-[44px]"
+              >
+                →
+              </Button>
+              <Button
+                v-else-if="!isStopping"
+                @click="handleCancelClick"
+                aria-label="Stop generating"
+                aria-busy="true"
+                class="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm min-w-[44px] flex items-center justify-center"
+              >
+                <i class="svg-icon w-4 h-4 i-stop"></i>
+              </Button>
+              <Button
+                v-else
+                disabled
+                aria-label="Stopping"
+                aria-busy="true"
+                class="px-3 py-1.5 bg-red-400 cursor-not-allowed rounded-lg text-sm min-w-[44px] flex items-center justify-center"
+              >
+                <i class="svg-icon w-4 h-4 i-loading"></i>
+              </Button>
+            </template>
           </div>
         </div>
       </div>
@@ -330,7 +399,7 @@ import {
   saveImageToMediaInput,
 } from '@/lib/utils.ts'
 import { useAudioRecorder } from '@/assets/js/store/audioRecorder'
-import { useSpeechToText } from '@/assets/js/store/speechToText'
+import { useSpeechToText, type SttReadyResult } from '@/assets/js/store/speechToText'
 import { useTextToSpeech } from '@/assets/js/store/textToSpeech'
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import {
@@ -338,6 +407,9 @@ import {
   type ImageMediaItem,
 } from '@/assets/js/store/imageGenerationPresets.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
+import { useAgentMode } from '@/assets/js/store/agentMode'
+import { useOemBranding } from '@/assets/js/store/oemBranding'
+import { MODE_TO_CATEGORIES, MODE_TO_PRESET_TYPE, buttonModeFor } from '@/lib/presetModes'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from '@/assets/js/store/conversations'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import { useBackendServices } from '@/assets/js/store/backendServices'
@@ -351,6 +423,7 @@ import {
 import { useI18N } from '@/assets/js/store/i18n'
 import { usePresets, type ChatPreset, type Preset } from '@/assets/js/store/presets'
 import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
+import { useProductMode } from '@/assets/js/store/productMode'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { PlusIcon, PaperClipIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { CameraIcon } from '@heroicons/vue/24/solid'
@@ -362,7 +435,6 @@ import PromptStatusBar from '@/components/PromptStatusBar.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs'
 import CameraCapture from '@/components/CameraCapture.vue'
 import { useDemoMode, type DemoButtonId } from '@/assets/js/store/demoMode'
-import { useProductMode } from '@/assets/js/store/productMode'
 import DemoSamplePrompts from '@/components/DemoSamplePrompts.vue'
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
@@ -377,6 +449,8 @@ const promptStore = usePromptStore()
 const imageGeneration = useImageGenerationPresets()
 const processingDebounceTimer = ref<number | null>(null)
 const openAiCompatibleChat = useOpenAiCompatibleChat()
+const agentMode = useAgentMode()
+const oemBranding = useOemBranding()
 const textInference = useTextInference()
 const conversations = useConversations()
 const activities = useActivities()
@@ -393,7 +467,7 @@ const dialogStore = useDialogStore()
 // that may currently be off. They stay visible in the picker but greyed-out and
 // non-selectable (with a reason), unlike presets that are entirely unavailable on
 // this system — those are filtered out upstream (e.g. aiDAPTIV™/Phison without the
-// SSD, or Home Agent when the feature flag is off, which then isn't loaded at all).
+// SSD).
 const phisonUsable = computed(
   () =>
     backendServices.phisonSsdDetected &&
@@ -425,23 +499,14 @@ function presetGate(preset: Preset): { enabled: boolean; reason?: string } {
 // Quick preset picker: which mode's picker popover is currently open (null = none).
 const openPickerMode = ref<ModeType | null>(null)
 
-// Mode -> preset category / type, used to list a mode's presets in the quick picker.
-// Mirrors the mapping in the prompt store.
-const modeToCategories: Record<ModeType, string[]> = {
-  chat: ['chat'],
-  imageGen: ['create-images'],
-  imageEdit: ['edit-images'],
-  video: ['create-videos'],
-}
-const modeToPresetType: Record<ModeType, 'chat' | 'comfy'> = {
-  chat: 'chat',
-  imageGen: 'comfy',
-  imageEdit: 'comfy',
-  video: 'comfy',
-}
+// Modes that run on chat-type presets and stream their turns into a conversation
+// view. They share the prompt box's text handling (free-form text, cleared after a
+// turn), unlike the ComfyUI modes which keep the prompt around.
+const chatLikeModes: ModeType[] = ['chat', 'agent', 'audio']
+const isChatLikeMode = computed(() => chatLikeModes.includes(promptStore.getCurrentMode()))
 
 function presetsForMode(mode: ModeType): Preset[] {
-  return presetsStore.getPresetsByCategories(modeToCategories[mode], modeToPresetType[mode])
+  return presetsStore.getPresetsByCategories(MODE_TO_CATEGORIES[mode], MODE_TO_PRESET_TYPE[mode])
 }
 
 // The picker opens on hover (mouse) with a small delay, and closes shortly after the
@@ -534,7 +599,10 @@ async function selectPresetFromPicker(mode: ModeType, preset: Preset) {
     return
   }
   // No-op if it's already the active preset for this mode.
-  if (preset.name === presetsStore.activePresetName && promptStore.getCurrentMode() === mode) {
+  if (
+    preset.name === presetsStore.activePresetName &&
+    buttonModeFor(promptStore.getCurrentMode()) === mode
+  ) {
     return
   }
 
@@ -548,7 +616,9 @@ async function selectPresetFromPicker(mode: ModeType, preset: Preset) {
   const switchingToHomeAgent = preset.name === HOME_AGENT_CHAT_PRESET_NAME
   const onHomeAgentThread = conversations.getThreadKind(conversations.activeKey) === 'homeAgent'
 
-  const result = await presetSwitching.switchPreset(preset.name, { skipModeSwitch: true })
+  // The mode is left to the switch: an agent preset from the chat list moves the app
+  // to Agent Mode, which the button above cannot know.
+  const result = await presetSwitching.switchPreset(preset.name)
   if (result.success) {
     if (switchingToHomeAgent) {
       conversations.activeKey = homeAgent.ensureActiveRemoteConversation()
@@ -563,12 +633,6 @@ async function selectPresetFromPicker(mode: ModeType, preset: Preset) {
 const demoMode = useDemoMode()
 const productModeStore = useProductMode()
 
-audioRecorder.registerTranscriptionCallback((text) => {
-  prompt.value = text
-  // Mark this as a voice-originated turn so the reply can be auto-spoken.
-  textToSpeech.pendingVoiceTurn = true
-})
-
 // Get active chat preset
 const activeChatPreset = computed(() => {
   const preset = presetsStore.activePresetWithVariant
@@ -576,8 +640,51 @@ const activeChatPreset = computed(() => {
   return null
 })
 
+// Direct Speech-to-Text preset: the prompt box becomes a record/upload surface.
+const isSttPreset = computed(() => activeChatPreset.value?.sttPreset === true)
+
+// Whether voice input is usable: OpenVINO Whisper (non-NVIDIA), the standalone
+// Whisper backend, or a configured external transcription endpoint (any mode).
+// Replaces the old global STT toggle. The in-chat mic is rendered regardless and
+// disabled when this is false — it used to be `v-if`'d away, so anything that
+// flipped availability (e.g. a transient backend start failure) made the button
+// vanish with no explanation and no way back inside the session.
+const sttAvailable = computed(() => speechToText.available)
+
+const sttUnavailableHint = computed(() =>
+  productModeStore.isNvidiaModeSelected
+    ? 'Install the standalone Whisper backend (or set an external transcription endpoint) to use voice input'
+    : 'Install the OpenVINO backend or standalone Whisper backend, or set an external transcription endpoint, to use voice input',
+)
+
+// Handle an uploaded audio file in the STT preset: transcribe it into a chat turn.
+async function handleSttFileUpload(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  target.value = ''
+  if (!file) return
+  await openAiCompatibleChat.transcribeDirect(file, {
+    conversationKey: conversations.activeKey,
+    sourceLabel: `🎤 ${file.name}`,
+  })
+}
+
+audioRecorder.registerTranscriptionCallback((text) => {
+  // In the STT preset the transcript is the turn's output — render it as a chat
+  // turn instead of dropping it into the prompt box.
+  if (isSttPreset.value) {
+    openAiCompatibleChat.appendTranscriptTurn(text, conversations.activeKey, '🎤 Recording')
+    return
+  }
+  prompt.value = text
+  // Mark this as a voice-originated turn so the reply can be auto-spoken.
+  textToSpeech.pendingVoiceTurn = true
+})
+
 // Check if images can be attached (vision model selected)
 const canAttachImages = computed(() => {
+  // The Audio mode's presets take text or recorded audio, never an image.
+  if (promptStore.getCurrentMode() === 'audio') return false
   if (promptStore.getCurrentMode() !== 'chat') return true // Allow for image modes
   return textInference.modelSupportsVision
 })
@@ -605,6 +712,10 @@ const shouldShowImageUploadButton = computed(() => {
     return hasRequiredImageInput
   }
 
+  // Agent mode saves attachments into the workspace instead of sending them to
+  // the model, so any file is useful and no vision model is required.
+  if (mode === 'agent') return true
+
   // For chat mode, use existing logic (vision model + RAG documents)
   return canAttachImages.value || canAttachDocuments.value
 })
@@ -612,6 +723,7 @@ const shouldShowImageUploadButton = computed(() => {
 const modesWithPresets = computed(() => {
   const modes: ModeType[] = []
   if (presetsStore.chatPresets.length > 0) modes.push('chat')
+  if (presetsStore.audioPresets.length > 0) modes.push('audio')
   if (presetsStore.imageGenPresets.length > 0) modes.push('imageGen')
   if (presetsStore.imageEditPresets.length > 0) modes.push('imageEdit')
   if (presetsStore.videoPresets.length > 0) modes.push('video')
@@ -619,7 +731,7 @@ const modesWithPresets = computed(() => {
 })
 
 watch([modesWithPresets, () => promptStore.getCurrentMode()], ([modes, currentMode]) => {
-  if (modes.length > 0 && currentMode && !modes.includes(currentMode)) {
+  if (modes.length > 0 && currentMode && !modes.includes(buttonModeFor(currentMode))) {
     promptStore.setCurrentMode(modes[0])
   }
 })
@@ -670,6 +782,7 @@ const isProcessing = computed(
     // still false); keep the busy state up for it too, so the send/stop control
     // is the single, complete signal for "is the app working on this turn".
     textInference.isPreparingBackend ||
+    agentMode.processing ||
     activities.chatActivity(conversations.activeKey) !== null,
 )
 
@@ -712,8 +825,8 @@ const isFirstPrompt = computed(() => {
 // Check if prompt is modifiable for ComfyUI presets
 const isPromptModifiable = computed(() => {
   const mode = promptStore.getCurrentMode()
-  // For chat mode, prompt is always modifiable
-  if (mode === 'chat') return true
+  // In the chat-like modes (chat, audio) the prompt is always modifiable
+  if (chatLikeModes.includes(mode)) return true
 
   // For image/video modes, check if there's an active ComfyUI preset
   if (mode === 'imageGen' || mode === 'imageEdit' || mode === 'video') {
@@ -741,9 +854,9 @@ watch(isProcessing, (newValue, oldValue) => {
   }
 
   if (oldValue === true && newValue === false) {
-    const currentMode = promptStore.getCurrentMode()
-    // Only clear prompt for chat mode; persist for ComfyUI modes (imageGen, imageEdit, video)
-    if (currentMode === 'chat') {
+    // Only clear the prompt in the chat-like modes (chat, agent, audio); persist it
+    // for the ComfyUI modes (imageGen, imageEdit, video)
+    if (isChatLikeMode.value) {
       processingDebounceTimer.value = window.setTimeout(() => {
         prompt.value = ''
         promptStore.promptSubmitted = false
@@ -801,9 +914,20 @@ function getTextAreaPlaceholder() {
   if (active?.type === 'chat' && active.ttsPreset) {
     return languages?.COM_PROMPT_TTS || ''
   }
+  // Agent presets differ in what they ask for: Game Agent wants a game, the plain
+  // agent a task in the chosen folder.
+  if (active?.type === 'chat' && active.agentPreset) {
+    return active.agentWorkspace === 'games'
+      ? 'Describe the game you want to play — the agent will build it...'
+      : 'Describe a task for the agent to perform in the selected folder...'
+  }
   switch (promptStore.getCurrentMode()) {
     case 'chat':
       return languages?.COM_PROMPT_CHAT || ''
+    case 'agent':
+      return 'Describe a task for the agent to perform in the selected folder...'
+    case 'audio':
+      return languages?.COM_PROMPT_TTS || ''
     case 'imageGen':
       return languages?.COM_PROMPT_IMAGE_GEN || ''
     case 'imageEdit':
@@ -816,7 +940,7 @@ function getTextAreaPlaceholder() {
 }
 
 function handleSubmitPromptClick() {
-  const needsPrompt = promptStore.getCurrentMode() === 'chat' || imageGeneration.requiresUserPrompt
+  const needsPrompt = isChatLikeMode.value || imageGeneration.requiresUserPrompt
   if (needsPrompt && !prompt.value.trim()) {
     toast.error(languages?.COM_ERROR_NO_MESSAGE || 'Please enter a message before sending.')
     return
@@ -836,17 +960,51 @@ async function handleRecordingClick() {
     audioRecorder.stopRecording()
     return
   }
-  if (!speechToText.enabled) return
+  if (!sttAvailable.value) return
+  // Ready the selected engine before recording (may prompt a model download on
+  // first use), so transcription is ready when the clip is captured. The External
+  // engine needs nothing started.
+  try {
+    let ready: SttReadyResult = { downloadPrompted: false }
+    if (speechToText.effectiveSttEngine === 'whisper') {
+      ready = await speechToText.ensureWhisperReady()
+    } else if (speechToText.effectiveSttEngine === 'standalone') {
+      ready = await speechToText.ensureStandaloneReady()
+    }
+    // This click was spent on the model download popup. Do not roll straight into
+    // a recording once the download finishes: the user is not talking yet, so the
+    // mic would capture whatever comes next and transcribe it as gibberish. Let
+    // them press the mic again now that the model is in place.
+    if (ready.downloadPrompted) {
+      toast.success('Speech To Text model downloaded. Press the microphone to start recording.')
+      return
+    }
+  } catch (error) {
+    errors.report(error, {
+      category: 'inference',
+      code: 'inference/stt-unavailable',
+      userMessage: error instanceof Error ? error.message : 'Speech To Text is unavailable',
+    })
+    return
+  }
   await audioRecorder.startRecording()
+}
 
-  if (audioRecorder.error) {
-    errors.report(audioRecorder.error, {
+// Recorder failures are surfaced here rather than at the call site: transcription
+// runs in the recorder's MediaRecorder.onstop handler, long after
+// handleRecordingClick returned, so a failed transcription previously left no
+// trace in the UI at all.
+watch(
+  () => audioRecorder.error,
+  (message) => {
+    if (!message) return
+    errors.report(message, {
       category: 'inference',
       code: 'inference/audio-record-failed',
-      userMessage: audioRecorder.error,
+      userMessage: message,
     })
-  }
-}
+  },
+)
 
 function handleCameraClick() {
   if (demoMode.triggerFirstTimeHelp('camera-button')) return
@@ -915,6 +1073,10 @@ function getAcceptedFileTypes(): string {
 
     return types.join(',') || 'none'
   }
+
+  // An agent's attachment is just a file in its workspace — art, data, a
+  // reference document — so nothing is off-limits.
+  if (mode === 'agent') return ''
 
   // For other modes, default to none
   return 'none'
@@ -1020,6 +1182,12 @@ async function handleFileInput(event: Event) {
   if (!target.files || target.files.length === 0) return
 
   const files = Array.from(target.files)
+  if (promptStore.getCurrentMode() === 'agent') {
+    await agentMode.attachFiles(files)
+    target.value = ''
+    return
+  }
+
   const imageFiles: File[] = []
   const documentFiles: File[] = []
 
@@ -1111,6 +1279,11 @@ async function addDocumentsToRagList(files: File[]) {
 // Handle drag and drop
 async function onDrop(files: File[] | null) {
   if (!files || files.length === 0) return
+
+  if (promptStore.getCurrentMode() === 'agent') {
+    await agentMode.attachFiles(files)
+    return
+  }
 
   const imageFiles: File[] = []
   const documentFiles: File[] = []

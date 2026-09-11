@@ -1,7 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ChildProcess } from 'node:child_process'
-import { DeviceService, LongLivedPythonApiService } from '../../subprocesses/service'
+import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
+import { DeviceService, LongLivedPythonApiService } from '../../subprocesses/service'
+import { venvInterpreterPath } from '../../subprocesses/uvBasedBackends/venvState'
 
 vi.mock('electron', () => ({
   app: {
@@ -17,7 +20,7 @@ vi.mock('electron', () => ({
 class FakeBackendService extends LongLivedPythonApiService {
   readonly isRequired = false
   healthEndpointUrl = `${this.baseUrl}/healthy`
-  readonly pythonEnvDir = '/tmp/fake/.venv'
+  readonly pythonEnvDir: string
   readonly serviceDir = '/tmp/fake'
   isSetUp = true
   devices: InferenceDevice[] = []
@@ -26,6 +29,17 @@ class FakeBackendService extends LongLivedPythonApiService {
   // Controls the base-class start guard: a false provisioning check must abort
   // startup before the process is spawned.
   setUpResult = true
+
+  constructor(
+    name: BackendServiceName,
+    port: number,
+    win: ConstructorParameters<typeof LongLivedPythonApiService>[2],
+    settings: ConstructorParameters<typeof LongLivedPythonApiService>[3],
+    pythonEnvDir = '/tmp/fake/.venv',
+  ) {
+    super(name, port, win, settings)
+    this.pythonEnvDir = pythonEnvDir
+  }
 
   async serviceIsSetUp(): Promise<boolean> {
     return this.setUpResult
@@ -52,11 +66,28 @@ class FakeBackendService extends LongLivedPythonApiService {
   }
 }
 
-function makeFakeBackend(): FakeBackendService {
+const tempDirs: string[] = []
+
+function makeUsableVenvDir(): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'python-backend-venv-'))
+  tempDirs.push(dir)
+  const python = venvInterpreterPath(dir)
+  fs.mkdirSync(path.dirname(python), { recursive: true })
+  fs.writeFileSync(python, '')
+  return dir
+}
+
+function makeFakeBackend(pythonEnvDir = '/tmp/fake/.venv'): FakeBackendService {
   const win = { webContents: { send: vi.fn() } } as unknown as ConstructorParameters<
-    typeof FakeBackendService
+    typeof LongLivedPythonApiService
   >[2]
-  return new FakeBackendService('ai-backend' as BackendServiceName, 12345, win, {} as never)
+  return new FakeBackendService(
+    'ai-backend' as BackendServiceName,
+    12345,
+    win,
+    {} as never,
+    pythonEnvDir,
+  )
 }
 
 describe('DeviceService', () => {
@@ -115,26 +146,48 @@ describe('LongLivedPythonApiService start guard', () => {
     vi.clearAllMocks()
   })
 
-  it('fails the start without spawning when the backend is not set up', async () => {
-    const service = makeFakeBackend()
+  afterEach(() => {
+    while (tempDirs.length > 0) {
+      const dir = tempDirs.pop()
+      if (dir) fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('reports not-installed without spawning when the interpreter is missing', async () => {
+    const venvDir = fs.mkdtempSync(path.join(os.tmpdir(), 'broken-venv-'))
+    tempDirs.push(venvDir)
+    const service = makeFakeBackend(venvDir)
+
+    const status = await service.start()
+
+    expect(service.spawnCalled).toBe(false)
+    expect(status).toBe('notInstalled')
+    expect(service.isSetUp).toBe(false)
+    expect(service.get_info().errorDetails).toBeNull()
+  })
+
+  it('reports not-installed without spawning when the backend is not set up', async () => {
+    const service = makeFakeBackend(makeUsableVenvDir())
     service.setUpResult = false // serviceIsSetUp() → false triggers the base guard
 
     const status = await service.start()
 
-    // The guard short-circuits startup: no process is spawned, the backend is
-    // marked failed + not-set-up, and the error is captured for the wizard /
-    // backend management screen to offer a reinstall.
+    // The guard short-circuits startup before anything is spawned. Nothing ran,
+    // so this is not a startup failure: the backend reports 'notInstalled' (the
+    // UI offers Install, grey) instead of 'failed' (Repair, red), and no error
+    // log is attached. A leftover tree from a previous uninstall used to land
+    // here and show ComfyUI as failed on a fresh install.
     expect(service.spawnCalled).toBe(false)
-    expect(status).toBe('failed')
+    expect(status).toBe('notInstalled')
     expect(service.isSetUp).toBe(false)
     const info = service.get_info()
-    expect(info.status).toBe('failed')
+    expect(info.status).toBe('notInstalled')
     expect(info.isSetUp).toBe(false)
-    expect(info.errorDetails?.stderr).toContain('not fully installed')
+    expect(info.errorDetails).toBeNull()
   })
 
   it('proceeds to spawn when the backend is set up', async () => {
-    const service = makeFakeBackend()
+    const service = makeFakeBackend(makeUsableVenvDir())
     // serviceIsSetUp() → true → guard passes and startup continues into
     // spawnAPIProcess. listenServerReady is stubbed to report a clean boot.
     vi.spyOn(

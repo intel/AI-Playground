@@ -19,9 +19,7 @@ export type ActivityState = 'active' | 'done' | 'failed' | 'cancelled'
 // Where an activity belongs, so the UI can show the right activities in the
 // right place (e.g. the in-progress chat turn vs. the image-gen overlay).
 export type ActivityScope =
-  | { kind: 'global' }
-  | { kind: 'chat'; conversationKey: string }
-  | { kind: 'imageGen' }
+  { kind: 'global' } | { kind: 'chat'; conversationKey: string } | { kind: 'imageGen' }
 
 export type Activity = {
   // Brand so isActivity() can distinguish a normalized Activity from a random object.

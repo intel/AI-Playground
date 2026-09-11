@@ -7,6 +7,7 @@ declare type BackendServiceName =
   | 'openvino-backend'
   | 'home-agent-backend'
   | 'qwen3-tts-backend'
+  | 'whisper-backend'
 
 // Declare BackendStatus type
 declare type BackendStatus =

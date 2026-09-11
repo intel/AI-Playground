@@ -3,14 +3,11 @@ import { z } from 'zod'
 import { useActivities } from '../store/activities'
 import { useConversations } from '../store/conversations'
 import { useQwen3TextToSpeech } from '../store/qwen3TextToSpeech'
+import { useTextToSpeech } from '../store/textToSpeech'
 import { QWEN3_TTS_LANGUAGES, QWEN3_TTS_SPEAKERS } from '@/assets/js/qwen3TtsConstants'
 import type { Qwen3TtsLanguage, Qwen3TtsSpeakerId } from '@/assets/js/qwen3TtsConstants'
 import { buildTtsAudioFileName, conversationLabelForTtsFile } from '@/lib/ttsAudioFileName'
-
-function conversationKeyFor(experimentalContext: unknown): string {
-  const ctx = experimentalContext as { conversationKey?: string } | undefined
-  return ctx?.conversationKey ?? useConversations().activeKey
-}
+import { ToolConversationContextSchema, conversationKeyFor } from './toolContext'
 
 const speakerIds = QWEN3_TTS_SPEAKERS.map((s) => s.id) as [string, ...string[]]
 const languageIds = QWEN3_TTS_LANGUAGES as [string, ...string[]]
@@ -21,7 +18,9 @@ const SynthesizeSpeechOutputSchema = z.object({
   savedFilePath: z.string().optional(),
   speaker: z.string().optional(),
   language: z.string().optional(),
-  mode: z.enum(['custom_voice', 'voice_design']).optional(),
+  // Reports the mode that actually ran, which includes `voice_clone`: a saved voice
+  // is reproduced by cloning its preview, chosen by the store rather than the caller.
+  mode: z.enum(['custom_voice', 'voice_design', 'voice_clone']).optional(),
 })
 
 type SynthesizeSpeechOutput = z.infer<typeof SynthesizeSpeechOutputSchema>
@@ -71,14 +70,54 @@ export const synthesizeTextToSpeech = tool({
       .describe('When true, save speaker/language/mode as the user default for later synthesis'),
   }),
   outputSchema: SynthesizeSpeechOutputSchema,
+  contextSchema: ToolConversationContextSchema,
   execute: async (args, options): Promise<SynthesizeSpeechOutput> => {
     const qwen3 = useQwen3TextToSpeech()
+    const tts = useTextToSpeech()
     const activities = useActivities()
     const conversations = useConversations()
-    const conversationKey = conversationKeyFor(options.experimental_context)
+    const conversationKey = conversationKeyFor(options.context)
     const scope = {
       kind: 'chat' as const,
       conversationKey,
+    }
+
+    // The TTS preset owns the engine choice; the agentic tool honors it. When a
+    // non-Qwen engine is selected (Kokoro/OVMS or the external endpoint), synthesize
+    // via that path — the Qwen3-only options (speaker/voiceName/instruct/mode) don't apply.
+    if (tts.selectedEngine !== 'qwen3') {
+      const activityId = activities.begin({
+        category: 'tools',
+        label: 'Generating audio file…',
+        scope,
+      })
+      try {
+        const { audioBase64, voice } = await tts.synthesizeToWav(args.text)
+        const label = conversationLabelForTtsFile({
+          conversationKey,
+          messages: conversations.conversationList[conversationKey],
+          threadMeta: conversations.getThreadMeta(conversationKey),
+        })
+        const fileName = buildTtsAudioFileName({
+          conversationKey,
+          conversationLabel: label,
+          userSlug: args.outputFileName,
+        })
+        const savedFilePath = await qwen3.saveWavToDisk(audioBase64, fileName)
+        const engineLabel = tts.selectedEngine === 'kokoro' ? 'Kokoro' : 'the external endpoint'
+        activities.end(activityId, 'done')
+        return {
+          ok: true,
+          message:
+            `Synthesized speech with ${engineLabel} (${voice}). ` +
+            `Saved to ${savedFilePath}. The audio player is shown in the chat.`,
+          savedFilePath,
+          speaker: voice,
+        }
+      } catch (error) {
+        activities.end(activityId, 'failed')
+        return { ok: false, message: error instanceof Error ? error.message : String(error) }
+      }
     }
 
     // Two visible phases: loading the model (slow on the first call / may prompt the

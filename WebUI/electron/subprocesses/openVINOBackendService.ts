@@ -1,10 +1,12 @@
 import { ChildProcess, spawn } from 'node:child_process'
 import path from 'node:path'
 import * as filesystem from 'fs-extra'
-import { app, BrowserWindow, dialog, net } from 'electron'
+import { app, BrowserWindow, dialog } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
 import { packagedResourcesRoot } from '../aipgRoot.ts'
 import { ApiService, createEnhancedErrorDetails, ErrorDetails } from './service.ts'
+import { fetchFirstInstallArtifact } from './fetchInstallArtifact.ts'
+import { buildOvmsCandidates, parseUbuntuMajor, ubuntuDistroTargets } from './ovmsDownloadUrls.ts'
 import { promisify } from 'util'
 import { exec } from 'child_process'
 import { LocalSettings } from '../main.ts'
@@ -14,7 +16,9 @@ import { binary, extract, restoreTreeWritePermissions } from './tools.ts'
 import { getBundledBackendVersionSync, resolveModels } from '../remoteUpdates.ts'
 import {
   terminateProcessTree as killProcessTree,
+  spawnBackend,
   waitForServerReadyOrThrow,
+  type ProcessSignature,
 } from './processLifecycle.ts'
 import {
   getMissingPackages,
@@ -26,6 +30,7 @@ import {
   waitForTerminalInstall,
 } from './linuxPackageInstaller.ts'
 import { resolveDefaultDevice } from './defaultDeviceSelection.ts'
+import { npuPromptLen } from '../../src/types/shared.ts'
 
 const execAsync = promisify(exec)
 
@@ -67,6 +72,8 @@ export class OpenVINOBackendService implements ApiService {
   currentStatus: BackendStatus = 'notInstalled'
   isSetUp: boolean = false
   desiredStatus: BackendStatus = 'uninitializedStatus'
+  /** True while an install runs for this service — see `ApiService.setUpInProgress`. */
+  setUpInProgress: boolean = false
 
   // Model server processes
   private ovmsLlmProcess: OvmsServerProcess | null = null
@@ -76,6 +83,12 @@ export class OpenVINOBackendService implements ApiService {
   private ovmsImageProcess: OvmsServerProcess | null = null
   private currentModel: string | null = null
   private currentContextSize: number | null = null
+  /**
+   * The command line the running LLM server was launched with. OVMS compiles
+   * the graph from these (target device, NPU prompt length, KV cache
+   * precision), so they are what a turn's numbers have to be read against.
+   */
+  private currentLlmServerArgs: string[] | null = null
   private currentEmbeddingModel: string | null = null
   private currentTranscriptionModel: string | null = null
   private currentSpeechModel: string | null = null
@@ -1213,6 +1226,11 @@ export class OpenVINOBackendService implements ApiService {
     }
   }
 
+  /** The running LLM server's command line, or null when none is running. */
+  llmServerArgs(): string[] | null {
+    return this.ovmsLlmProcess ? this.currentLlmServerArgs : null
+  }
+
   setStatus(status: BackendStatus) {
     this.currentStatus = status
     this.updateStatus()
@@ -1476,74 +1494,29 @@ export class OpenVINOBackendService implements ApiService {
         'OpenVINO Model Server version is not set (failed to read backend-versions.json)',
       )
     }
-    // Build an ordered list of candidate URLs to try, most-specific first.
-    //
-    // Windows – uses the OpenVINO toolkit storage (zip, no version in filename).
-    // Linux   – GitHub Releases are canonical; toolkit storage is a fallback.
-    //   GitHub/storage asset names embed the full version, e.g.:
-    //     ovms_ubuntu24_2026.1.0_python_on.tar.gz
-    //   On Ubuntu 26+ we try ubuntu26 builds first, falling back to ubuntu24.
-    const candidates: string[] = []
-    const storageBaseUrl =
-      'https://storage.openvinotoolkit.org/repositories/openvino_model_server/packages'
+    const distros = process.platform === 'win32' ? [] : await this.getOvmsDistroTargets()
+    const candidates = buildOvmsCandidates({
+      platform: process.platform,
+      version: this.version,
+      releaseTag: this.releaseTag,
+      distros,
+    })
 
-    if (process.platform === 'win32') {
-      const versionPath = this.releaseTag
-        ? `weekly/${this.version}.${this.releaseTag}`
-        : this.version
-      // The Windows package embeds the full version in its filename, e.g.
-      //   ovms_windows_2026.2.1_python_on.zip
-      candidates.push(`${storageBaseUrl}/${versionPath}/ovms_windows_${this.version}_python_on.zip`)
-      // Fallback to the legacy non-versioned name for older storage layouts.
-      candidates.push(`${storageBaseUrl}/${versionPath}/ovms_windows_python_on.zip`)
-    } else {
-      // Detect the host Ubuntu version to pick the best OVMS build.
-      // Try the exact distro match first, then fall back to older builds.
-      const distros = await this.getOvmsDistroTargets()
-      this.appLogger.info(
-        `OVMS distro download targets (in priority order): ${distros.join(', ')}`,
-        this.name,
-      )
+    const found = await fetchFirstInstallArtifact(candidates, {
+      onAttempt: (url) => this.appLogger.info(`Trying OVMS download URL: ${url}`, this.name),
+      onSkip: ({ url, status, contentType, contentLength }) =>
+        this.appLogger.info(
+          `URL ${url} returned ${status} / content-type: ${contentType} / content-length: ${contentLength} — skipping`,
+          this.name,
+        ),
+    })
 
-      for (const distro of distros) {
-        const pkg = `ovms_${distro}_${this.version}_python_on.tar.gz`
-
-        // 1. GitHub Releases (most reliable for versioned packages)
-        candidates.push(
-          `https://github.com/openvinotoolkit/model_server/releases/download/v${this.version}/${pkg}`,
-        )
-        // 2. OpenVINO toolkit storage – weekly build
-        if (this.releaseTag) {
-          candidates.push(`${storageBaseUrl}/weekly/${this.version}.${this.releaseTag}/${pkg}`)
-        }
-        // 3. OpenVINO toolkit storage – stable
-        candidates.push(`${storageBaseUrl}/${this.version}/${pkg}`)
-      }
-    }
-
-    let response: Awaited<ReturnType<typeof net.fetch>> | undefined
-    let downloadUrl = ''
-    for (const url of candidates) {
-      this.appLogger.info(`Trying OVMS download URL: ${url}`, this.name)
-      const res = await net.fetch(url)
-      const contentType = res.headers.get('content-type') ?? ''
-      // Reject HTML responses (they indicate a 404/index page, not a real archive)
-      if (res.ok && res.status === 200 && res.body && !contentType.includes('text/html')) {
-        response = res
-        downloadUrl = url
-        break
-      }
-      this.appLogger.info(
-        `URL ${url} returned ${res.status} / content-type: ${contentType} — skipping`,
-        this.name,
-      )
-    }
-
-    if (!response || !response.body) {
+    if (!found) {
       throw new Error(
         `Failed to download OVMS: no valid download URL found. Tried: ${candidates.join(', ')}`,
       )
     }
+    const { url: downloadUrl, response } = found
 
     this.appLogger.info(`Downloading OVMS from ${downloadUrl}`, this.name)
 
@@ -1560,38 +1533,29 @@ export class OpenVINOBackendService implements ApiService {
   }
 
   /**
-   * Determine the ordered list of OVMS distro build targets to try downloading.
-   *
-   * Reads /etc/os-release to detect the host Ubuntu version and returns targets
-   * in priority order — exact match first, then older compatible builds as fallback.
-   *
-   * For example, on Ubuntu 26.04 this returns ['ubuntu26', 'ubuntu24'] so we try
-   * the native build first and fall back to the Ubuntu 24 build if unavailable.
+   * Read the host's Ubuntu version and report the OVMS distro build targets to
+   * try, most-specific first. Both are logged: a Linux install that picked the
+   * wrong build is otherwise hard to tell from one whose package is missing.
    */
   private async getOvmsDistroTargets(): Promise<string[]> {
+    let osRelease: string | undefined
     try {
-      const osRelease = await filesystem.readFile('/etc/os-release', 'utf-8')
-      const versionIdMatch = osRelease.match(/^VERSION_ID="?(\d+)(?:\.\d+)?"?/m)
-      if (versionIdMatch?.[1]) {
-        const majorVersion = parseInt(versionIdMatch[1], 10)
-        this.appLogger.info(`Detected Ubuntu version: ${majorVersion}`, this.name)
-
-        if (majorVersion >= 26) {
-          // Try native ubuntu26 build first, fall back to ubuntu24
-          return ['ubuntu26', 'ubuntu24']
-        }
-        if (majorVersion >= 24) {
-          return ['ubuntu24']
-        }
-        // Older Ubuntu — try ubuntu24 anyway (best effort)
-        return ['ubuntu24']
-      }
+      osRelease = await filesystem.readFile('/etc/os-release', 'utf-8')
     } catch (e) {
       this.appLogger.warn(`Failed to detect Ubuntu version from /etc/os-release: ${e}`, this.name)
     }
 
-    // Fallback: just try ubuntu24
-    return ['ubuntu24']
+    const ubuntuMajor = parseUbuntuMajor(osRelease)
+    if (ubuntuMajor !== undefined) {
+      this.appLogger.info(`Detected Ubuntu version: ${ubuntuMajor}`, this.name)
+    }
+
+    const targets = ubuntuDistroTargets(ubuntuMajor)
+    this.appLogger.info(
+      `OVMS distro download targets (in priority order): ${targets.join(', ')}`,
+      this.name,
+    )
+    return targets
   }
 
   /**
@@ -1725,6 +1689,15 @@ export class OpenVINOBackendService implements ApiService {
   }
 
   async start(): Promise<BackendStatus> {
+    // An install is rewriting the OVMS directory right now — don't report it as
+    // ready mid-install (the binaries it would serve may not exist yet).
+    if (this.setUpInProgress) {
+      this.appLogger.info(
+        `start() ignored for ${this.name}: an installation is in progress`,
+        this.name,
+      )
+      return this.currentStatus
+    }
     if (this.settings.productMode === 'nvidia') {
       this.appLogger.info('Skipping OpenVINO start in NVIDIA mode', this.name)
       return this.currentStatus
@@ -2070,7 +2043,6 @@ export class OpenVINOBackendService implements ApiService {
   ): Promise<OvmsServerProcess> {
     try {
       const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
-      const maxPromptLen = contextSize ?? 8192
       const toolParser = await this.resolveToolParser(modelRepoId)
       const servedModelName = modelRepoId.split('/').join('---')
 
@@ -2103,6 +2075,13 @@ export class OpenVINOBackendService implements ApiService {
       ]
 
       if (selectedDevice.startsWith('NPU')) {
+        const maxPromptLen = npuPromptLen(contextSize)
+        if (contextSize && contextSize > maxPromptLen) {
+          this.appLogger.info(
+            `Context size ${contextSize} exceeds what NPU is started with; using --max_prompt_len ${maxPromptLen}`,
+            this.name,
+          )
+        }
         args.push('--max_prompt_len', maxPromptLen.toString())
       }
 
@@ -2118,9 +2097,8 @@ export class OpenVINOBackendService implements ApiService {
       const extraLibPaths = await this.resolveOvmsExtraLibPaths()
       const ovmsEnv = this.buildOvmsEnv(extraLibPaths)
 
-      const childProcess = spawn(this.ovmsExePath, args, {
+      const childProcess = spawnBackend(this.ovmsExePath, args, {
         cwd: this.ovmsDir,
-        windowsHide: true,
         env: ovmsEnv,
       })
 
@@ -2187,6 +2165,7 @@ export class OpenVINOBackendService implements ApiService {
       this.ovmsLlmProcess = ovmsProcess
       this.currentModel = modelRepoId
       this.currentContextSize = contextSize ?? null
+      this.currentLlmServerArgs = args
 
       this.appLogger.info(`OVMS LLM server ready for model: ${modelRepoId}`, this.name)
       return ovmsProcess
@@ -2211,6 +2190,22 @@ export class OpenVINOBackendService implements ApiService {
    */
   private async terminateProcessTree(proc: ChildProcess, label: string): Promise<void> {
     await killProcessTree(proc, { name: this.name, label, appLogger: this.appLogger })
+  }
+
+  orphanSignatures(): ProcessSignature[] {
+    return [[this.ovmsExePath]]
+  }
+
+  ownedPids(): number[] {
+    return [
+      this.ovmsLlmProcess,
+      this.ovmsEmbeddingProcess,
+      this.ovmsTranscriptionProcess,
+      this.ovmsSpeechProcess,
+      this.ovmsImageProcess,
+    ]
+      .map((server) => server?.process.pid)
+      .filter((pid): pid is number => pid !== undefined)
   }
 
   private async stopOvmsLlmServer(): Promise<void> {
@@ -2260,9 +2255,8 @@ export class OpenVINOBackendService implements ApiService {
       this.appLogger.info(`OVMS embedding launch args: ${args.join(' ')}`, this.name)
 
       const extraLibPaths = await this.resolveOvmsExtraLibPaths()
-      const childProcess = spawn(this.ovmsExePath, args, {
+      const childProcess = spawnBackend(this.ovmsExePath, args, {
         cwd: this.ovmsDir,
-        windowsHide: true,
         env: this.buildOvmsEnv(extraLibPaths),
       })
 
@@ -2367,9 +2361,8 @@ export class OpenVINOBackendService implements ApiService {
       this.appLogger.info(`OVMS transcription launch args: ${args.join(' ')}`, this.name)
 
       const extraLibPaths = await this.resolveOvmsExtraLibPaths()
-      const childProcess = spawn(this.ovmsExePath, args, {
+      const childProcess = spawnBackend(this.ovmsExePath, args, {
         cwd: this.ovmsDir,
-        windowsHide: true,
         env: this.buildOvmsEnv(extraLibPaths),
       })
 
@@ -2477,19 +2470,10 @@ export class OpenVINOBackendService implements ApiService {
 
       this.appLogger.info(`OVMS speech launch args: ${args.join(' ')}`, this.name)
 
-      // Set up environment variables as per setupvars.ps1
-      const pythonDir = path.join(this.ovmsDir, 'python')
-      const scriptsDir = path.join(this.ovmsDir, 'python', 'Scripts')
-
-      const childProcess = spawn(this.ovmsExePath, args, {
+      const extraLibPaths = await this.resolveOvmsExtraLibPaths()
+      const childProcess = spawnBackend(this.ovmsExePath, args, {
         cwd: this.ovmsDir,
-        windowsHide: true,
-        env: {
-          ...process.env,
-          OVMS_DIR: this.ovmsDir,
-          PYTHONHOME: pythonDir,
-          PATH: `${this.ovmsDir};${pythonDir};${scriptsDir};${process.env.PATH}`,
-        },
+        env: this.buildOvmsEnv(extraLibPaths),
       })
 
       const healthUrl = `http://127.0.0.1:${port}/v2/health/ready`
@@ -2598,9 +2582,8 @@ export class OpenVINOBackendService implements ApiService {
       this.appLogger.info(`OVMS image launch args: ${args.join(' ')}`, this.name)
 
       const extraLibPaths = await this.resolveOvmsExtraLibPaths()
-      const childProcess = spawn(this.ovmsExePath, args, {
+      const childProcess = spawnBackend(this.ovmsExePath, args, {
         cwd: this.ovmsDir,
-        windowsHide: true,
         env: this.buildOvmsEnv(extraLibPaths),
       })
 

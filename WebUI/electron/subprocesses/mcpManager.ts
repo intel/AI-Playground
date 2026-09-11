@@ -1,4 +1,5 @@
 import path from 'node:path'
+import type { ToolSet } from 'ai'
 import { createMCPClient, type MCPClient } from '@ai-sdk/mcp'
 import { Experimental_StdioMCPTransport } from '@ai-sdk/mcp/mcp-stdio'
 import { appLoggerInstance } from '../logging/logger'
@@ -271,6 +272,25 @@ export async function invokeMcpServerTool(
       content: [{ type: 'text', text: `Failed to call MCP tool ${toolName}: ${message}` }],
     }
   }
+}
+
+/**
+ * Start (if needed) an MCP server and return its tools as an AI SDK `ToolSet`,
+ * ready to hand to `streamText`/`HarnessAgent`. `client.tools()` returns tools
+ * whose `execute()` runs the call over the live MCP connection in this process
+ * — the same contract `invokeMcpServerTool` uses. Throws if the server can't be
+ * brought to `running` so callers can decide whether to proceed without it.
+ */
+export async function getMcpServerTools(serverId: string): Promise<ToolSet> {
+  const status = await startMcpServer(serverId)
+  if (status.state !== 'running') {
+    throw new Error(status.lastError ?? `MCP server ${serverId} failed to start`)
+  }
+  const client = clients.get(serverId)
+  if (!client) {
+    throw new Error(`MCP server ${serverId} has no active client`)
+  }
+  return await client.tools()
 }
 
 export async function stopAllMcpServers(): Promise<void> {

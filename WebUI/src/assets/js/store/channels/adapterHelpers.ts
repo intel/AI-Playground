@@ -75,30 +75,6 @@ export function newDraftId(): number {
   return id === 0 ? 1 : id
 }
 
-/** Sum elapsed reasoning ms across all reasoning parts in a turn. Each
- *  reasoning part carries its own start/finish timestamps via
- *  providerMetadata.aipg (set in openAiCompatibleChat's customFetch onChunk
- *  handler); the SDK can emit several reasoning blocks per turn (e.g. across
- *  tool-call cycles) so we sum per-block elapsed durations rather than
- *  spanning earliest-start → latest-finish — that keeps tool-execution gaps
- *  out of the reported figure. */
-export function reasoningElapsedMsFromParts(
-  parts: {
-    type: string
-    providerMetadata?: { aipg?: { reasoningStarted?: number; reasoningFinished?: number } }
-  }[],
-): number {
-  let total = 0
-  for (const part of parts) {
-    if (part.type !== 'reasoning') continue
-    const timing = part.providerMetadata?.aipg
-    if (timing?.reasoningStarted && timing?.reasoningFinished) {
-      total += Math.max(0, timing.reasoningFinished - timing.reasoningStarted)
-    }
-  }
-  return total
-}
-
 /** Draft animation throttle (ms) and Telegram preview keep-alive interval. */
 export const DRAFT_THROTTLE_MS = 800
 export const DRAFT_KEEPALIVE_MS = 25_000

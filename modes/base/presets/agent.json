@@ -1,0 +1,20 @@
+{
+  "type": "chat",
+  "category": "chat",
+  "name": "Agent",
+  "description": "Give the model a task and a folder to work in. It writes and runs files, browses its own pages, and can generate images and video along the way.",
+  "extendedDescription": "Experimental. Pick a folder, describe the job, and the agent works in that folder until it is done: writing and editing files, running shell commands, opening its own pages in a browser to check them, and generating images or video into the workspace. Good for building a small web page or tool, bulk work over files you already have, summarizing a folder of documents, or assembling generated media. It changes your files directly and there is no undo, so point it at a folder you are willing to lose. For games, use Game Agent — the same agent, aimed at that job.",
+  "displayPriority": 50,
+  "tags": ["Agent", "Coding", "Tools"],
+  "backends": ["llamaCPP", "openVINO"],
+  "agentPreset": true,
+  "agentWorkspace": "pick",
+  "preferredModels": {
+    "openVINO": "OpenVINO/Qwen3.5-9B-int4-ov",
+    "llamaCPP": "unsloth/Qwen3.5-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf"
+  },
+  "contextSize": 131072,
+  "maxNewTokens": 32768,
+  "requiresToolCalling": true,
+  "requiredModels": []
+}

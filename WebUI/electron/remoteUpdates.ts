@@ -13,6 +13,7 @@ const BackendVersionsSchema = z.object({
   'ai-backend': BackendVersionSchema.optional(),
   'home-agent-backend': BackendVersionSchema.optional(),
   'qwen3-tts-backend': BackendVersionSchema.optional(),
+  'whisper-backend': BackendVersionSchema.optional(),
   'comfyui-backend': BackendVersionSchema,
   'llamacpp-backend': BackendVersionSchema,
   'openvino-backend': BackendVersionSchema,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import logging
 import os
@@ -11,7 +12,7 @@ from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
 
-SynthesisMode = Literal["custom_voice", "voice_design"]
+SynthesisMode = Literal["custom_voice", "voice_design", "voice_clone"]
 
 CUSTOM_VOICE_SPEAKERS: list[dict[str, str]] = [
     {
@@ -81,10 +82,15 @@ _load_lock = threading.Lock()
 # and most torch generate paths are not thread-safe, so concurrent
 # /api/synthesize requests must not hit a model object at the same time.
 _infer_lock = threading.Lock()
-# Two-slot cache: custom_voice and voice_design use different model ids, so we
-# keep both resident once loaded instead of unloading/reloading on every mode
-# switch. Keyed by model id.
+# One slot per mode: custom_voice, voice_design and voice_clone use different
+# model ids, so we keep each resident once loaded instead of unloading/reloading on
+# every mode switch. Keyed by model id.
 _models: dict[str, Any] = {}
+# Built voice-clone prompts, keyed by (content digest, reference text, icl flag).
+# Building one encodes the reference audio and extracts a speaker embedding, which
+# is the expensive part of cloning and identical for every request using that
+# voice — so it is computed once per reference file rather than per synthesis.
+_clone_prompts: dict[tuple[str, str, bool], Any] = {}
 _load_error: str | None = None
 _resolved_device: str | None = None
 
@@ -112,6 +118,14 @@ def voice_design_model_id() -> str:
     )
 
 
+def voice_clone_model_id() -> str:
+    """The Base checkpoint — the only `tts_model_type` that can clone a voice."""
+    return os.environ.get(
+        "QWEN3_TTS_VOICE_CLONE_MODEL",
+        "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    )
+
+
 def model_status() -> dict[str, object]:
     with _load_lock:
         return {
@@ -123,7 +137,11 @@ def model_status() -> dict[str, object]:
 
 
 def model_id_for_mode(mode: SynthesisMode) -> str:
-    return voice_design_model_id() if mode == "voice_design" else default_model_id()
+    if mode == "voice_design":
+        return voice_design_model_id()
+    if mode == "voice_clone":
+        return voice_clone_model_id()
+    return default_model_id()
 
 
 def is_model_downloaded(mode: SynthesisMode = "custom_voice") -> bool:
@@ -236,6 +254,43 @@ def _seed_everything(seed: int) -> None:
             torch.xpu.manual_seed_all(seed)
 
 
+def _clone_prompt(model: Any, ref_audio_path: str, ref_text: str | None) -> Any:
+    """Build (and cache) the voice-clone prompt for a reference recording.
+
+    ICL mode (reference audio *and* its transcript) reproduces the reference
+    speaker more closely than the speaker embedding alone, so it is used whenever
+    the transcript is known — which it always is for a voice preview, since we
+    generated the sentence. Without a transcript we fall back to x-vector only.
+    """
+    icl = bool(ref_text and ref_text.strip())
+    try:
+        with open(ref_audio_path, "rb") as fh:
+            digest = hashlib.sha256(fh.read()).hexdigest()
+    except OSError as exc:
+        raise ValueError(f"reference audio is not readable: {ref_audio_path}") from exc
+    # Keyed on the audio's content, not its path/mtime/size: a voice keeps one
+    # preview filename for life, so re-saving it rewrites that file in place. Any
+    # key derived from the path would then have to rely on the filesystem noticing —
+    # and a stale hit here is invisible, serving the previous speaker forever.
+    key = (digest, (ref_text or "").strip() if icl else "", icl)
+
+    cached = _clone_prompts.get(key)
+    if cached is not None:
+        return cached
+
+    items = model.create_voice_clone_prompt(
+        ref_audio=ref_audio_path,
+        ref_text=(ref_text or "").strip() if icl else None,
+        x_vector_only_mode=not icl,
+    )
+    if not items:
+        raise RuntimeError(
+            "Could not build a voice-clone prompt from the reference audio"
+        )
+    _clone_prompts[key] = items[0]
+    return items[0]
+
+
 def synthesize_wav(
     *,
     text: str,
@@ -244,6 +299,8 @@ def synthesize_wav(
     instruct: str | None,
     mode: SynthesisMode,
     seed: int | None = None,
+    ref_audio_path: str | None = None,
+    ref_text: str | None = None,
 ) -> tuple[bytes, int]:
     import numpy as np
     import soundfile as sf
@@ -261,15 +318,28 @@ def synthesize_wav(
     if lang.lower() == "auto":
         lang = "Auto"
 
-    model_id = voice_design_model_id() if mode == "voice_design" else default_model_id()
-    model = _load_model(model_id)
+    if mode == "voice_clone" and not (ref_audio_path or "").strip():
+        raise ValueError("voice_clone requires refAudioPath")
+
+    model = _load_model(model_id_for_mode(mode))
 
     # Serialize inference: the cached models share one accelerator and the
     # generate paths are not thread-safe, so only one synthesis runs at a time.
     with _infer_lock:
         if seed is not None:
             _seed_everything(seed)
-        if mode == "voice_design":
+        if mode == "voice_clone":
+            # The voice is defined by the reference recording, not by a sampled draw,
+            # so it comes back the same for any text — which is what a seeded
+            # voice_design generation cannot promise across different sentences.
+            wavs, sr = model.generate_voice_clone(
+                text=trimmed,
+                language=lang,
+                voice_clone_prompt=[
+                    _clone_prompt(model, ref_audio_path or "", ref_text)
+                ],
+            )
+        elif mode == "voice_design":
             wavs, sr = model.generate_voice_design(
                 text=trimmed,
                 language=lang,

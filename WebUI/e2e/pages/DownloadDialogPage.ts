@@ -44,6 +44,27 @@ export class DownloadDialogPage {
     return this.dialog.isVisible().catch(() => false)
   }
 
+  /** Wait for the dialog and return the repo ids it lists, without downloading. */
+  async listedModels(timeout = 15_000): Promise<string[]> {
+    await this.dialog.waitFor({ state: 'visible', timeout })
+    // Rows carrying a `cell` are the body rows — the header's are `columnheader`s
+    // — and the first cell of each is the repo id (see DownloadDialog.vue).
+    const rows = this.dialog.getByRole('row').filter({ has: this.page.getByRole('cell') })
+    const count = await rows.count()
+    const ids: string[] = []
+    for (let i = 0; i < count; i++) {
+      ids.push((await rows.nth(i).getByRole('cell').first().innerText()).trim())
+    }
+    return ids
+  }
+
+  /** Dismiss the dialog without downloading anything. */
+  async cancel(): Promise<void> {
+    if (!(await this.isOpen())) return
+    await this.cancelButton.click()
+    await expect(this.dialog).toBeHidden({ timeout: 30_000 })
+  }
+
   /**
    * If the download dialog is showing, accept the terms, start the download and wait
    * for it to finish (the dialog closes). No-op if it isn't showing. If Confirm never

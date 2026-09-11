@@ -9,6 +9,7 @@ import path from 'path'
 import fs from 'fs'
 import { getMainWindow } from './helpers'
 import { AppDriver } from './appDriver'
+import { watchAppErrors } from './appErrors'
 
 export const VITE_PORT = 25413
 export const VITE_URL = `http://127.0.0.1:${VITE_PORT}`
@@ -153,6 +154,10 @@ export const test = base.extend<E2EFixtures>({
 
   window: async ({ electronApp }, use) => {
     const window = await getMainWindow(electronApp)
+    // Before anything else: a failing wait quotes what the app reported while it
+    // ran, and the app's own on-screen notice is a toast that has usually faded
+    // by then (see appErrors.ts).
+    watchAppErrors(window)
     window.on('pageerror', (err) => console.error(`[renderer:error] ${err.message}`))
     if (process.env.E2E_VERBOSE) {
       window.on('console', (msg) => console.log(`[renderer:${msg.type()}] ${msg.text()}`))
@@ -170,6 +175,16 @@ export const test = base.extend<E2EFixtures>({
     await window.addLocatorHandler(memoryWarning, async (dialog) => {
       const dontShowAgain = dialog.getByRole('checkbox')
       if (await dontShowAgain.isVisible().catch(() => false)) await dontShowAgain.click()
+      await dialog.getByRole('button', { name: 'Confirm', exact: true }).click()
+    })
+
+    // Linux without a keyring: saving a LAN chat password opens the same in-app
+    // Warning dialog. Confirm so Home Agent setup can finish; scoped by copy so
+    // it never consumes an unrelated warning.
+    const insecureStorageWarning = window
+      .getByRole('dialog', { name: 'Warning' })
+      .filter({ hasText: /obfuscated on disk/i })
+    await window.addLocatorHandler(insecureStorageWarning, async (dialog) => {
       await dialog.getByRole('button', { name: 'Confirm', exact: true }).click()
     })
 

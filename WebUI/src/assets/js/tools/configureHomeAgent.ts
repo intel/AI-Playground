@@ -9,20 +9,14 @@ import {
 import { useHomeAgent } from '../store/homeAgent'
 import { useBackendServices } from '../store/backendServices'
 import { useActivities } from '../store/activities'
-import { HOME_AGENT_CHAT_PRESET_NAME, useConversations } from '../store/conversations'
+import { HOME_AGENT_CHAT_PRESET_NAME } from '../store/conversations'
 import {
   computeConfigChanges,
   summarizeChanges,
   type HomeAgentConfigRequest,
 } from './configureHomeAgentLogic'
 
-// The conversation a tool call belongs to is surfaced via `experimental_context`
-// (set in openAiCompatibleChat's streamText call). Used to scope activity/status
-// and the inline confirmation card to the right chat turn.
-function conversationKeyFor(experimentalContext: unknown): string {
-  const ctx = experimentalContext as { conversationKey?: string } | undefined
-  return ctx?.conversationKey ?? useConversations().activeKey
-}
+import { ToolConversationContextSchema, conversationKeyFor } from './toolContext'
 
 function chatScope(conversationKey: string): { kind: 'chat'; conversationKey: string } {
   return { kind: 'chat', conversationKey }
@@ -66,8 +60,9 @@ export const getHomeAgentSettings = tool({
     'values and can describe changes accurately.',
   inputSchema: z.object({}),
   outputSchema: z.string(),
+  contextSchema: ToolConversationContextSchema,
   execute: async (_args, options) => {
-    const scope = chatScope(conversationKeyFor(options.experimental_context))
+    const scope = chatScope(conversationKeyFor(options.context))
     return useActivities().track(
       { category: 'tools', label: 'Reading Home Agent settings…', scope },
       async () => {
@@ -109,8 +104,9 @@ export const listHomeAgentModels = tool({
     'when calling configureHomeAgent.',
   inputSchema: z.object({}),
   outputSchema: z.string(),
+  contextSchema: ToolConversationContextSchema,
   execute: async (_args, options) => {
-    const scope = chatScope(conversationKeyFor(options.experimental_context))
+    const scope = chatScope(conversationKeyFor(options.context))
     return useActivities().track(
       { category: 'tools', label: 'Listing available models…', scope },
       async () => {
@@ -372,9 +368,10 @@ export const configureHomeAgent = tool({
     'tool (the user uploads those directly). Changes apply to all Home Agent conversations.',
   inputSchema: ConfigureHomeAgentInputSchema,
   outputSchema: ConfigureHomeAgentOutputSchema,
+  contextSchema: ToolConversationContextSchema,
   execute: async (args: HomeAgentConfigRequest, options) => {
     return await applyConfig(args, {
-      conversationKey: conversationKeyFor(options.experimental_context),
+      conversationKey: conversationKeyFor(options.context),
       toolCallId: options.toolCallId,
     })
   },

@@ -34,6 +34,7 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { mapServiceNameToDisplayName, compareVersions } from '@/lib/utils'
+import { isOnDemandBackend } from '@/lib/onDemandBackends'
 import { z } from 'zod'
 import SettingsMenu from '@/components/SettingsMenu.vue'
 
@@ -190,6 +191,9 @@ const handleReinstall = async (versionToInstall?: { version?: string; releaseTag
     )
 
     if (setupResult.success) {
+      if (isOnDemandBackend(props.backend)) {
+        return
+      }
       try {
         const startStatus = await backendServices.startService(props.backend)
         if (startStatus !== 'running') {

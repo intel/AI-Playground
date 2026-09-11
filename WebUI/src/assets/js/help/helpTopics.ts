@@ -8,6 +8,7 @@ export type HelpTopicId =
   | 'plus-icon'
   | 'mode-buttons'
   | 'mode-button-chat'
+  | 'mode-button-audio'
   | 'mode-button-imageGen'
   | 'mode-button-imageEdit'
   | 'mode-button-video'
@@ -43,11 +44,15 @@ export const HELP_TOPICS: Record<HelpTopicId, HelpTopic> = {
   },
   'mode-buttons': {
     title: 'Pick your mode',
-    body: 'These buttons switch what you generate: Chat, Image Gen, Image Edit, or Video. Each mode has its own presets and settings.',
+    body: 'These buttons switch what you generate: Chat, Audio, Image Gen, Image Edit, or Video. Each mode has its own presets and settings.',
   },
   'mode-button-chat': {
     title: 'Chat mode',
     body: 'Ask questions like a typical AI chat. In Prompt Settings, choose models and options such as RAG, reasoning, or vision.',
+  },
+  'mode-button-audio': {
+    title: 'Audio mode',
+    body: 'Turn text into spoken audio, or an audio recording into text. Pick Text to Speech or Speech to Text in Prompt Settings, where the voice and engine live too.',
   },
   'mode-button-imageGen': {
     title: 'Image Gen mode',

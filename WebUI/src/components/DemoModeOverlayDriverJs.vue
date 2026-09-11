@@ -19,6 +19,7 @@ onMounted(() => {
 
 const SELECTOR_TO_MODE: Record<string, ModeType> = {
   '#mode-button-chat': 'chat',
+  '#mode-button-audio': 'audio',
   '#mode-button-imageGen': 'imageGen',
   '#mode-button-imageEdit': 'imageEdit',
   '#mode-button-video': 'video',
@@ -89,6 +90,10 @@ const firstTimeHelpConfig: Record<DemoButtonId, { stepId: string; highlightEleme
   },
   'mode-button-chat': {
     stepId: '#mode-button-chat',
+    highlightElement: '#prompt-input',
+  },
+  'mode-button-audio': {
+    stepId: '#mode-button-audio',
     highlightElement: '#prompt-input',
   },
   'mode-button-imageGen': {

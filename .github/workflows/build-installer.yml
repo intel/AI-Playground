@@ -18,6 +18,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        # Tags are fetched so a manual run of a tagged commit can still show that
+        # tag in the app's version tooltip (see build/scripts/buildIdentity.mts).
+        # Not on a tag push: checkout would then fetch both the commit and the tag
+        # ref into refs/tags/<tag> and git refuses ("Cannot fetch both ..."). That
+        # build reads its tag from GITHUB_REF and needs no tags in the clone.
+        with:
+          fetch-tags: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
       - name: Install Node.js and npm
         uses: actions/setup-node@v7
@@ -52,6 +59,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          fetch-tags: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
       - name: Install Node.js and npm
         uses: actions/setup-node@v7

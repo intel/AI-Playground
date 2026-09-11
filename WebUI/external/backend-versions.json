@@ -1,5 +1,5 @@
 {
-  "comfyui-backend": { "version": "v0.25.1" },
-  "llamacpp-backend": { "version": "b9763" },
-  "openvino-backend": { "version": "2026.3.0", "releaseTag": "8022ddae3" }
+  "comfyui-backend": { "version": "v0.34.0" },
+  "llamacpp-backend": { "version": "b10666" },
+  "openvino-backend": { "version": "2026.4.0", "releaseTag": "e5e9afa2" }
 }

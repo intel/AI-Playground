@@ -11,6 +11,12 @@
       "description": "Lets the assistant inspect and control a running Blender scene (list objects, read scene info, run Blender Python, trigger renders). Requires Blender open with the Blender MCP add-on installed and its socket server started; then ask e.g. \"what's in the current scene?\" or \"add a red cube and render it\".",
       "command": "uvx",
       "args": ["blender-mcp"]
+    },
+    "chrome-devtools": {
+      "displayName": "Chrome DevTools (browser debugging)",
+      "instructions": "Use these tools to debug a web page you built: navigate_page to the page (a file:// URL or a localhost dev server you start with bash), then list_console_messages and evaluate_script to read runtime errors and inspect the DOM, and take_screenshot/take_snapshot to see the rendered result.",
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest", "--isolated"]
     }
   }
 }

@@ -204,9 +204,6 @@
             </TooltipContent>
           </Tooltip>
         </div>
-
-        <!-- todo: needs to actually do something -->
-        <Button variant="outline" class="max-w-md mx-auto"> Create New Preset</Button>
       </div>
     </TooltipProvider>
   </div>

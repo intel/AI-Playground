@@ -1,5 +1,9 @@
 import { type Locator, type Page, expect } from '@playwright/test'
-import { type BackendDisplayName } from '../backends'
+import {
+  CORE_DEPENDENT_DISPLAY_NAMES,
+  CORE_SERVICES_DISPLAY_NAME,
+  type BackendDisplayName,
+} from '../backends'
 import { setRekaToggle } from './uiControls'
 
 /**
@@ -34,6 +38,32 @@ export class SetupWizardPage {
     return this.page.getByRole('group', { name: displayName, exact: true })
   }
 
+  /** The Core Services expand/collapse control, which holds the speech rows. */
+  private get coreServicesDisclosure(): Locator {
+    return this.page.getByRole('button', { name: `${CORE_SERVICES_DISPLAY_NAME} details` })
+  }
+
+  /**
+   * Open the Core Services disclosure. The speech sidecars are nested under it
+   * and collapsed on every wizard open, and their markup is unmounted while
+   * closed — so nothing can locate, let alone click, one of those rows until this
+   * has run. Idempotent; a no-op when the disclosure isn't rendered.
+   */
+  async expandCoreServices(): Promise<void> {
+    const trigger = this.coreServicesDisclosure
+    if ((await trigger.count()) === 0) return
+    if ((await trigger.getAttribute('data-state')) === 'open') return
+    await trigger.click()
+    await expect(trigger).toHaveAttribute('data-state', 'open')
+  }
+
+  /** Expand the Core Services disclosure when `displayName` lives inside it. */
+  private async revealRow(displayName: BackendDisplayName): Promise<void> {
+    if (CORE_DEPENDENT_DISPLAY_NAMES.includes(displayName)) {
+      await this.expandCoreServices()
+    }
+  }
+
   /** Each backend toggle has a unique accessible name: "Enable <displayName>". */
   toggle(displayName: BackendDisplayName): Locator {
     return this.page.getByRole('switch', { name: `Enable ${displayName}` })
@@ -46,6 +76,7 @@ export class SetupWizardPage {
    * disabled), so only call this for optional ones.
    */
   async isAvailable(displayName: BackendDisplayName): Promise<boolean> {
+    await this.revealRow(displayName)
     const toggle = this.toggle(displayName)
     if ((await toggle.count()) === 0) return false
     return !(await toggle.isDisabled())
@@ -53,6 +84,7 @@ export class SetupWizardPage {
 
   /** Enable a backend for install unless it is required (already on) or disabled. */
   async enable(displayName: BackendDisplayName): Promise<void> {
+    await this.revealRow(displayName)
     const toggle = this.toggle(displayName)
     await expect(toggle).toBeVisible()
     if (await toggle.isDisabled()) return // required or unavailable in this mode
@@ -74,6 +106,7 @@ export class SetupWizardPage {
    * (e.g. the feature is off) or the toggle is disabled.
    */
   async disableBackend(displayName: BackendDisplayName): Promise<void> {
+    await this.revealRow(displayName)
     const toggle = this.toggle(displayName)
     if ((await toggle.count()) === 0) return
     if (await toggle.isDisabled()) return
@@ -152,6 +185,7 @@ export class SetupWizardPage {
   }
 
   async openGear(displayName: BackendDisplayName): Promise<void> {
+    await this.revealRow(displayName)
     await this.gear(displayName).click()
   }
 

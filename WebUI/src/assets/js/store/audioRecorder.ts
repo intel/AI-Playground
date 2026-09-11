@@ -115,7 +115,15 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
         audioBlob.value = wavBlob
 
         cleanupStream()
-        await transcribeAudio()
+        // This is a MediaRecorder event handler, so a throw here becomes an
+        // unhandled rejection that never reaches the UI — the mic would appear to
+        // simply do nothing. `transcribeAudio` records the reason in `error`,
+        // which consumers watch.
+        try {
+          await transcribeAudio()
+        } catch {
+          /* surfaced via the `error` ref */
+        }
       }
 
       mediaRecorder.onerror = (event) => {

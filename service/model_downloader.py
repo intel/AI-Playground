@@ -352,6 +352,21 @@ class HFPlaygroundDownloader:
         list = self.fs.ls(enum_path, detail=True)
         if model_type == "stableDiffusion" and enum_path == self.repo_id + "/unet":
             list = self.enum_sd_unet(list)
+        # Many HF repos ship the same weights in several formats (safetensors +
+        # pytorch_model.bin + TF/Flax). This app only loads safetensors/torch (or
+        # OpenVINO IR), so pulling all of them wastes gigabytes (e.g. whisper-small
+        # is ~4 GB across four copies). Prefer safetensors and skip the .bin duplicate
+        # when both are present in this listing — except for model types with their
+        # own format rules (SD picks a single unet above; embeddings keep .bin/.onnx).
+        has_safetensors = any(
+            str(entry.get("name", "")).endswith(".safetensors")
+            for entry in list
+            if entry.get("type") != "directory"
+        )
+        skip_bin_duplicate = has_safetensors and model_type not in (
+            "stableDiffusion",
+            "embedding",
+        )
         for item in list:
             name: str = item.get("name")
             size: int = item.get("size")
@@ -383,6 +398,18 @@ class HFPlaygroundDownloader:
                     or name.endswith(".pdf")
                     or name.endswith(".html")
                 ):
+                    continue
+                # TensorFlow / Flax / Rust / TFLite weights are never used by the
+                # torch/transformers or OpenVINO backends — skip them everywhere.
+                elif (
+                    name.endswith(".h5")
+                    or name.endswith(".msgpack")
+                    or name.endswith(".ot")
+                    or name.endswith(".tflite")
+                ):
+                    continue
+                # Redundant PyTorch .bin copy when safetensors is present.
+                elif skip_bin_duplicate and name.endswith(".bin"):
                     continue
 
                 self.total_size += size

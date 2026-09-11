@@ -1,0 +1,13 @@
+{
+  "id": "neon-drift",
+  "name": "Neon Drift",
+  "description": "Pilot a neon vector ship through colorful asteroids—thrust, blast rocks into particle shards, and clear waves before they crush you.",
+  "entry": "index.html",
+  "icon": "icon.png",
+  "published": true,
+  "createdAt": 1786484619995,
+  "updatedAt": 1786485507695,
+  "backend": "cloud",
+  "startingModel": "Grok 4.5",
+  "initialPrompt": "Create a colorful vector game of Asteroids, with a star field in the background, add modern effects like particles for thrust and for explosions. Make it fun and entertaining"
+}

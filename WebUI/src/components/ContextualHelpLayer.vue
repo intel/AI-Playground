@@ -122,7 +122,9 @@ function setHighlight(el: HTMLElement | null) {
 
 function topicFor(resolved: HelpResolveResult) {
   if (resolved.kind === 'static') return null
-  const preferredType = promptStore.getCurrentMode() === 'chat' ? 'chat' : 'comfy'
+  // Chat and Audio both run on chat-type presets; the other modes are ComfyUI ones.
+  const mode = promptStore.getCurrentMode()
+  const preferredType = mode === 'chat' || mode === 'audio' ? 'chat' : 'comfy'
   const preset = findPresetByName(presetsStore.presets, resolved.presetName, preferredType)
   return resolved.kind === 'preset'
     ? helpTopicFromPreset(preset, resolved.presetName)

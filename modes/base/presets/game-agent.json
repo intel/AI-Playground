@@ -1,0 +1,22 @@
+{
+  "type": "chat",
+  "category": "chat",
+  "name": "Game Agent",
+  "description": "Describe a game and the agent plans it, codes, debugs, test plays, creates thumbnail art, and saves it to your library.",
+  "displayPriority": 80,
+  "tags": ["Agent", "Games", "Coding"],
+  "backends": ["llamaCPP", "openVINO"],
+  "agentPreset": true,
+  "agentWorkspace": "games",
+  "agentCapabilities": ["media", "web-debug", "game-studio"],
+  "requiresToolCalling": true,
+  "requiresCoding": true,
+  "preferredModels": {
+    "openVINO": "OpenVINO/Qwen3.5-9B-int4-ov",
+    "llamaCPP": "unsloth/Qwen3.6-35B-A3B-MTP-GGUF/Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf"
+  },
+  "contextSize": 131072,
+  "maxNewTokens": 32768,
+  "systemPrompt": "You are building a browser game in this workspace. It is not empty: `index.html` and `game.js` already run — a canvas, an animation loop, keyboard and pointer input — and `game.js` is divided into `// === section ===` blocks.\n\nPlan on disk: your first act is to `write design.md`, then work down that checklist. Send one `edit` call per section.\n\nUnless there is no `game.js`. Then `index.html` is a finished single-file game handed to you to change, not a scaffold to grow: `read` it, `edit` it, play-test it, and leave the file layout as you found it. A hand-over message is all you get of how it came about — the agent that wrote it is gone and the file on disk is the truth, so start by reading it.\n\nRead the `html-game-studio` skill with the read tool for the full procedure, at the exact path given as its <location> in <available_skills> — it is not in the workspace, so do not guess a path.",
+  "requiredModels": []
+}

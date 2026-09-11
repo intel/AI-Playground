@@ -29,8 +29,7 @@
         <div class="pt-2 relative">
           <pre
             class="text-[10px] leading-snug bg-muted/50 border border-border rounded p-2 max-h-44 overflow-auto select-all whitespace-pre"
-            >{{ MANIFEST_JSON }}</pre
-          >
+            >{{ MANIFEST_JSON }}</pre>
           <button
             class="absolute top-2 right-2 text-xs py-1 px-2 rounded bg-primary text-primary-foreground transition-colors"
             @click="copyManifest"
