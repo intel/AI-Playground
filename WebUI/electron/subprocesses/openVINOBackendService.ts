@@ -43,6 +43,38 @@ interface OvmsServerProcess {
   isReady: boolean
   healthEndpointUrl: string
 }
+/**
+ * Resolve the OVMS `--tool_parser` for a model from its models list entry.
+ * Falls back to 'hermes3' when the model is unknown or has no override.
+ */
+export function resolveOvmsToolParser(
+  modelRepoId: string,
+  models?: Array<{ name: string; toolParser?: string }>,
+): string {
+  const fallback = 'hermes3'
+  const parser = models?.find((m) => m.name === modelRepoId)?.toolParser
+  return parser || fallback
+}
+
+/**
+ * Resolve the OVMS `--reasoning_parser` for a model from its models list entry.
+ * If reasoningParser is set, returns that parser. If supportsReasoning is false,
+ * returns undefined (omit flag). Otherwise falls back to 'qwen3'.
+ */
+export function resolveOvmsReasoningParser(
+  modelRepoId: string,
+  models?: Array<{ name: string; reasoningParser?: string; supportsReasoning?: boolean }>,
+): string | undefined {
+  const fallback = 'qwen3'
+  const model = models?.find((m) => m.name === modelRepoId)
+  if (model?.reasoningParser) {
+    return model.reasoningParser
+  }
+  if (model?.supportsReasoning === false) {
+    return undefined
+  }
+  return fallback
+}
 
 export class OpenVINOBackendService implements ApiService {
   readonly name = 'openvino-backend' as BackendServiceName
@@ -2023,27 +2055,40 @@ export class OpenVINOBackendService implements ApiService {
     }
   }
 
-  /**
-   * Resolve the OVMS `--tool_parser` for a model from its models.json entry.
-   * Falls back to 'hermes3' when the model is unknown or has no override
-   * (Qwen3.x and most chat models emit Hermes-style <tool_call> tags).
-   */
   private async resolveToolParser(modelRepoId: string): Promise<string> {
     const fallback = 'hermes3'
     try {
       const models = await resolveModels(this.settings)
-      const parser = models.find((m) => m.name === modelRepoId)?.toolParser
-      if (parser) {
+      const parser = resolveOvmsToolParser(modelRepoId, models)
+      if (parser !== fallback) {
         this.appLogger.info(`Using tool_parser '${parser}' for ${modelRepoId}`, this.name)
-        return parser
       }
+      return parser
     } catch (error) {
       this.appLogger.warn(
         `Failed to resolve tool_parser for ${modelRepoId}, using '${fallback}': ${error}`,
         this.name,
       )
+      return fallback
     }
-    return fallback
+  }
+
+  private async resolveReasoningParser(modelRepoId: string): Promise<string | undefined> {
+    const fallback = 'qwen3'
+    try {
+      const models = await resolveModels(this.settings)
+      const parser = resolveOvmsReasoningParser(modelRepoId, models)
+      if (parser) {
+        this.appLogger.info(`Using reasoning_parser '${parser}' for ${modelRepoId}`, this.name)
+      }
+      return parser
+    } catch (error) {
+      this.appLogger.warn(
+        `Failed to resolve reasoning_parser for ${modelRepoId}, using '${fallback}': ${error}`,
+        this.name,
+      )
+      return fallback
+    }
   }
 
   // Model server management methods
@@ -2054,6 +2099,7 @@ export class OpenVINOBackendService implements ApiService {
     try {
       const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
       const toolParser = await this.resolveToolParser(modelRepoId)
+      const reasoningParser = await this.resolveReasoningParser(modelRepoId)
       const servedModelName = modelRepoId.split('/').join('---')
 
       this.appLogger.info(
@@ -2069,7 +2115,7 @@ export class OpenVINOBackendService implements ApiService {
         '--rest_workers',
         '4',
         '--source_model',
-        modelRepoId.split('/').join('---'),
+        servedModelName,
         '--model_repository_path',
         path.resolve(path.join(this.baseDir, 'models', 'LLM', 'openvino')),
         '--target_device',
@@ -2078,11 +2124,13 @@ export class OpenVINOBackendService implements ApiService {
         'text_generation',
         '--tool_parser',
         toolParser,
-        '--reasoning_parser',
-        'qwen3',
-        '--cache_dir',
-        'cache',
       ]
+
+      if (reasoningParser) {
+        args.push('--reasoning_parser', reasoningParser)
+      }
+
+      args.push('--cache_dir', 'cache')
 
       if (selectedDevice.startsWith('NPU')) {
         const maxPromptLen = npuPromptLen(contextSize)

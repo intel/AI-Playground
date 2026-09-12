@@ -19,6 +19,9 @@ export const ovmsToolParsers = [
   'gemma4',
 ] as const
 
+// Reasoning parsers supported by OpenVINO Model Server (OVMS).
+export const ovmsReasoningParsers = ['qwen3', 'gptoss', 'lfm2', 'gemma4'] as const
+
 // OVMS compiles a static graph for `--max_prompt_len` on NPU, so the window is
 // paid for up front in compile time and memory — unlike GPU, which sizes its KV
 // cache at runtime. The preset's context size therefore cannot be handed to NPU
@@ -78,6 +81,8 @@ export const ModelSchema = z.object({
   supportsToolCalling: z.boolean().optional(),
   // OVMS tool-call parser override; defaults to 'hermes3' when omitted.
   toolParser: z.enum(ovmsToolParsers).optional(),
+  // OVMS reasoning parser override; defaults to 'qwen3' when supportsReasoning is true.
+  reasoningParser: z.enum(ovmsReasoningParsers).optional(),
   supportsVision: z.boolean().optional(),
   // Good enough at writing code to drive a coding preset (Game Agent). A judgement
   // about the model's training rather than a hard capability like vision.

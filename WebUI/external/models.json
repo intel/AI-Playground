@@ -545,6 +545,7 @@
     "type": "openVINO",
     "supportsToolCalling": true,
     "toolParser": "gptoss",
+    "reasoningParser": "gptoss",
     "supportsVision": false,
     "supportsReasoning": true,
     "supportsCoding": true,

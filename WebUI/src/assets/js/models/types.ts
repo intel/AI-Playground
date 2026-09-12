@@ -37,6 +37,8 @@ export type ModelCapabilityValues = {
   supportsToolCalling?: boolean
   /** OVMS `--tool_parser` override; defaults to 'hermes3'. */
   toolParser?: string
+  /** OVMS `--reasoning_parser` override; defaults to 'qwen3' when supportsReasoning is true. */
+  reasoningParser?: string
   supportsVision?: boolean
   supportsReasoning?: boolean
   supportsThinkingToggle?: boolean
@@ -65,6 +67,7 @@ export const CAPABILITY_KEYS = [
   'mmproj',
   'supportsToolCalling',
   'toolParser',
+  'reasoningParser',
   'supportsVision',
   'supportsReasoning',
   'supportsThinkingToggle',
