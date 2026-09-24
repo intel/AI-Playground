@@ -398,7 +398,11 @@ describe('publishGame and writeArcade', () => {
   it('brands the gallery for Acer only when the machine is one', () => {
     createGame({ name: 'Space Dodger' }, root)
     writeArcade({ root, vendor: 'acer', samplesRoot: null })
-    expect(fs.readFileSync(path.join(root, 'index.html'), 'utf-8')).toContain('My Acer Arcade')
+    const acer = fs.readFileSync(path.join(root, 'index.html'), 'utf-8')
+    expect(acer).toContain('My Acer Arcade')
+    // The accent is on the brand word, so the title reads "My" + "Acer Arcade"
+    // rather than "My Acer" + "Arcade".
+    expect(acer).toContain('<h1>My <span>Acer</span> Arcade</h1>')
     writeArcade({ root, vendor: 'unknown', samplesRoot: null })
     const neutral = fs.readFileSync(path.join(root, 'index.html'), 'utf-8')
     expect(neutral).not.toContain('Acer')

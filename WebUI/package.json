@@ -99,7 +99,7 @@
     "@vitejs/plugin-vue": "^6.0.7",
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/eslint-config-typescript": "^14.9.0",
-    "adm-zip": "^0.6.0",
+    "adm-zip": "^0.6.1",
     "autoprefixer": "^10.5.0",
     "cross-env": "^10.1.0",
     "electron": "^42.10.1",
@@ -120,7 +120,7 @@
     "vue-tsc": "^3.3.5"
   },
   "overrides": {
-    "js-yaml": "4.3.1",
+    "js-yaml": "4.3.2",
     "@napi-rs/canvas": "0.1.100",
     "langsmith": "^0.7.1",
     "uuid": "^14.0.0",

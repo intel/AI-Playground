@@ -424,7 +424,11 @@ export const useTextToSpeech = defineStore(
       speakingMessageId.value = null
     }
 
-    async function playAudioBytes(bytes: Uint8Array, mediaType: string, gen: number): Promise<void> {
+    async function playAudioBytes(
+      bytes: Uint8Array,
+      mediaType: string,
+      gen: number,
+    ): Promise<void> {
       if (gen !== speakGeneration) return
       const url = bytesToBlobUrl(bytes, mediaType)
       currentObjectUrl = url

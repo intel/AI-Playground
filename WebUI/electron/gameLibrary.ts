@@ -469,6 +469,13 @@ function arcadeHtml(games: GameManifestEntry[], vendor?: string, hasSamples = fa
   const isAcer = isAcerVendor(vendor)
   const title = isAcer ? 'My Acer Arcade' : 'My Arcade'
   const accent = isAcer ? '#83b81a' : '#4f8cff'
+  // Which word the accent lands on, per Acer: the brand one. A colour break is
+  // what the eye groups by, so greening the last word read the title as
+  // "My Acer" — a name with its own meaning at Acer — plus a separate "Arcade".
+  // On "Acer" it reads "My" + "Acer Arcade", which is the name. Built here
+  // rather than inline below because the neutral page must not contain the
+  // string "Acer" anywhere, comments included.
+  const heading = isAcer ? 'My <span>Acer</span> Arcade' : 'My <span>Arcade</span>'
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -529,7 +536,7 @@ function arcadeHtml(games: GameManifestEntry[], vendor?: string, hasSamples = fa
 </head>
 <body>
 <header>
-  <h1>${isAcer ? 'My Acer <span>Arcade</span>' : 'My <span>Arcade</span>'}</h1>
+  <h1>${heading}</h1>
   <p class="lead">${
     hasSamples
       ? 'Games you made with AI Playground, plus a few to start with. Click one to play.'
