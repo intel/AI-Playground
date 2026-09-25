@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .base import Channel
 from .local_web import LocalWebChannel
+from .signal import SignalChannel
 from .slack import SlackChannel
 from .telegram import TelegramChannel
 from .types import ChannelKind
@@ -23,6 +24,7 @@ CHANNELS: dict[ChannelKind, Channel] = {
     "telegram": TelegramChannel(_BASE_DIR),
     "slack": SlackChannel(_BASE_DIR),
     "local-web": LocalWebChannel(_BASE_DIR),
+    "signal": SignalChannel(_BASE_DIR),
     # "discord": DiscordChannel(_BASE_DIR),  # follow-up PR
 }
 

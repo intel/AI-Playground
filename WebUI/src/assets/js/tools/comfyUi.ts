@@ -247,16 +247,6 @@ async function runComfyGeneration(
     }
   }
 
-  if (!useDeveloperSettings().keepModelsLoaded) {
-    // Wait for any in-flight chat stream (the request that carried this tool
-    // call) to finish before freeing the GPU, so stopping the chat backend
-    // can't reset an open llama.cpp socket mid-stream (=> "network error").
-    // Replaces a fixed 100ms guess; bounded internally so a stuck stream can't
-    // hang generation.
-    await useTextInference().waitForInferenceIdle()
-    await stopChatBackends()
-  }
-
   // Ensure ComfyUI backend is running - this is unrecoverable
   const comfyUiService = backendServices.info.find((item) => item.serviceName === 'comfyui-backend')
   if (!comfyUiService || comfyUiService.status !== 'running') {
@@ -472,7 +462,19 @@ async function runComfyGeneration(
     }
   }
 
+  let chatBackendStopped = false
   try {
+    if (!useDeveloperSettings().keepModelsLoaded) {
+      // Wait for any in-flight chat stream (the request that carried this tool
+      // call) to finish before freeing the GPU, so stopping the chat backend
+      // can't reset an open llama.cpp socket mid-stream (=> "network error").
+      // Replaces a fixed 100ms guess; bounded internally so a stuck stream can't
+      // hang generation.
+      await useTextInference().waitForInferenceIdle()
+      await stopChatBackends()
+      chatBackendStopped = true
+    }
+
     // Set the active preset and variant using the orchestrator
     // Use the resolved preset name (which might differ from args.workflow if we fell back)
     const presetSwitching = usePresetSwitching()
@@ -492,7 +494,7 @@ async function runComfyGeneration(
     console.log('[ComfyUI Tool] Ensuring models are available')
 
     // Ensure required models are available before proceeding
-    await imageGeneration.ensureModelsAreAvailable()
+    await imageGeneration.ensureModelsAreAvailable(options.abortSignal)
 
     // Set temporary values, using preset defaults when tool args don't provide values
     // Always use preset defaults, not saved values
@@ -732,7 +734,7 @@ async function runComfyGeneration(
     await restoreState()
     // Nothing to hand back to while the queue still holds generations: they want
     // ComfyUI loaded and have no use for the LLM (see comfyRunsWaiting).
-    if (!useDeveloperSettings().keepModelsLoaded && !comfyRunsWaiting()) {
+    if (chatBackendStopped && !useDeveloperSettings().keepModelsLoaded && !comfyRunsWaiting()) {
       activities.update(toolActivityId, { label: i18nState.COM_ACTIVITY_RELOADING_CHAT })
       await returnGpuToChat(() => comfyUi.free())
     }
@@ -912,7 +914,7 @@ function getToolDefinition() {
   }
 
   description += `Available workflows: ${workflowOptions}. `
-  description += `IMPORTANT: You MUST use '${defaultWorkflow}' (which will automatically use the "Fast" variant, equivalent to '${defaultWorkflowWithVariant}') unless the user explicitly requests higher quality, a different model, or a different media type.\n\n`
+  description += `IMPORTANT: You MUST use '${defaultWorkflow}' (which will automatically use the "Fast" variant, equivalent to '${defaultWorkflowWithVariant}') unless the user explicitly requests a different workflow by name or a different media type (e.g. video).\n\n`
 
   // Add explicit warnings for video workflows
   if (videoWorkflows.length > 0) {
@@ -928,7 +930,7 @@ function getToolDefinition() {
     workflowNames.length > 0 ? z.enum(workflowNames as [string, ...string[]]) : z.string()
 
   let workflowDescription = `Workflow name to use for generation. Available options: ${workflowOptions}. `
-  workflowDescription += `Use ${defaultWorkflow} (will automatically use "Fast" variant if available, equivalent to '${defaultWorkflowWithVariant}') unless user specifically requests higher quality or different model. `
+  workflowDescription += `Use ${defaultWorkflow} (will automatically use "Fast" variant if available, equivalent to '${defaultWorkflowWithVariant}') unless user specifically requests a different workflow by name or a different media type.`
   if (videoWorkflows.length > 0) {
     workflowDescription += `IMPORTANT: Only use video workflows (${videoWorkflows.map((w) => w.name).join(', ')}) when the user explicitly asks for video generation. Never use video workflows for image requests.`
   }

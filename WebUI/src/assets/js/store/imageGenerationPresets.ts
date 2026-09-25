@@ -5,7 +5,7 @@ import { useComfyUiPresets } from './comfyUiPresets'
 import { useDemoMode } from './demoMode'
 import { useI18N } from './i18n'
 import { useErrors } from './errors'
-import { createAppError } from '../errors/appError'
+import { createAppError, createCancellation } from '../errors/appError'
 import { useBackendServices } from './backendServices'
 import { usePresets, presetRequiresUserPrompt, type ComfyInput } from './presets'
 
@@ -697,13 +697,19 @@ export const useImageGenerationPresets = defineStore(
       return getMissingComfyuiBackendModels(activePreset.value.requiredModels ?? [])
     }
 
-    async function ensureModelsAreAvailable(): Promise<void> {
+    async function ensureModelsAreAvailable(abortSignal?: AbortSignal): Promise<void> {
+      if (abortSignal?.aborted) {
+        throw createCancellation({ technicalMessage: 'Model availability check cancelled' })
+      }
       // Avoid the `new Promise(async (resolve, reject) => ...)` antipattern:
       // an exception inside an async executor becomes an unhandled rejection
       // and the outer promise never settles. Now that getMissingModels() can
       // throw (when a required model is unavailable), this matters.
       const downloadList = await getMissingModels()
       if (downloadList.length === 0) return
+      if (abortSignal?.aborted) {
+        throw createCancellation({ technicalMessage: 'Model download cancelled' })
+      }
       // Traced only when something is actually missing: a `models.download` span
       // in a trace means multi-GB files were fetched before generating, which is
       // usually the reason a first run took so much longer than the next.
@@ -711,13 +717,45 @@ export const useImageGenerationPresets = defineStore(
         'models.download',
         () =>
           new Promise<void>((resolve, reject) => {
+            let abortListener: (() => void) | undefined
+            if (abortSignal) {
+              abortListener = () => {
+                reject(createCancellation({ technicalMessage: 'Model download cancelled' }))
+              }
+              abortSignal.addEventListener('abort', abortListener, { once: true })
+            }
+            const cleanup = () => {
+              if (abortListener && abortSignal) {
+                abortSignal.removeEventListener('abort', abortListener)
+              }
+            }
+
             // On a remote Home Agent turn there is nobody at the desktop to act on
             // the download modal; route the approval + progress to the channel
             // (mirrored into the desktop window) instead of getting stuck.
             if (homeAgent.isRemoteTurnActive()) {
-              homeAgent.handleRemoteModelDownload(downloadList).then(resolve).catch(reject)
+              homeAgent
+                .handleRemoteModelDownload(downloadList)
+                .then(() => {
+                  cleanup()
+                  resolve()
+                })
+                .catch((e) => {
+                  cleanup()
+                  reject(e)
+                })
             } else {
-              dialogStore.showDownloadDialog(downloadList, resolve, reject)
+              dialogStore.showDownloadDialog(
+                downloadList,
+                () => {
+                  cleanup()
+                  resolve()
+                },
+                (reason) => {
+                  cleanup()
+                  reject(reason)
+                },
+              )
             }
           }),
         {

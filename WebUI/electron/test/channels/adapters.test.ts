@@ -16,17 +16,20 @@ vi.stubGlobal('window', {
 import { createTelegramAdapter } from '../../../src/assets/js/store/channels/telegramAdapter'
 import { createSlackAdapter } from '../../../src/assets/js/store/channels/slackAdapter'
 import { createLocalWebAdapter } from '../../../src/assets/js/store/channels/localWebAdapter'
+import { createSignalAdapter } from '../../../src/assets/js/store/channels/signalAdapter'
 import type { RawPart } from '../../../src/assets/js/store/channels/adapter'
 
 describe('channel adapters', () => {
   const telegram = createTelegramAdapter()
   const slack = createSlackAdapter()
   const localWeb = createLocalWebAdapter()
+  const signal = createSignalAdapter()
 
   it('expose their kind', () => {
     expect(telegram.kind).toBe('telegram')
     expect(slack.kind).toBe('slack')
     expect(localWeb.kind).toBe('local-web')
+    expect(signal.kind).toBe('signal')
   })
 
   it('local web routes sends through the generic local-web channel', async () => {
@@ -43,6 +46,32 @@ describe('channel adapters', () => {
   it('format italic per-channel', () => {
     expect(telegram.formatItalic('hello')).toBe('<i>hello</i>')
     expect(slack.formatItalic('hello')).toBe('_hello_')
+    // Signal messages are plain text — no emphasis markers.
+    expect(signal.formatItalic('hello')).toBe('hello')
+  })
+
+  it('signal sends plain text and renders keyboards as numbered text', async () => {
+    sendMock.mockClear()
+    sendMock.mockResolvedValue({ success: true })
+    await signal.reply('Here is your haiku')
+    expect(sendMock).toHaveBeenCalledWith(
+      'signal',
+      'reply',
+      expect.objectContaining({ text: 'Here is your haiku' }),
+    )
+    // Markdown is flattened to plain text (no literal ** markers).
+    expect(signal.formatMarkdown('**bold** and _em_')).toBe('bold and em')
+    // Keyboard routes through the generic keyboard action (Python renders the
+    // numbered list); the ref is returned so prompts can be settled.
+    const res = await signal.keyboard('Pick one', [
+      [{ text: 'Flux', callbackData: 'imgGen:preset:Flux' }],
+    ])
+    expect(sendMock).toHaveBeenCalledWith(
+      'signal',
+      'keyboard',
+      expect.objectContaining({ text: 'Pick one' }),
+    )
+    expect(res.success).toBe(true)
   })
 
   it('escape inline text', () => {

@@ -23,19 +23,60 @@ const requestLane: Lane = { tail: Promise.resolve(), waiting: 0 }
 const comfyLane: Lane = { tail: Promise.resolve(), waiting: 0 }
 
 function serialize<T>(lane: Lane, run: () => Promise<T>, abortSignal?: AbortSignal): Promise<T> {
+  if (abortSignal?.aborted) {
+    return Promise.reject(new Error('Cancelled while waiting for the media pipeline.'))
+  }
+
   lane.waiting += 1
-  const started = lane.tail.then(() => {
-    lane.waiting -= 1
-    // Cancelled while queued: never start the work in the first place.
-    if (abortSignal?.aborted) throw new Error('Cancelled while waiting for the media pipeline.')
-    return run()
+  let dequeued = false
+  const dequeue = () => {
+    if (!dequeued) {
+      dequeued = true
+      lane.waiting = Math.max(0, lane.waiting - 1)
+    }
+  }
+
+  let releaseLock!: () => void
+  const currentLock = new Promise<void>((res) => {
+    releaseLock = res
   })
-  // A failing call must not break the lane, and the lane must not pin its result.
-  lane.tail = started.then(
-    () => undefined,
-    () => undefined,
-  )
-  return started
+  const previousLock = lane.tail
+  lane.tail = previousLock.then(() => currentLock)
+
+  return new Promise<T>((resolve, reject) => {
+    let abortListener: (() => void) | undefined
+    if (abortSignal) {
+      abortListener = () => {
+        dequeue()
+        reject(new Error('Cancelled while waiting for the media pipeline.'))
+      }
+      abortSignal.addEventListener('abort', abortListener, { once: true })
+    }
+
+    const cleanup = () => {
+      if (abortListener && abortSignal) {
+        abortSignal.removeEventListener('abort', abortListener)
+      }
+    }
+
+    previousLock.then(async () => {
+      cleanup()
+      dequeue()
+      if (abortSignal?.aborted) {
+        releaseLock()
+        reject(new Error('Cancelled while waiting for the media pipeline.'))
+        return
+      }
+      try {
+        const result = await run()
+        resolve(result)
+      } catch (err) {
+        reject(err)
+      } finally {
+        releaseLock()
+      }
+    })
+  })
 }
 
 /** Runs a whole media request (delegated `media` tool call) on its own. */

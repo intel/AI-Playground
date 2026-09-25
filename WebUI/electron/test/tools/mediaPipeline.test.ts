@@ -57,6 +57,26 @@ describe('media pipeline lanes', () => {
     expect(started).toBe(false)
   })
 
+  it('rejects immediately when aborted while queued behind a stalled predecessor', async () => {
+    const blocking = deferred<void>()
+    const running = queueComfyRun(() => blocking.promise)
+
+    const abort = new AbortController()
+    let started = false
+    const waiting = queueComfyRun(async () => {
+      started = true
+    }, abort.signal)
+
+    // Abort while predecessor is still blocked/running
+    abort.abort()
+    // Must reject immediately without waiting for blocking.resolve()
+    await expect(waiting).rejects.toThrow(/Cancelled while waiting for the media pipeline/)
+    expect(started).toBe(false)
+
+    blocking.resolve()
+    await running
+  })
+
   it('tells a run whether generations are queued behind it', async () => {
     // What lets consecutive generations share one model swap: only the last one
     // out frees ComfyUI and brings the LLM back.

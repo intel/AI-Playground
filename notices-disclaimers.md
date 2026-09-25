@@ -9,6 +9,11 @@ Intel technologies may require enabled hardware, software or service activation.
 Prompts and images being used in the application will not be collected or stored by Intel. The user of AI Playground is responsible for storing and processing any personal information using the app. For general information regarding the handling of personal data collected by Intel, refer to Intel’s Global Privacy Notice (https://www.intel.com/content/www/us/en/privacy/intelprivacy-notice.html). 
 
 
+### Third-Party Software: signal-cli (optional Signal channel)
+
+The optional Signal Home Agent channel connects to Signal through signal-cli (https://github.com/AsamK/signal-cli), a separate program licensed under the GNU General Public License v3.0 (GPL-3.0), available at https://github.com/AsamK/signal-cli/blob/master/LICENSE. AI Playground does not include, modify, or link against signal-cli's source code. When you enable the Signal channel, the application downloads an official signal-cli release and runs it as an independent process, communicating with it only over a local socket (JSON-RPC). This "mere aggregation" of two separately distributed programs does not place AI Playground itself under the GPL-3.0. Your use of Signal is additionally subject to Signal's own terms of service.
+
+
 ### Generative AI Large-Language Model (LLM)/Chatbot Disclaimers
 
 AI Playground utilizes GenAI technology and interactions with a chatbot. Best practices in such cases recommend that users at least: 

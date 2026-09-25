@@ -7,12 +7,13 @@ to spot a contract drift between renderer and backend.
 
 from typing import Literal, TypedDict
 
-ChannelKind = Literal["telegram", "slack", "discord", "local-web"]
+ChannelKind = Literal["telegram", "slack", "discord", "local-web", "signal"]
 ALL_CHANNEL_KINDS: tuple[ChannelKind, ...] = (
     "telegram",
     "slack",
     "discord",
     "local-web",
+    "signal",
 )
 
 
@@ -41,6 +42,12 @@ class LocalWebConfig(TypedDict, total=False):
     port: str
     allowLan: str
     sessionId: str
+
+
+class SignalConfig(TypedDict, total=False):
+    kind: ChannelKind  # "signal"
+    account: str  # the bot's own linked/registered number (E.164)
+    peer: str  # the allow-listed contact the bot answers (its identity)
 
 
 class RemoteImage(TypedDict):

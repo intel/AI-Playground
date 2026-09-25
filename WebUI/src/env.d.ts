@@ -617,6 +617,9 @@ type electronAPI = {
     localWeb: {
       getUrls(port: number, allowLan: boolean): Promise<string[]>
     }
+    signal: {
+      ensureCli(): Promise<{ success: boolean; path?: string; error?: string }>
+    }
     channel: {
       saveConfig(
         kind: string,
@@ -673,6 +676,11 @@ type electronAPI = {
         messageId?: number
         error?: string
       }>
+      command(
+        kind: string,
+        name: string,
+        payload: Record<string, unknown>,
+      ): Promise<Record<string, unknown>>
     }
   }
   cloudProvider: {

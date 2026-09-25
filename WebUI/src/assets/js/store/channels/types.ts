@@ -3,7 +3,7 @@
 // means extending `ChannelKind` and adding the matching `ChannelConfig` variant
 // here, then implementing the renderer adapter + python channel module.
 
-export type ChannelKind = 'telegram' | 'slack' | 'discord' | 'local-web'
+export type ChannelKind = 'telegram' | 'slack' | 'discord' | 'local-web' | 'signal'
 
 /** Persistent per-channel config. Each variant is keyed by `kind` so the
  *  generic IPC dispatcher can route to the right `safeStorage` blob without
@@ -30,9 +30,21 @@ export type LocalWebChannelConfig = {
   allowLan: string
   sessionId: string
 }
+// Signal via a bundled signal-cli daemon. `account` is the bot's own linked
+// number; `peer` is the auto-detected contact it answers (its identity). No
+// app-managed secret — the account keys live in signal-cli's own data dir.
+export type SignalChannelConfig = {
+  kind: 'signal'
+  account: string
+  peer: string
+}
 
 export type ChannelConfig =
-  TelegramChannelConfig | SlackChannelConfig | DiscordChannelConfig | LocalWebChannelConfig
+  | TelegramChannelConfig
+  | SlackChannelConfig
+  | DiscordChannelConfig
+  | LocalWebChannelConfig
+  | SignalChannelConfig
 
 /** Pure, dependency-free description of a channel's config shape. Keeping this
  *  here (rather than in the renderer registry, which pulls in Vue components
@@ -51,6 +63,10 @@ export const CHANNEL_FIELD_SPEC: Record<ChannelKind, ChannelFieldSpec> = {
   slack: { requiredSecrets: ['botToken', 'appToken'], identityField: 'userId' },
   discord: { requiredSecrets: ['botToken'], identityField: 'userId' },
   'local-web': { requiredSecrets: ['password'], identityField: 'sessionId' },
+  // Signal has no app-managed secret; `account` (set once the device is linked)
+  // gates injection so the signal-cli daemon only auto-starts after setup, and
+  // `peer` is the detected identity.
+  signal: { requiredSecrets: ['account'], identityField: 'peer' },
 }
 
 /** Runtime-only per-channel state. Lives inside `homeAgent.channels[kind]`,

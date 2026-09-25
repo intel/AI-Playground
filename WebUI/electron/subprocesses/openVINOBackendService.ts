@@ -296,6 +296,7 @@ export class OpenVINOBackendService implements ApiService {
       LD_LIBRARY_PATH: [
         path.join(this.ovmsDir, 'lib'),
         ...extraLibPaths,
+        ...(process.platform !== 'win32' ? ['/usr/lib/x86_64-linux-gnu'] : []),
         process.env.LD_LIBRARY_PATH ?? '',
       ]
         .filter(Boolean)

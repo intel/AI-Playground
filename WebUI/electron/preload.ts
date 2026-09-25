@@ -360,6 +360,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
       getUrls: (port: number, allowLan: boolean): Promise<string[]> =>
         ipcRenderer.invoke('homeAgent:localWeb:getUrls', port, allowLan),
     },
+    // Signal — fetch the signal-cli binary on demand before device-linking.
+    signal: {
+      ensureCli: (): Promise<{ success: boolean; path?: string; error?: string }> =>
+        ipcRenderer.invoke('homeAgent:signal:ensureCli'),
+    },
     // Channel-agnostic dispatcher. Every method is keyed by ChannelKind
     // (`'telegram'` | `'slack'` | `'discord'` | `'local-web'`) so adding a new
     // platform requires zero edits here — only a new entry in the renderer-side
@@ -396,6 +401,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
           | 'history',
         payload: Record<string, unknown>,
       ) => ipcRenderer.invoke('channel:send', kind, action, payload),
+      command: (kind: string, name: string, payload: Record<string, unknown>) =>
+        ipcRenderer.invoke('channel:command', kind, name, payload),
     },
   },
   // Cloud Mode provider secrets, encrypted at rest via safeStorage in main.

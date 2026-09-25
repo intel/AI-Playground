@@ -293,16 +293,6 @@ async function runImageEdit(
     activities.end(toolActivityId, state)
   }
 
-  if (!useDeveloperSettings().keepModelsLoaded) {
-    // Wait for any in-flight chat stream (the request that carried this tool
-    // call) to finish before freeing the GPU, so stopping the chat backend
-    // can't reset an open llama.cpp socket mid-stream (=> "network error").
-    // Replaces a fixed 100ms guess; bounded internally so a stuck stream can't
-    // hang generation.
-    await useTextInference().waitForInferenceIdle()
-    await stopChatBackends()
-  }
-
   const sourceImageUrl = findSourceImage(messages)
   if (!sourceImageUrl) {
     finishToolActivity('failed')
@@ -353,7 +343,19 @@ async function runImageEdit(
 
   const restoreState = saveCurrentState(imageGeneration, presets)
 
+  let chatBackendStopped = false
   try {
+    if (!useDeveloperSettings().keepModelsLoaded) {
+      // Wait for any in-flight chat stream (the request that carried this tool
+      // call) to finish before freeing the GPU, so stopping the chat backend
+      // can't reset an open llama.cpp socket mid-stream (=> "network error").
+      // Replaces a fixed 100ms guess; bounded internally so a stuck stream can't
+      // hang generation.
+      await useTextInference().waitForInferenceIdle()
+      await stopChatBackends()
+      chatBackendStopped = true
+    }
+
     const switchResult = await usePresetSwitching().switchPreset(preset.name, {
       variant: selectedVariant ?? undefined,
       skipModeSwitch: true,
@@ -364,7 +366,7 @@ async function runImageEdit(
       return createErrorResult(`Failed to switch to preset "${preset.name}"`)
     }
 
-    await imageGeneration.ensureModelsAreAvailable()
+    await imageGeneration.ensureModelsAreAvailable(options.abortSignal)
 
     imageGeneration.prompt = args.prompt
     imageGeneration.negativePrompt =
@@ -577,7 +579,7 @@ async function runImageEdit(
     await restoreState()
     // Queued generations want ComfyUI loaded and not the LLM, so the last run out
     // of the lane does the swapping back (see comfyRunsWaiting).
-    if (!useDeveloperSettings().keepModelsLoaded && !comfyRunsWaiting()) {
+    if (chatBackendStopped && !useDeveloperSettings().keepModelsLoaded && !comfyRunsWaiting()) {
       activities.update(toolActivityId, { label: i18nState.COM_ACTIVITY_RELOADING_CHAT })
       await returnGpuToChat(() => comfyUi.free())
     }

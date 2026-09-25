@@ -2,6 +2,7 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 import { ref } from 'vue'
 import { sanitizeMarkdown } from '@/lib/sanitize'
 import { parse } from '../markdownParser'
+import { createCancellation } from '../errors/appError'
 
 // todo: Consider adding "add-l-l-m-dialog" as well
 export type PresetRequirementsData = {
@@ -108,6 +109,11 @@ export const useDialogStore = defineStore('dialog', () => {
     success?: () => void,
     fail?: (reason?: unknown) => void,
   ) {
+    if (downloadFailFunction.value) {
+      downloadFailFunction.value(
+        createCancellation({ technicalMessage: 'Superseded by new download request' }),
+      )
+    }
     downloadList.value = downList
     downloadSuccessFunction.value = success
     downloadFailFunction.value = fail
@@ -115,6 +121,12 @@ export const useDialogStore = defineStore('dialog', () => {
   }
 
   function closeDownloadDialog() {
+    if (downloadFailFunction.value) {
+      const fail = downloadFailFunction.value
+      downloadFailFunction.value = undefined
+      downloadSuccessFunction.value = undefined
+      fail(createCancellation({ technicalMessage: 'Download dialog closed' }))
+    }
     downloadDialogVisible.value = false
   }
 

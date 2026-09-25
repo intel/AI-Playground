@@ -1568,30 +1568,34 @@ export const useTextInference = defineStore(
     async function checkModelAvailability() {
       // ToDo: the path for embedding downloads must be corrected and BAAI/bge-large-zh-v1.5 was accidentally downloaded to the wrong place
       return new Promise<void>(async (resolve, reject) => {
-        const requiredModelDownloads = await getDownloadParamsForCurrentModelIfRequired('llm')
-        if (willUseRag.value) {
-          const requiredEmbeddingModelDownloads =
-            await getDownloadParamsForCurrentModelIfRequired('embedding')
-          requiredModelDownloads.push(...requiredEmbeddingModelDownloads)
-        }
-
-        // Deduplicate download list by repo_id to prevent the same model from appearing multiple times
-        const uniqueDownloads = requiredModelDownloads.filter(
-          (download, index, self) =>
-            index === self.findIndex((d) => d.repo_id === download.repo_id),
-        )
-
-        if (uniqueDownloads.length > 0) {
-          // On a remote Home Agent turn there is nobody at the desktop to act on
-          // the download modal; route the approval + progress to the channel
-          // (mirrored into the desktop window) instead of getting stuck.
-          if (homeAgent.isRemoteTurnActive()) {
-            homeAgent.handleRemoteModelDownload(uniqueDownloads).then(resolve).catch(reject)
-          } else {
-            dialogStore.showDownloadDialog(uniqueDownloads, resolve, reject)
+        try {
+          const requiredModelDownloads = await getDownloadParamsForCurrentModelIfRequired('llm')
+          if (willUseRag.value) {
+            const requiredEmbeddingModelDownloads =
+              await getDownloadParamsForCurrentModelIfRequired('embedding')
+            requiredModelDownloads.push(...requiredEmbeddingModelDownloads)
           }
-        } else {
-          resolve()
+
+          // Deduplicate download list by repo_id to prevent the same model from appearing multiple times
+          const uniqueDownloads = requiredModelDownloads.filter(
+            (download, index, self) =>
+              index === self.findIndex((d) => d.repo_id === download.repo_id),
+          )
+
+          if (uniqueDownloads.length > 0) {
+            // On a remote Home Agent turn there is nobody at the desktop to act on
+            // the download modal; route the approval + progress to the channel
+            // (mirrored into the desktop window) instead of getting stuck.
+            if (homeAgent.isRemoteTurnActive()) {
+              homeAgent.handleRemoteModelDownload(uniqueDownloads).then(resolve).catch(reject)
+            } else {
+              dialogStore.showDownloadDialog(uniqueDownloads, resolve, reject)
+            }
+          } else {
+            resolve()
+          }
+        } catch (error) {
+          reject(error)
         }
       })
     }
@@ -1700,7 +1704,6 @@ export const useTextInference = defineStore(
     )
 
     function getDefaultToolsEnabled(preset: ChatPreset): boolean {
-      if (!modelSupportsToolCalling.value) return false
       return preset.toolsEnabledByDefault ?? preset.requiresToolCalling === true
     }
 

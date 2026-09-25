@@ -8,13 +8,14 @@ import { LocalSettings } from '../main.ts'
 import { GitService, LongLivedPythonApiService, createEnhancedErrorDetails } from './service.ts'
 import { aipgBaseDir, checkBackend, installBackend } from './uvBasedBackends/uv.ts'
 import { spawnBackend } from './processLifecycle.ts'
+import { ensureSignalCli, signalCliBinaryPath, signalCliDataDir } from './signalCli.ts'
 
 // ── Channel-agnostic types ────────────────────────────────────────────────
 // Mirrored from WebUI/src/assets/js/store/channels/types.ts. Keeping a local
 // copy avoids the renderer-side store importing electron types and vice
 // versa; the contract is small enough that drift is easy to spot.
 
-type ChannelKind = 'telegram' | 'slack' | 'discord' | 'local-web'
+type ChannelKind = 'telegram' | 'slack' | 'discord' | 'local-web' | 'signal'
 
 type EncryptedField = { type: string; data: number[] }
 
@@ -90,12 +91,16 @@ const SECRET_FIELDS: Record<ChannelKind, string[]> = {
   slack: ['botToken', 'appToken'],
   discord: ['botToken'],
   'local-web': ['password'],
+  // Signal holds no app-managed secret: the account keys live in signal-cli's
+  // own data dir on disk, established by device-linking.
+  signal: [],
 }
 const PUBLIC_FIELDS: Record<ChannelKind, string[]> = {
   telegram: ['chatId'],
   slack: ['userId'],
   discord: ['userId'],
   'local-web': ['port', 'allowLan', 'sessionId'],
+  signal: ['account', 'peer'],
 }
 /** Secrets that are user-chosen passphrases rather than machine-issued tokens.
  *  Bot tokens never contain whitespace, so stripping all of it defends against a
@@ -107,6 +112,7 @@ const PASSPHRASE_FIELDS: Record<ChannelKind, string[]> = {
   slack: [],
   discord: [],
   'local-web': ['password'],
+  signal: [],
 }
 
 /** Normalize one secret before it is encrypted. Exported for tests. */
@@ -320,6 +326,11 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
       PYTHONIOENCODING: 'utf-8',
       PIP_CONFIG_FILE: process.platform === 'win32' ? 'nul' : '/dev/null',
       AIPG_LOOPBACK_TOKEN: this.loopbackAuthToken,
+      // Where the Signal channel finds the signal-cli launcher + its per-account
+      // data dir. The binary is fetched on demand (ensureSignalCli) when the user
+      // sets up Signal; the path is fixed here so a later download is picked up.
+      AIPG_SIGNAL_CLI_PATH: signalCliBinaryPath(),
+      AIPG_SIGNAL_CLI_HOME: signalCliDataDir(),
     }
 
     const pythonBinary = this.venvPythonPath
@@ -633,6 +644,33 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
     }
   }
 
+  /** Generic per-channel command dispatcher for non-send actions (e.g. Signal
+   *  device linking). Forwards to the Python `POST /channel/<kind>/command/<name>`
+   *  route and returns the raw JSON body. */
+  async channelCommand(
+    kind: ChannelKind,
+    name: string,
+    payload: ChannelSendPayload,
+  ): Promise<Record<string, unknown>> {
+    if (this.currentStatus !== 'running') return { error: 'Home Agent not running' }
+    try {
+      const res = await net.fetch(`${this.baseUrl}/channel/${kind}/command/${name}`, {
+        method: 'POST',
+        headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(payload ?? {}),
+      })
+      return (await res.json().catch(() => ({}))) as Record<string, unknown>
+    } catch (e) {
+      return { error: String(e) }
+    }
+  }
+
+  /** Fetch + unpack the signal-cli binary if needed. Called from the Signal
+   *  setup screen before the first device-link attempt. */
+  async ensureSignalCliBinary(): Promise<{ success: boolean; path?: string; error?: string }> {
+    return ensureSignalCli((line) => this.appLogger.info(line, this.name))
+  }
+
   // ── Verification / detection helpers ────────────────────────────────────
   // Channel-specific verification (auth.test + sendMessage / sendTelegramTest)
   // talks directly to the platform's API from the main process so the user
@@ -719,7 +757,42 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
     if (kind === 'telegram') return this.testTelegram()
     if (kind === 'slack') return this.testSlack()
     if (kind === 'local-web') return this.testLocalWeb()
+    if (kind === 'signal') return this.testSignal()
     return { success: false, error: `verification not implemented for ${kind}` }
+  }
+
+  /** Verify Signal by applying the saved config (which starts the signal-cli
+   *  daemon) and sending a test message to the detected contact. Unlike
+   *  Telegram/Slack there is no cloud API to ping — a delivered message IS the
+   *  verification. Requires a linked account and a detected peer. */
+  private async testSignal(): Promise<{ success: boolean; error?: string }> {
+    if (this.currentStatus !== 'running') {
+      return { success: false, error: 'Home Agent backend is not running yet.' }
+    }
+    const config = this.loadChannelConfig('signal')
+    if (!config?.account) {
+      return { success: false, error: 'Link your Signal account first (scan the QR code).' }
+    }
+    if (!config?.peer) {
+      return {
+        success: false,
+        error: 'No contact detected yet — message your Signal number, then click Detect.',
+      }
+    }
+    const inject = await this.channelSetConfig('signal', config)
+    if (inject.status === 'error') {
+      return { success: false, error: inject.error ?? 'Could not start the Signal backend.' }
+    }
+    const res = await this.channelSend('signal', 'reply', {
+      text:
+        '✅ Home Agent is connected to Signal!\n\n' +
+        'Send me any message — the AI decides whether to reply with text or generate an image. ' +
+        'Send /help to see all command overrides.',
+      channel: config.peer,
+    })
+    return res.success
+      ? { success: true }
+      : { success: false, error: res.error ?? 'Could not send a Signal test message.' }
   }
 
   /** Verify the local web channel by actually (re)starting its HTTP server in
@@ -825,6 +898,11 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
       if (!botToken) return { error: 'No saved bot token' }
       return this.detectSlackIdentityWithToken(botToken)
     }
+    if (kind === 'signal') {
+      // The backend-first lookup above returns the peer once it arrives; until
+      // then there is nothing to validate against a cloud API.
+      return { error: 'No message received yet. Message your Signal number, then click Detect.' }
+    }
     return { error: `identity detection not implemented for ${kind}` }
   }
 
@@ -888,6 +966,10 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
       this.getLocalWebUrls(port, !!allowLan),
     )
 
+    // Signal: fetch the signal-cli binary on demand (setup screen calls this
+    // before the first device-link).
+    ipcMain.handle('homeAgent:signal:ensureCli', () => this.ensureSignalCliBinary())
+
     // Backend dispatch — channel-keyed by first arg.
     ipcMain.handle('channel:test', (_event, kind: ChannelKind) => this.channelTest(kind))
     ipcMain.handle(
@@ -906,6 +988,11 @@ export class HomeAgentBackendService extends LongLivedPythonApiService {
     ipcMain.handle('channel:poll', (_event, kind: ChannelKind) => this.channelPoll(kind))
     ipcMain.handle('channel:flushPending', (_event, kind: ChannelKind) =>
       this.channelFlushPending(kind),
+    )
+    ipcMain.handle(
+      'channel:command',
+      (_event, kind: ChannelKind, name: string, payload: ChannelSendPayload) =>
+        this.channelCommand(kind, name, payload),
     )
     ipcMain.handle(
       'channel:send',

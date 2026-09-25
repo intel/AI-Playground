@@ -44,9 +44,14 @@ models/
 !WebUI/src/assets/js/models/
 !WebUI/src/components/models/
 
-# Home Agent — runtime Telegram chat id (local dev); never commit
+# Home Agent — runtime chat identities and accounts (local dev); never commit
 home-agent/.*id
+home-agent/.signal_*
 
 # Laminar tracing — local project API keys (dev opt-in); never commit
 WebUI/external/laminar.dev.json
 WebUI/external/laminar.localhost.json
+
+# Model cache
+cache/
+

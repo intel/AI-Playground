@@ -38,6 +38,7 @@ CORS(app)
 _LOOPBACK_AUTH_TOKEN = get_loopback_token()
 
 
+
 @app.before_request
 def _enforce_loopback_and_auth():
     rejection = evaluate_loopback_auth(
@@ -244,6 +245,24 @@ def channel_send(kind: str, action: str):
     return _result_to_response(result)
 
 
+@app.post("/channel/<kind>/command/<name>")
+def channel_command(kind: str, name: str):
+    """Generic per-channel command (non-send actions), e.g. Signal device
+    linking. Dispatched to the channel's optional `channel_command(name,
+    payload)` — a channel that has no commands answers 404, mirroring how a
+    missing `send_*` degrades in `channel_send`.
+    """
+    ch, err = _get_channel_or_404(kind)
+    if err:
+        return err
+    method = getattr(ch, "channel_command", None)
+    if method is None:
+        return jsonify({"error": f"channel {kind} has no commands"}), 404
+    payload = request.get_json(silent=True) or {}
+    result = method(name, payload)
+    return _result_to_response(result)
+
+
 # ── Chat completions proxy ────────────────────────────────────────────────────
 
 
@@ -251,7 +270,7 @@ def channel_send(kind: str, action: str):
 def chat_completions():
     upstream = request.headers.get("X-Upstream-Url")
     with _upstream_lock:
-        upstream = upstream or _upstream_url
+        upstream = _upstream_url or upstream
     if not upstream:
         return jsonify({"error": "No upstream URL provided"}), 400
     return proxy_chat_completions(upstream, request)
@@ -298,6 +317,13 @@ if __name__ == "__main__":
                 "allowLan": os.environ.get("LOCAL_WEB_ALLOW_LAN", "false"),
             },
             ("password",),
+        ),
+        "signal": (
+            {
+                "account": os.environ.get("SIGNAL_ACCOUNT", ""),
+                "peer": os.environ.get("SIGNAL_PEER", ""),
+            },
+            ("account",),
         ),
     }
     for kind, (seed, required) in _env_seeds.items():

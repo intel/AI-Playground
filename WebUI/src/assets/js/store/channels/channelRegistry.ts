@@ -7,6 +7,7 @@ import type { ChannelKind } from './types'
 import { useTelegramSetup } from '../useTelegramSetup'
 import { useSlackSetup } from '../useSlackSetup'
 import { useLocalWebSetup } from '../useLocalWebSetup'
+import { useSignalSetup } from '../useSignalSetup'
 
 /** Inline 4-color Slack logo. Kept here because nothing else needs it and
  *  promoting it to a stand-alone .vue file would just trade one file for two. */
@@ -55,6 +56,7 @@ export type ChannelSetupComposable =
   | ReturnType<typeof useTelegramSetup>
   | ReturnType<typeof useSlackSetup>
   | ReturnType<typeof useLocalWebSetup>
+  | ReturnType<typeof useSignalSetup>
 
 export type ChannelCapabilities = {
   /** Channel only operates while a persistent socket / poll is open. Both
@@ -120,11 +122,25 @@ const LocalWebIcon: Component = {
   },
 }
 
+/** Inline Signal logo (speech bubble). */
+const SignalIcon: Component = {
+  name: 'SignalIcon',
+  setup() {
+    return () =>
+      h('svg', { class: 'w-5 h-5 text-[#3a76f0]', viewBox: '0 0 24 24', fill: 'currentColor' }, [
+        h('path', {
+          d: 'M12 2a10 10 0 0 0-8.94 14.47L2 22l5.66-1.05A10 10 0 1 0 12 2zm0 2a8 8 0 1 1-3.9 15l-.34-.19-3.02.56.57-2.95-.2-.35A8 8 0 0 1 12 4z',
+        }),
+      ])
+  },
+}
+
 // Lazy-load the heavy setup components so the toggle / wizard scaffolding can
 // render without paying their import cost on every page load.
 const TelegramSetupSteps = defineAsyncComponent(() => import('@/components/TelegramSetupSteps.vue'))
 const SlackSetupSteps = defineAsyncComponent(() => import('@/components/SlackSetupSteps.vue'))
 const LocalWebSetupSteps = defineAsyncComponent(() => import('@/components/LocalWebSetupSteps.vue'))
+const SignalSetupSteps = defineAsyncComponent(() => import('@/components/SignalSetupSteps.vue'))
 
 /** Ordered list of channels surfaced in the UI. Index in this array =
  *  default tab order in the setup wizard. */
@@ -177,6 +193,25 @@ export const CHANNELS: ChannelDescriptor[] = [
       supportsDraftStream: true,
       supportsTyping: true,
       supportsKeyboard: true,
+    },
+  },
+  {
+    kind: 'signal',
+    displayName: 'Signal',
+    brandColor: '#3a76f0',
+    icon: SignalIcon,
+    setupComponent: SignalSetupSteps,
+    composable: () => useSignalSetup(),
+    identityLabel: 'Signal contact',
+    identityHelp:
+      'The Signal contact the Home Agent answers. It only replies to messages from this number.',
+    capabilities: {
+      // Runs a local signal-cli daemon we poll, not a cloud socket.
+      socketModeOnly: false,
+      // Signal has no ephemeral draft and no inline buttons.
+      supportsDraftStream: false,
+      supportsTyping: true,
+      supportsKeyboard: false,
     },
   },
 ]
