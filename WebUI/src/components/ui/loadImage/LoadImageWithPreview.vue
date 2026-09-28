@@ -108,6 +108,8 @@ const props = defineProps<{
   disabled?: boolean
   /** Human-readable field name, used as the file input's accessible name. */
   label?: string
+  /** Resize the loaded file to the active model's requirements before storing it. */
+  prepareDataUri?: (dataUri: string) => Promise<string>
 }>()
 
 const emit = defineEmits<{
@@ -173,7 +175,9 @@ function processFiles(files: File[] | null, inputCurrent: Ref<string, string>) {
         console.error('Failed to read file')
         return
       }
-      const dataUri = e.target.result
+      const dataUri = props.prepareDataUri
+        ? await props.prepareDataUri(e.target.result)
+        : e.target.result
       const aipgMediaUrl = await saveImageToMediaInput(dataUri)
       inputCurrent.value = aipgMediaUrl
       dialogStore.clearMaskEditorPreview()

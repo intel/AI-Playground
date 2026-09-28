@@ -332,7 +332,7 @@
     },
     "9": {
       "inputs": {
-        "pixels": ["25", 0],
+        "pixels": ["26", 0],
         "vae": ["3", 0]
       },
       "class_type": "VAEEncode",
@@ -511,6 +511,15 @@
         "title": "use_second_image"
       }
     },
+    "26": {
+      "inputs": {
+        "image": ["25", 0]
+      },
+      "class_type": "FluxKontextImageScale",
+      "_meta": {
+        "title": "FluxKontextImageScale"
+      }
+    },
     "27": {
       "inputs": {
         "width": ["34", 0],
@@ -557,7 +566,7 @@
     },
     "38": {
       "inputs": {
-        "image": ["25", 0]
+        "image": ["26", 0]
       },
       "class_type": "GetImageSize",
       "_meta": {

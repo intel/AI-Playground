@@ -282,7 +282,7 @@
       "inputs": {
         "upscale_method": "nearest-exact",
         "megapixels": 1,
-        "resolution_steps": 1,
+        "resolution_steps": 16,
         "image": ["10", 0]
       },
       "class_type": "ImageScaleToTotalPixels",
@@ -294,7 +294,7 @@
       "inputs": {
         "upscale_method": "nearest-exact",
         "megapixels": 1,
-        "resolution_steps": 1,
+        "resolution_steps": 16,
         "image": ["11", 0]
       },
       "class_type": "ImageScaleToTotalPixels",
@@ -505,7 +505,7 @@
     },
     "33": {
       "inputs": {
-        "image": ["10", 0]
+        "image": ["12", 0]
       },
       "class_type": "GetImageSize",
       "_meta": {
@@ -536,7 +536,7 @@
       "inputs": {
         "upscale_method": "nearest-exact",
         "megapixels": 1,
-        "resolution_steps": 1,
+        "resolution_steps": 16,
         "image": ["41", 0]
       },
       "class_type": "ImageScaleToTotalPixels",
@@ -629,7 +629,7 @@
       "inputs": {
         "upscale_method": "nearest-exact",
         "megapixels": 1,
-        "resolution_steps": 1,
+        "resolution_steps": 16,
         "image": ["54", 0]
       },
       "class_type": "ImageScaleToTotalPixels",
