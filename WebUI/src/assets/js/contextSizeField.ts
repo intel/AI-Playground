@@ -1,4 +1,4 @@
-import { ref, watch, type Ref } from 'vue'
+import { reactive, ref, watch, type Ref } from 'vue'
 
 /** Bounds the settings box used to declare. Enforced on commit, not per keystroke. */
 const CONTEXT_SIZE_MIN = 512
@@ -50,5 +50,7 @@ export function useContextSizeField(contextSize: Ref<number>, onCommit?: () => v
     onCommit?.()
   }
 
-  return { draft, onFocus, onInput, commit }
+  // reactive unwraps `draft` for the template. A plain object leaves the Ref in
+  // place, and the input renders "[object Object]".
+  return reactive({ draft, onFocus, onInput, commit })
 }

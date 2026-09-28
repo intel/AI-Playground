@@ -137,6 +137,9 @@ describe('context size field under the KM floor', () => {
     await nextTick()
 
     const field = useContextSizeField(contextSize)
+    // The settings template reads `draft` directly. A nested Ref stringifies to
+    // "[object Object]" in the input.
+    expect(field.draft).toBe('16384')
     field.onFocus()
     field.onInput({ target: { value: '1' } } as unknown as Event)
     expect(contextSize.value).toBe(16384)
@@ -146,6 +149,6 @@ describe('context size field under the KM floor', () => {
     await nextTick()
 
     expect(contextSize.value).toBe(131072)
-    expect(field.draft.value).toBe('131072')
+    expect(field.draft).toBe('131072')
   })
 })
