@@ -137,13 +137,13 @@ describe('llamaCppPhison helpers', () => {
     expect(embedding.aidaptiv.dram_kv_offload_gb).toBeUndefined()
     expect(embedding.aidaptiv.vram_experts_cached_gb).toBeUndefined()
     expect(embedding.aidaptiv.kv_cache_resume_policy).toBeUndefined()
-    // Positive caps, not the `-1` these shipped as: at `-1` the runtime keeps
-    // every expert in VRAM and never spills, which is the ssd-offload build
-    // with its offload switched off.
+    // `-1` is the middleware's automatic budget. A fixed cap fails large-MoE
+    // loads, and `fit: off` must not be seeded either.
+    expect(llm.common.fit).toBeUndefined()
     expect(llm.aidaptiv.cache_kv_offload_gb).toBe(PHISON_DEFAULT_CACHE_KV_OFFLOAD_GB)
     expect(llm.aidaptiv.vram_experts_cached_gb).toBe(PHISON_DEFAULT_VRAM_EXPERTS_CACHED_GB)
-    expect(PHISON_DEFAULT_CACHE_KV_OFFLOAD_GB).toBeGreaterThan(0)
-    expect(PHISON_DEFAULT_VRAM_EXPERTS_CACHED_GB).toBeGreaterThan(0)
+    expect(PHISON_DEFAULT_CACHE_KV_OFFLOAD_GB).toBe(-1)
+    expect(PHISON_DEFAULT_VRAM_EXPERTS_CACHED_GB).toBe(-1)
 
     expect(getRelativeSsdOffloadConfigPath(serviceDir, 'ssd-offload', embeddingConfigPath)).toBe(
       path.join('..', 'aidaptiv_embedding_config.json'),
@@ -197,7 +197,7 @@ describe('llamaCppPhison helpers', () => {
       await reconcileSsdOffloadConfig(configPath, serviceDir)
 
       const config = filesystem.readJsonSync(configPath)
-      expect(config.aidaptiv.cache_kv_offload_gb).toBe(10)
+      expect(config.aidaptiv.cache_kv_offload_gb).toBe(-1)
       expect(config.aidaptiv.ssd_kv_offload_gb).toBeUndefined()
       // Keys the app does not know about, and the whole `common` block, survive
       // the rewrite.
@@ -242,9 +242,10 @@ describe('llamaCppPhison helpers', () => {
       }
     })
 
-    // Configs written before the defaults changed keep offload disabled, and now
-    // survive reinstalls too — so the sentinels have to be repaired in place.
-    it('raises budgets of -1 to values that offload', async () => {
+    // `-1` is the budget the current middleware wants. It must survive a launch,
+    // and the fixed caps older builds wrote (including 0) have to be replaced
+    // or the next start loads the model with the cap that fails it.
+    it('keeps budgets of -1', async () => {
       const serviceDir = createServiceDir()
       const configPath = getSsdOffloadConfigPath(serviceDir)
 
@@ -260,28 +261,44 @@ describe('llamaCppPhison helpers', () => {
       await reconcileSsdOffloadConfig(configPath, serviceDir)
 
       const aidaptiv = filesystem.readJsonSync(configPath).aidaptiv
-      expect(aidaptiv.cache_kv_offload_gb).toBe(PHISON_DEFAULT_CACHE_KV_OFFLOAD_GB)
-      expect(aidaptiv.vram_experts_cached_gb).toBe(PHISON_DEFAULT_VRAM_EXPERTS_CACHED_GB)
+      expect(aidaptiv.cache_kv_offload_gb).toBe(-1)
+      expect(aidaptiv.vram_experts_cached_gb).toBe(-1)
     })
 
-    it('leaves budgets the user chose alone', async () => {
+    it('rewrites fixed offload budgets to -1 and drops fit: off', async () => {
       const serviceDir = createServiceDir()
       const configPath = getSsdOffloadConfigPath(serviceDir)
 
       filesystem.ensureDirSync(serviceDir)
       filesystem.writeJsonSync(configPath, {
+        common: { gpu_layers: '999', fit: 'off' },
         aidaptiv: {
           debug_log_path: serviceDir,
-          cache_kv_offload_gb: 6,
-          vram_experts_cached_gb: 12,
+          cache_kv_offload_gb: 0,
+          vram_experts_cached_gb: 10,
         },
       })
 
       await reconcileSsdOffloadConfig(configPath, serviceDir)
 
-      const aidaptiv = filesystem.readJsonSync(configPath).aidaptiv
-      expect(aidaptiv.cache_kv_offload_gb).toBe(6)
-      expect(aidaptiv.vram_experts_cached_gb).toBe(12)
+      const config = filesystem.readJsonSync(configPath)
+      expect(config.common.fit).toBeUndefined()
+      expect(config.common.gpu_layers).toBe('999')
+      expect(config.aidaptiv.cache_kv_offload_gb).toBe(-1)
+      expect(config.aidaptiv.vram_experts_cached_gb).toBe(-1)
+    })
+
+    it('does not add offload budgets to the embedding config', async () => {
+      const serviceDir = createServiceDir()
+      const embeddingConfigPath = getSsdOffloadEmbeddingConfigPath(serviceDir)
+
+      ensureSsdOffloadEmbeddingConfigFileSync(serviceDir, embeddingConfigPath)
+      await reconcileSsdOffloadConfig(embeddingConfigPath, serviceDir)
+
+      const embedding = filesystem.readJsonSync(embeddingConfigPath)
+      expect(embedding.common).toBeUndefined()
+      expect(embedding.aidaptiv.cache_kv_offload_gb).toBeUndefined()
+      expect(embedding.aidaptiv.vram_experts_cached_gb).toBeUndefined()
     })
 
     it('leaves a debug log path that does exist alone', async () => {
