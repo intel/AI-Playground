@@ -468,6 +468,8 @@ export function setArcadeShown(
 function arcadeHtml(games: GameManifestEntry[], vendor?: string, hasSamples = false): string {
   const isAcer = isAcerVendor(vendor)
   const title = isAcer ? 'My Acer Arcade' : 'My Arcade'
+  // "My Acer" is Acer's own portal brand, so the green sits on "Acer Arcade".
+  const heading = isAcer ? 'My <span>Acer Arcade</span>' : 'My <span>Arcade</span>'
   const accent = isAcer ? '#83b81a' : '#4f8cff'
   return `<!doctype html>
 <html lang="en">
@@ -529,7 +531,7 @@ function arcadeHtml(games: GameManifestEntry[], vendor?: string, hasSamples = fa
 </head>
 <body>
 <header>
-  <h1>${isAcer ? 'My Acer <span>Arcade</span>' : 'My <span>Arcade</span>'}</h1>
+  <h1>${heading}</h1>
   <p class="lead">${
     hasSamples
       ? 'Games you made with AI Playground, plus a few to start with. Click one to play.'

@@ -398,11 +398,13 @@ describe('publishGame and writeArcade', () => {
   it('brands the gallery for Acer only when the machine is one', () => {
     createGame({ name: 'Space Dodger' }, root)
     writeArcade({ root, vendor: 'acer', samplesRoot: null })
-    expect(fs.readFileSync(path.join(root, 'index.html'), 'utf-8')).toContain('My Acer Arcade')
+    const branded = fs.readFileSync(path.join(root, 'index.html'), 'utf-8')
+    expect(branded).toContain('<title>My Acer Arcade</title>')
+    expect(branded).toContain('<h1>My <span>Acer Arcade</span></h1>')
     writeArcade({ root, vendor: 'unknown', samplesRoot: null })
     const neutral = fs.readFileSync(path.join(root, 'index.html'), 'utf-8')
     expect(neutral).not.toContain('Acer')
-    expect(neutral).toContain('My Arcade')
+    expect(neutral).toContain('<h1>My <span>Arcade</span></h1>')
   })
 
   it('escapes a game name so it cannot break out of the page', () => {
