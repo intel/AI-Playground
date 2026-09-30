@@ -14,6 +14,9 @@ dependencies = [
   "transformers>=5.14.0,<6",
   "accelerate>=1.12.0",
   "huggingface_hub",
+  # urllib3 2.8.0: clears GHSA-vxq7-64xx-v4gw, GHSA-8988-9cw3-xx77 and
+  # GHSA-gh4c-6fx4-qh6g. Transitive via huggingface_hub / requests (urllib3<3).
+  "urllib3>=2.8.0",
 ]
 
 # torch ships from a different index per accelerator, so it lives in mutually
