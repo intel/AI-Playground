@@ -1164,28 +1164,32 @@ export class LlamaCppBackendService implements ApiService {
       return
     }
 
-    const activeDir = this.getActiveLlamaCppDir()
-    const deleteScriptPath = path.join(
-      activeDir,
-      llamaCppPhison.LLAMACPP_SSD_OFFLOAD_DELETE_SERVICE_SCRIPT,
-    )
-
-    // Batch the service teardown and the ada.exe kill into a single elevated session so the
-    // user sees one UAC prompt rather than one for the delete script plus one for taskkill.
-    const commands: string[] = []
-    if (filesystem.existsSync(deleteScriptPath)) {
-      commands.push(`call "${deleteScriptPath}"`)
+    const dirs = llamaCppPhison.phisonCleanupDirs(this.serviceDir)
+    if (dirs.length === 0) {
+      return
     }
-    // taskkill returns a non-zero exit code when the process is not running; the batch script
-    // intentionally runs every line (no early exit) so best-effort teardown always completes.
-    commands.push(`taskkill /F /IM "${llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME}" /T`)
+
+    // One elevated session for every tree that still has the service. taskkill
+    // returns non-zero when ada.exe is not running; the batch runs every line.
+    const commands: string[] = []
+    for (const dir of dirs) {
+      const deleteScriptPath = path.join(
+        dir,
+        llamaCppPhison.LLAMACPP_SSD_OFFLOAD_DELETE_SERVICE_SCRIPT,
+      )
+      commands.push(`cd /d "${dir}"`)
+      if (filesystem.existsSync(deleteScriptPath)) {
+        commands.push(`call "${deleteScriptPath}"`)
+      }
+      commands.push(`taskkill /F /IM "${llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME}" /T`)
+    }
 
     try {
       this.appLogger.info(
         `Stopping SSD offload Windows service and ${llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME} before cleanup`,
         this.name,
       )
-      await this.runElevatedBatch(commands, activeDir)
+      await this.runElevatedBatch(commands, dirs[0])
     } catch (error) {
       this.appLogger.warn(
         `Failed to stop SSD offload artifacts before cleanup: ${error}`,
@@ -1839,11 +1843,9 @@ export class LlamaCppBackendService implements ApiService {
 
   async uninstall(): Promise<void> {
     await this.stop()
-    // Phison / ada.exe teardown uses elevated batch + taskkill — only when replacing SSD-offload.
-    // Standard GGUF reinstall goes through uninstall()+set_up(); variant standard must not prompt UAC.
-    if (this.llamaCppBuildVariant === 'ssd-offload') {
-      await this.stopSsdOffloadArtifactsForCleanup()
-    }
+    // Stop ada.exe whenever its tree is still on disk. The selected variant may
+    // already be standard, and a standard-only install has nothing to elevate for.
+    await this.stopSsdOffloadArtifactsForCleanup()
     this.appLogger.info(`removing LlamaCPP service directory`, this.name)
     await this.removeDirectoryWithRetries(this.serviceDir)
     this.appLogger.info(`removed LlamaCPP service directory`, this.name)

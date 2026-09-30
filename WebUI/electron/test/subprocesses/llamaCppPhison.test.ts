@@ -20,6 +20,7 @@ import {
   getZipPathForVariant,
   migrateLegacyPhisonIntoSeparateDirectory,
   migrateLegacySsdOffloadConfigFile,
+  phisonCleanupDirs,
   reconcileSsdOffloadConfig,
   withConfigFileArg,
 } from '../../subprocesses/llamaCppPhison'
@@ -55,6 +56,28 @@ describe('llamaCppPhison helpers', () => {
     expect(getZipPathForVariant(serviceDir, 'ssd-offload', 'zip')).toBe(
       path.join(serviceDir, 'llama-cpp-phison.zip'),
     )
+  })
+
+  it('stops ada.exe in the Phison tree and in a legacy extract, not in a plain standard tree', () => {
+    const serviceDir = createServiceDir()
+    const standardDir = getLlamaCppDirForVariant(serviceDir, 'standard')
+    const phisonDir = getLlamaCppDirForVariant(serviceDir, 'ssd-offload')
+
+    filesystem.ensureDirSync(standardDir)
+    filesystem.writeFileSync(path.join(standardDir, binary('llama-server')), '')
+    expect(phisonCleanupDirs(serviceDir)).toEqual([])
+
+    filesystem.ensureDirSync(phisonDir)
+    filesystem.writeFileSync(path.join(phisonDir, 'ada.exe'), '')
+    expect(phisonCleanupDirs(serviceDir)).toEqual([phisonDir])
+
+    filesystem.removeSync(path.join(phisonDir, 'ada.exe'))
+    filesystem.writeFileSync(path.join(phisonDir, 'wService_delete.bat'), '')
+    expect(phisonCleanupDirs(serviceDir)).toEqual([phisonDir])
+
+    filesystem.removeSync(phisonDir)
+    filesystem.writeFileSync(path.join(standardDir, 'ada.exe'), '')
+    expect(phisonCleanupDirs(serviceDir)).toEqual([standardDir])
   })
 
   it('detects standard vs Phison artifact readiness independently', () => {

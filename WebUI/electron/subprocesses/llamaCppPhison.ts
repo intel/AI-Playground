@@ -248,6 +248,19 @@ export function computeVariantArtifactsReady(
     : computeStandardArtifactsReady(serviceDir)
 }
 
+/**
+ * Trees that still hold the aiDAPTIV service binary or its delete script.
+ * The selected variant can already be standard while ada.exe is locked in the
+ * Phison tree, or in a legacy extract that landed in `llama-cpp/`.
+ */
+export function phisonCleanupDirs(serviceDir: string): string[] {
+  const markers = [LLAMACPP_SSD_OFFLOAD_PROCESS_NAME, LLAMACPP_SSD_OFFLOAD_DELETE_SERVICE_SCRIPT]
+  return [
+    getLlamaCppDirForVariant(serviceDir, 'ssd-offload'),
+    getLlamaCppDirForVariant(serviceDir, 'standard'),
+  ].filter((dir) => markers.some((name) => filesystem.existsSync(path.join(dir, name))))
+}
+
 export function migrateLegacySsdOffloadConfigFile(serviceDir: string, configPath: string): void {
   const legacyConfigPath = getLegacySsdOffloadConfigPath(serviceDir)
   if (filesystem.existsSync(legacyConfigPath) && !filesystem.existsSync(configPath)) {
