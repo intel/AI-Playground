@@ -1033,4 +1033,5 @@ type Model = {
   llamaCppArgs?: string
   npuSupport?: boolean
   largeMoe?: boolean
+  requiresPhison?: boolean
 }

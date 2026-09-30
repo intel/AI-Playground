@@ -103,7 +103,9 @@ export const ModelSchema = z.object({
   // Appended before the user's own parameters so a hand-written flag wins.
   llamaCppArgs: z.string().optional(),
   npuSupport: z.boolean().optional(),
-  largeMoe: z.boolean().optional(), // Large Mixture-of-Experts model; Phison aiDAPTIV+ SSD offload enables loading models larger than VRAM
+  largeMoe: z.boolean().optional(), // Include in the aiDAPTIV preset. Does not by itself hide the model.
+  // Hide unless a Phison SSD is present. Medium MoE models omit it, so they stay listed and visible.
+  requiresPhison: z.boolean().optional(),
 })
 
 //type Model = z.infer<typeof ModelSchema>

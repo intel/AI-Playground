@@ -31,6 +31,7 @@ export type Model = ModelCapabilityValues & {
   llamaCppArgs?: string // Extra llama-server flags this model wants (llama.cpp only)
   reasoningParser?: string // OVMS `--reasoning_parser`; qwen3 when omitted
   enableMtp?: boolean // OpenVINO repo ships an MTP graph
+  requiresPhison?: boolean // Hide unless a Phison SSD is detected; largeMoe still lists it
   isPredefined?: boolean // true if model is defined in models.json
   isCustom?: boolean // true if the user added it, so it can be removed from the list again
 }
@@ -176,6 +177,10 @@ export const useModels = defineStore(
               customMetadata?.reasoningParser,
             enableMtp:
               predefinedModel?.enableMtp ?? existingModel?.enableMtp ?? customMetadata?.enableMtp,
+            requiresPhison:
+              predefinedModel?.requiresPhison ??
+              existingModel?.requiresPhison ??
+              customMetadata?.requiresPhison,
             isPredefined: !!predefinedModel, // true if model is defined in models.json
             // Added by the user, whether or not its files have arrived since.
             isCustom: !predefinedModel && !!customMetadata,

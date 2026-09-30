@@ -77,6 +77,7 @@ export type LlmModel = {
   enableMtp?: boolean
   npuSupport?: boolean
   largeMoe?: boolean
+  requiresPhison?: boolean
   isPredefined?: boolean
   /** User preference from `store/modelPreferences.ts`; applied by pickers, not here. */
   favorite?: boolean
@@ -132,22 +133,7 @@ export type EmbedInquiry = {
 
 // Thinking model markers for different models
 export const thinkingModels: Record<string, string> = {
-  'bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_S.gguf':
-    '</think>\n\n',
-  'bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF/DeepSeek-R1-Distill-Qwen-7B-Q4_K_S.gguf':
-    '</think>\n\n',
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B': '</think>\n\n',
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B': '</think>\n\n',
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-14B-int4-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-cw-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-gq-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-nf4-ov': '</think>\n\n',
   'OpenVINO/Qwen3-8B-int4-cw-ov': '</think>\n\n',
-  'OpenVINO/Qwen3-8B-int4-ov': '</think>\n\n',
   'unsloth/gpt-oss-20b-GGUF/gpt-oss-20b-Q8_0.gguf': '<|start|>assistant<|channel|>final<|message|>',
   'OpenVINO/gpt-oss-20b-int4-ov': '<|start|>assistant<|channel|>final<|message|>',
 }
@@ -281,6 +267,7 @@ export const useTextInference = defineStore(
             enableMtp: m.enableMtp,
             npuSupport: m.npuSupport,
             largeMoe: m.largeMoe,
+            requiresPhison: m.requiresPhison,
             isPredefined: m.isPredefined,
           }
         }),
@@ -332,6 +319,7 @@ export const useTextInference = defineStore(
             enableMtp: undefined,
             npuSupport: undefined,
             largeMoe: undefined,
+            requiresPhison: undefined,
             isPredefined: false,
             // Cloud model ids have no on-disk path of their own, so their flags
             // are keyed under the dedicated CLOUD_MODEL_PATH_KEY — which is what

@@ -50,9 +50,8 @@ export type ModelCapabilityValues = {
    */
   supportsCoding?: boolean
   /**
-   * Large Mixture-of-Experts model. NOT a plain capability: it is a hardware
-   * gate. Such models only load via Phison aiDAPTIV+ SSD offload, so pickers
-   * hide them when no Phison SSD is detected.
+   * Large Mixture-of-Experts model. Puts it on the aiDAPTIV preset list.
+   * Hiding it everywhere else is `requiresPhison`, not this flag.
    */
   largeMoe?: boolean
 }
