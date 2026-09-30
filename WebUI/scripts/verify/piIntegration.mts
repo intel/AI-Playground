@@ -153,10 +153,10 @@ const report = {
   memoryToolsPresent: registered.some((name) => name.startsWith('memory')),
   activeBefore,
   activeAfter,
-  promptHasAppendedText: session.agent.state.systemPrompt.includes(
-    'workspace instructions from the app',
-  ),
-  promptHasMemoryPolicy: /memory/i.test(session.agent.state.systemPrompt),
+  // 0.87 keeps the composed prompt on the session. Agent state no longer holds it
+  // until a provider request, and a slash command does not send one.
+  promptHasAppendedText: session.systemPrompt.includes('workspace instructions from the app'),
+  promptHasMemoryPolicy: /memory/i.test(session.systemPrompt),
   noticeCount: notices.length,
   noticePreview: notices[0]?.split('\n').slice(0, 4).join(' | '),
   sqliteFiles: fs.readdirSync(memoryDir),
