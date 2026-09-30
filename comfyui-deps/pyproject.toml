@@ -54,10 +54,18 @@ dependencies = [
   "pydantic-settings~=2.0",
   "pydantic~=2.0",
   "pygithub",
+  # pyjwt 2.15.1: clears GHSA-ffc3-869f-jxw9, GHSA-9j54-fg26-wv3r,
+  # GHSA-9v7f-9g4p-ffgj, GHSA-42vr-xj54-vc7v, GHSA-jwrc-g2q2-pq5p,
+  # GHSA-8wjv-2p76-3863 and GHSA-hxm8-2xgr-2p9m. Transitive via pygithub
+  # (pyjwt>=2.4.0), so floor it directly.
+  "pyjwt>=2.15.1",
   "python-dateutil",
   "pyyaml",
   "requests",
   "rich",
+  # urllib3 2.8.0: clears GHSA-vxq7-64xx-v4gw, GHSA-8988-9cw3-xx77 and
+  # GHSA-gh4c-6fx4-qh6g. Transitive via requests (urllib3<3) and pygithub.
+  "urllib3>=2.8.0",
   "safetensors>=0.8.0rc0",
   "scikit-image",
   "scikit-learn",
