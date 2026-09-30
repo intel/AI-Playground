@@ -519,6 +519,7 @@
   "COM_FOLDER_PATH": "Ścieżka folderu",
   "SETTINGS_TOOLS_MODEL_UNSUPPORTED": "Wybrany model nie obsługuje wywoływania narzędzi.",
   "MODEL_MANAGER_OPEN": "Zarządzanie modelami",
+  "OVMS_MTP_STALE_MODEL": "{model} obsługuje MTP, co zwiększa szybkość inferencji. Aby z tego skorzystać, usuń ten model w Zarządzanie modelami i pobierz go ponownie.",
   "MODEL_MANAGER_ADD_USE_CASE": "Typ modelu",
   "MODEL_MANAGER_ADD_BACKEND": "Backend",
   "MODEL_MANAGER_ADD_REPOSITORY": "Repozytorium Hugging Face",

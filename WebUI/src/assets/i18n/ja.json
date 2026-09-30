@@ -519,6 +519,7 @@
   "COM_FOLDER_PATH": "フォルダーのパス",
   "SETTINGS_TOOLS_MODEL_UNSUPPORTED": "選択したモデルはツール呼び出しに対応していません。",
   "MODEL_MANAGER_OPEN": "モデル管理",
+  "OVMS_MTP_STALE_MODEL": "{model} は MTP に対応しており、推論速度が向上します。使うには、モデル管理でこのモデルを削除してから、もう一度ダウンロードしてください。",
   "MODEL_MANAGER_ADD_USE_CASE": "モデルの種類",
   "MODEL_MANAGER_ADD_BACKEND": "バックエンド",
   "MODEL_MANAGER_ADD_REPOSITORY": "Hugging Face リポジトリ",

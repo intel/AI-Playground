@@ -519,6 +519,7 @@
   "COM_FOLDER_PATH": "資料夾路徑",
   "SETTINGS_TOOLS_MODEL_UNSUPPORTED": "所選模型不支援工具呼叫。",
   "MODEL_MANAGER_OPEN": "模型管理",
+  "OVMS_MTP_STALE_MODEL": "{model} 支援 MTP，可提高推論速度。若要使用，請先在模型管理中刪除目前版本，然後重新下載。",
   "MODEL_MANAGER_ADD_USE_CASE": "模型類型",
   "MODEL_MANAGER_ADD_BACKEND": "後端",
   "MODEL_MANAGER_ADD_REPOSITORY": "Hugging Face 儲存庫",

@@ -519,6 +519,7 @@
   "COM_FOLDER_PATH": "Đường dẫn thư mục",
   "SETTINGS_TOOLS_MODEL_UNSUPPORTED": "Mô hình đã chọn không hỗ trợ gọi công cụ.",
   "MODEL_MANAGER_OPEN": "Quản lý mô hình",
+  "OVMS_MTP_STALE_MODEL": "{model} hỗ trợ MTP, giúp tăng tốc độ suy luận. Để dùng, hãy xóa mô hình này trong Quản lý mô hình rồi tải xuống lại.",
   "MODEL_MANAGER_ADD_USE_CASE": "Loại mô hình",
   "MODEL_MANAGER_ADD_BACKEND": "Backend",
   "MODEL_MANAGER_ADD_REPOSITORY": "Kho Hugging Face",

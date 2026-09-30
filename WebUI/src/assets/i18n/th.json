@@ -519,6 +519,7 @@
   "COM_FOLDER_PATH": "เส้นทางโฟลเดอร์",
   "SETTINGS_TOOLS_MODEL_UNSUPPORTED": "โมเดลที่เลือกไม่รองรับการเรียกใช้เครื่องมือ",
   "MODEL_MANAGER_OPEN": "การจัดการโมเดล",
+  "OVMS_MTP_STALE_MODEL": "{model} รองรับ MTP ซึ่งช่วยเพิ่มความเร็วในการอนุมาน หากต้องการใช้ ให้ลบโมเดลนี้ในการจัดการโมเดล แล้วดาวน์โหลดอีกครั้ง",
   "MODEL_MANAGER_ADD_USE_CASE": "ประเภทโมเดล",
   "MODEL_MANAGER_ADD_BACKEND": "แบ็กเอนด์",
   "MODEL_MANAGER_ADD_REPOSITORY": "ที่เก็บ Hugging Face",

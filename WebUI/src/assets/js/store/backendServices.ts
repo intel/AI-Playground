@@ -224,7 +224,7 @@ export const useBackendServices = defineStore(
         applyServiceSnapshot(services)
       })
     }, 5000)
-    window.electronAPI.onServiceInfoUpdate((updatedInfo) => {
+    function upsertServiceInfo(updatedInfo: ApiServiceInformation): void {
       const idx = currentServiceInfo.value.findIndex(
         (s) => s.serviceName === updatedInfo.serviceName,
       )
@@ -237,6 +237,10 @@ export const useBackendServices = defineStore(
         currentServiceInfo.value = [...currentServiceInfo.value, updatedInfo]
       }
       applyInstalledVersionFromService(updatedInfo)
+    }
+
+    window.electronAPI.onServiceInfoUpdate((updatedInfo) => {
+      upsertServiceInfo(updatedInfo)
     })
 
     /**
@@ -625,6 +629,9 @@ export const useBackendServices = defineStore(
         if (!result.success) {
           throw new Error(result.error || 'Failed to ensure backend readiness')
         }
+        // The matching serviceInfoUpdate arrives a tick later. Fold the snapshot
+        // from this call in now so the next request sees whether MTP was armed.
+        if (result.service) upsertServiceInfo(result.service)
       } catch (error) {
         console.error(`Failed to ensure backend readiness for ${serviceName}:`, error)
         throw error

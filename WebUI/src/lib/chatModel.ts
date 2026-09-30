@@ -88,7 +88,7 @@ export function createChatModel(): LanguageModel {
     // For models that support toggling thinking (Qwen3 family, gemma4), send the
     // explicit enable_thinking value so the toggle is authoritative regardless of
     // the family's template default (Qwen3 defaults on, gemma4 defaults off). Both
-    // llama-server (--jinja) and OVMS (--reasoning_parser qwen3) honor this kwarg.
+    // llama-server (--jinja) and OVMS (--reasoning_parser) honor this kwarg.
     // The same hook carries the sampling a model's publisher recommends, since
     // the AI SDK models none of top_k / min_p / the penalties.
     transformRequestBody: (args) => {
@@ -318,7 +318,7 @@ export function createChatModel(): LanguageModel {
       : (textInference.activeModel?.split('/').join('---') ?? ''),
   )
   // Local backends parse chain-of-thought server-side (llama-server --jinja /
-  // OVMS --reasoning_parser qwen3) and emit it as separate reasoning content.
+  // OVMS --reasoning_parser) and emit it as separate reasoning content.
   // Remote Cloud Mode providers usually don't — <think>…</think> arrives inline
   // in the text stream, so it would render as answer text. Extract it into
   // reasoning parts client-side so the UI shows it as collapsible thinking.

@@ -17,6 +17,7 @@ import {
   resolveSampling,
   toRequestBody,
 } from '@/lib/samplingDefaults'
+import { claimOvmsMtpStaleNotice, ovmsMtpRequestFields } from '@/lib/ovmsMtp'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePresets, type ChatPreset } from './presets'
 import { useDeveloperSettings } from './developerSettings'
@@ -26,6 +27,7 @@ import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from './conversations'
 import * as toast from '@/assets/js/toast.ts'
 import { useActivities } from './activities'
 import { useI18N } from './i18n'
+import { useUIStore } from './ui'
 import { renamePresetKeys } from '@/lib/presetRenames'
 import { HYBRID_CLOUD_NAME } from '@/lib/cloudModeName'
 import { boundMaxOutputTokens } from '@/lib/maxOutputTokens'
@@ -71,6 +73,8 @@ export type LlmModel = {
   maxContextSize?: number
   inferenceDefaults?: InferenceDefaults
   llamaCppArgs?: string
+  reasoningParser?: string
+  enableMtp?: boolean
   npuSupport?: boolean
   largeMoe?: boolean
   isPredefined?: boolean
@@ -184,6 +188,7 @@ export const useTextInference = defineStore(
     const activities = useActivities()
     const modelPreferences = useModelPreferences()
     const i18nState = useI18N().state
+    const uiStore = useUIStore()
     // Tracks the in-flight backend-preparation activity (begin/end are paired with
     // start/completeBackendPreparation).
     let backendPrepActivityId: string | null = null
@@ -272,6 +277,8 @@ export const useTextInference = defineStore(
             maxContextSize: m.maxContextSize,
             inferenceDefaults: m.inferenceDefaults,
             llamaCppArgs: m.llamaCppArgs,
+            reasoningParser: m.reasoningParser,
+            enableMtp: m.enableMtp,
             npuSupport: m.npuSupport,
             largeMoe: m.largeMoe,
             isPredefined: m.isPredefined,
@@ -321,6 +328,8 @@ export const useTextInference = defineStore(
             // describes local models.
             inferenceDefaults: undefined,
             llamaCppArgs: undefined,
+            reasoningParser: undefined,
+            enableMtp: undefined,
             npuSupport: undefined,
             largeMoe: undefined,
             isPredefined: false,
@@ -792,7 +801,12 @@ export const useTextInference = defineStore(
     // the recommendation was written for, so remote turns get nothing.
     const samplingRequestBody = computed<Record<string, number>>(() => {
       if (backend.value === 'cloud') return {}
-      return toRequestBody(recommendedSampling.value, backend.value)
+      const body = toRequestBody(recommendedSampling.value, backend.value)
+      if (backend.value !== 'openVINO') return body
+      const mtpArmed =
+        backendServices.info.find((service) => service.serviceName === 'openvino-backend')
+          ?.ovmsMtpArmed === true
+      return { ...body, ...ovmsMtpRequestFields(mtpArmed) }
     })
 
     // A model that recommends an effort is one whose template reads it.
@@ -1513,6 +1527,17 @@ export const useTextInference = defineStore(
       backendReadinessState.lastUsedContextSize[currentBackend] = contextSize.value
     }
 
+    function notifyOvmsMtpStale(): void {
+      const modelRepoId = backendServices.info.find(
+        (service) => service.serviceName === 'openvino-backend',
+      )?.ovmsMtpStaleModel
+      if (!claimOvmsMtpStaleNotice(modelRepoId, localStorage)) return
+      const message = (i18nState.OVMS_MTP_STALE_MODEL ?? '').replace('{model}', modelRepoId ?? '')
+      dialogStore.showWarningDialog(message, () => {
+        uiStore.openModelManager()
+      })
+    }
+
     async function ensureBackendReadiness(): Promise<void> {
       // Cloud Mode has no local subprocess and no model to (re)load — the
       // remote provider is always "ready".
@@ -1547,10 +1572,11 @@ export const useTextInference = defineStore(
             llmModelName,
             embeddingModelToSend,
             contextSize.value,
-            // Only llama.cpp reads these; OVMS is started from a different
-            // command line and ignores them.
+            // Only llama.cpp reads these; OVMS MTP is `--draft_model_path`, decided
+            // in the main process from the catalog's `enableMtp` flag.
             backend.value === 'llamaCPP' ? activeLlmModel.value?.llamaCppArgs : undefined,
           )
+          if (backend.value === 'openVINO') notifyOvmsMtpStale()
         } catch (error) {
           // Surface model-load failures (e.g. out of memory for the chosen
           // context size) to the user. This is the single chokepoint for both

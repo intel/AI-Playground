@@ -29,6 +29,8 @@ export type Model = ModelCapabilityValues & {
   backend?: LlmBackend
   inferenceDefaults?: InferenceDefaults // Sampling/reasoning settings the publisher recommends
   llamaCppArgs?: string // Extra llama-server flags this model wants (llama.cpp only)
+  reasoningParser?: string // OVMS `--reasoning_parser`; qwen3 when omitted
+  enableMtp?: boolean // OpenVINO repo ships an MTP graph
   isPredefined?: boolean // true if model is defined in models.json
   isCustom?: boolean // true if the user added it, so it can be removed from the list again
 }
@@ -168,6 +170,12 @@ export const useModels = defineStore(
               predefinedModel?.llamaCppArgs ??
               existingModel?.llamaCppArgs ??
               customMetadata?.llamaCppArgs,
+            reasoningParser:
+              predefinedModel?.reasoningParser ??
+              existingModel?.reasoningParser ??
+              customMetadata?.reasoningParser,
+            enableMtp:
+              predefinedModel?.enableMtp ?? existingModel?.enableMtp ?? customMetadata?.enableMtp,
             isPredefined: !!predefinedModel, // true if model is defined in models.json
             // Added by the user, whether or not its files have arrived since.
             isCustom: !predefinedModel && !!customMetadata,

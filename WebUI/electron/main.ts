@@ -2166,7 +2166,7 @@ function initEventHandle() {
         if (homeAgentSvc instanceof HomeAgentBackendService) {
           homeAgentSvc.notifyUpstreamReady(service.baseUrl ?? '')
         }
-        return { success: true }
+        return { success: true, service: service.get_info() }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
         appLogger.error(

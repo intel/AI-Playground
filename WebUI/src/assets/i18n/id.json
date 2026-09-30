@@ -519,6 +519,7 @@
   "COM_FOLDER_PATH": "Jalur folder",
   "SETTINGS_TOOLS_MODEL_UNSUPPORTED": "Model yang dipilih tidak mendukung pemanggilan alat.",
   "MODEL_MANAGER_OPEN": "Manajemen model",
+  "OVMS_MTP_STALE_MODEL": "{model} mendukung MTP, yang meningkatkan kecepatan inferensi. Untuk menggunakannya, hapus model ini di Manajemen model, lalu unduh lagi.",
   "MODEL_MANAGER_ADD_USE_CASE": "Jenis model",
   "MODEL_MANAGER_ADD_BACKEND": "Backend",
   "MODEL_MANAGER_ADD_REPOSITORY": "Repositori Hugging Face",

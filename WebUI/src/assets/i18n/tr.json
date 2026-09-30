@@ -519,6 +519,7 @@
   "COM_FOLDER_PATH": "Klasör yolu",
   "SETTINGS_TOOLS_MODEL_UNSUPPORTED": "Seçilen model araç çağırmayı desteklemiyor.",
   "MODEL_MANAGER_OPEN": "Model yönetimi",
+  "OVMS_MTP_STALE_MODEL": "{model}, çıkarım hızını artıran MTP'yi destekler. Kullanmak için bu modeli Model yönetimi içinden silip yeniden indirin.",
   "MODEL_MANAGER_ADD_USE_CASE": "Model türü",
   "MODEL_MANAGER_ADD_BACKEND": "Arka uç",
   "MODEL_MANAGER_ADD_REPOSITORY": "Hugging Face deposu",

@@ -630,7 +630,8 @@
     "supportsReasoning": true,
     "supportsCoding": true,
     "supportsThinkingToggle": true,
-    "maxContextSize": 262144
+    "maxContextSize": 262144,
+    "enableMtp": true
   },
   {
     "name": "OpenVINO/Qwen3-VL-8B-Instruct-int4-ov",
@@ -651,7 +652,8 @@
     "supportsReasoning": true,
     "supportsCoding": true,
     "supportsThinkingToggle": true,
-    "maxContextSize": 262144
+    "maxContextSize": 262144,
+    "enableMtp": true
   },
   {
     "name": "OpenVINO/Qwen3.6-27B-int4-ov",
@@ -662,7 +664,8 @@
     "supportsReasoning": true,
     "supportsCoding": true,
     "supportsThinkingToggle": true,
-    "maxContextSize": 262144
+    "maxContextSize": 262144,
+    "enableMtp": true
   },
   {
     "name": "OpenVINO/Qwen3.8-27B-int4-ov",
@@ -681,7 +684,8 @@
       "thinking": { "temperature": 1, "topP": 0.95, "presencePenalty": 0 },
       "instruct": { "temperature": 0.7, "topP": 0.8, "presencePenalty": 1.5 },
       "reasoningEffort": "low"
-    }
+    },
+    "enableMtp": true
   },
   {
     "name": "OpenVINO/Qwen3.6-35B-A3B-int4-ov",
@@ -692,6 +696,32 @@
     "supportsReasoning": true,
     "supportsCoding": true,
     "supportsThinkingToggle": true,
+    "maxContextSize": 262144,
+    "enableMtp": true
+  },
+  {
+    "name": "OpenVINO/gemma-4-E4B-it-int4-ov",
+    "type": "openVINO",
+    "supportsToolCalling": true,
+    "toolParser": "gemma4",
+    "reasoningParser": "gemma4",
+    "supportsVision": true,
+    "supportsReasoning": false,
+    "supportsCoding": true,
+    "supportsThinkingToggle": true,
+    "maxContextSize": 131072
+  },
+  {
+    "name": "OpenVINO/gemma-4-26b-a4b-it-int4-ov",
+    "type": "openVINO",
+    "supportsToolCalling": true,
+    "toolParser": "gemma4",
+    "reasoningParser": "gemma4",
+    "supportsVision": true,
+    "supportsReasoning": false,
+    "supportsCoding": true,
+    "supportsThinkingToggle": true,
+    "largeMoe": false,
     "maxContextSize": 262144
   },
   {

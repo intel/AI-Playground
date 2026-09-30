@@ -115,6 +115,10 @@ export type ModelEntry = {
   inferenceDefaults?: InferenceDefaults
   /** Extra `llama-server` flags the catalog asks for. Read-only, as above. */
   llamaCppArgs?: string
+  /** OVMS `--reasoning_parser` the catalog asks for. Read-only, as above. */
+  reasoningParser?: string
+  /** OpenVINO repo ships an MTP graph. Read-only, as above. */
+  enableMtp?: boolean
   /** True when the user has edited any capability, so the UI can offer "reset to defaults". */
   hasCapabilityOverrides: boolean
   favorite: boolean

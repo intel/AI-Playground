@@ -519,6 +519,7 @@
   "COM_FOLDER_PATH": "文件夹路径",
   "SETTINGS_TOOLS_MODEL_UNSUPPORTED": "所选模型不支持工具调用。",
   "MODEL_MANAGER_OPEN": "模型管理",
+  "OVMS_MTP_STALE_MODEL": "{model} 支持 MTP，可提高推理速度。要使用它，请先在模型管理中删除当前版本，然后重新下载。",
   "MODEL_MANAGER_ADD_USE_CASE": "模型类型",
   "MODEL_MANAGER_ADD_BACKEND": "后端",
   "MODEL_MANAGER_ADD_REPOSITORY": "Hugging Face 仓库",

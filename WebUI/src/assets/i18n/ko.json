@@ -519,6 +519,7 @@
   "COM_FOLDER_PATH": "폴더 경로",
   "SETTINGS_TOOLS_MODEL_UNSUPPORTED": "선택한 모델은 도구 호출을 지원하지 않습니다.",
   "MODEL_MANAGER_OPEN": "모델 관리",
+  "OVMS_MTP_STALE_MODEL": "{model}은 MTP를 지원하여 추론 속도가 높아집니다. 사용하려면 모델 관리에서 이 모델을 삭제한 다음 다시 다운로드하세요.",
   "MODEL_MANAGER_ADD_USE_CASE": "모델 유형",
   "MODEL_MANAGER_ADD_BACKEND": "백엔드",
   "MODEL_MANAGER_ADD_REPOSITORY": "Hugging Face 리포지토리",

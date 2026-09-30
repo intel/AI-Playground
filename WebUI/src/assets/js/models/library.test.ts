@@ -264,6 +264,8 @@ describe('buildEntries', () => {
             isPredefined: true,
             inferenceDefaults: { temperature: 0.6, reasoningEffort: 'low' },
             llamaCppArgs: '--spec-type draft-mtp',
+            reasoningParser: 'gemma4',
+            enableMtp: true,
           },
         ],
       }),
@@ -271,6 +273,8 @@ describe('buildEntries', () => {
 
     expect(entries[0].inferenceDefaults).toMatchObject({ reasoningEffort: 'low' })
     expect(entries[0].llamaCppArgs).toBe('--spec-type draft-mtp')
+    expect(entries[0].reasoningParser).toBe('gemma4')
+    expect(entries[0].enableMtp).toBe(true)
   })
 
   it('skips cloud models, which have nothing local to manage', () => {

@@ -519,6 +519,7 @@
   "COM_FOLDER_PATH": "Percorso della cartella",
   "SETTINGS_TOOLS_MODEL_UNSUPPORTED": "Il modello selezionato non supporta la chiamata di strumenti.",
   "MODEL_MANAGER_OPEN": "Gestione dei modelli",
+  "OVMS_MTP_STALE_MODEL": "{model} supporta MTP, che aumenta la velocità di inferenza. Per usarlo, elimina questo modello in Gestione dei modelli e scaricalo di nuovo.",
   "MODEL_MANAGER_ADD_USE_CASE": "Tipo di modello",
   "MODEL_MANAGER_ADD_BACKEND": "Backend",
   "MODEL_MANAGER_ADD_REPOSITORY": "Repository Hugging Face",

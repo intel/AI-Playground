@@ -519,6 +519,7 @@
   "COM_FOLDER_PATH": "Folder path",
   "SETTINGS_TOOLS_MODEL_UNSUPPORTED": "The selected model does not support tool calling.",
   "MODEL_MANAGER_OPEN": "Model management",
+  "OVMS_MTP_STALE_MODEL": "{model} supports MTP, which increases inference speed. To use it, delete this model in Model management and download it again.",
   "MODEL_MANAGER_ADD_USE_CASE": "Model type",
   "MODEL_MANAGER_ADD_BACKEND": "Backend",
   "MODEL_MANAGER_ADD_REPOSITORY": "Hugging Face repository",

@@ -519,6 +519,7 @@
   "COM_FOLDER_PATH": "Ordnerpfad",
   "SETTINGS_TOOLS_MODEL_UNSUPPORTED": "Das ausgewählte Modell unterstützt keine Tool-Aufrufe.",
   "MODEL_MANAGER_OPEN": "Modellverwaltung",
+  "OVMS_MTP_STALE_MODEL": "{model} unterstützt MTP, was die Inferenzgeschwindigkeit erhöht. Um es zu nutzen, löschen Sie dieses Modell in der Modellverwaltung und laden Sie es erneut herunter.",
   "MODEL_MANAGER_ADD_USE_CASE": "Modelltyp",
   "MODEL_MANAGER_ADD_BACKEND": "Backend",
   "MODEL_MANAGER_ADD_REPOSITORY": "Hugging Face-Repository",

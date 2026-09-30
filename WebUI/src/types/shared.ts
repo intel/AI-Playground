@@ -19,6 +19,9 @@ export const ovmsToolParsers = [
   'gemma4',
 ] as const
 
+// OVMS `--reasoning_parser` values. qwen3 is the fallback when a model omits it.
+export const ovmsReasoningParsers = ['qwen3', 'gptoss', 'lfm2', 'gemma4', 'onyx'] as const
+
 // OVMS compiles a static graph for `--max_prompt_len` on NPU, so the window is
 // paid for up front in compile time and memory — unlike GPU, which sizes its KV
 // cache at runtime. The preset's context size therefore cannot be handed to NPU
@@ -78,6 +81,14 @@ export const ModelSchema = z.object({
   supportsToolCalling: z.boolean().optional(),
   // OVMS tool-call parser override; defaults to 'hermes3' when omitted.
   toolParser: z.enum(ovmsToolParsers).optional(),
+  // OVMS `--reasoning_parser` override; defaults to 'qwen3' when omitted.
+  // Gemma 4 needs `gemma4` — the qwen3 parser mis-reads its traces.
+  reasoningParser: z.enum(ovmsReasoningParsers).optional(),
+  // This OpenVINO repo ships `openvino_mtp_model.xml`. The server passes
+  // `--draft_model_path .` and `--enable_prefix_caching false` on CPU/GPU when
+  // the snapshot has that file (or has not been downloaded yet). Draft length
+  // is `num_assistant_tokens` on the request.
+  enableMtp: z.boolean().optional(),
   supportsVision: z.boolean().optional(),
   // Good enough at writing code to drive a coding preset (Game Agent). A judgement
   // about the model's training rather than a hard capability like vision.
