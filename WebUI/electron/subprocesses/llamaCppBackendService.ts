@@ -10,6 +10,7 @@ import { app, type BrowserWindow } from 'electron'
 import { appLoggerInstance } from '../logging/logger.ts'
 import { packagedResourcesRoot } from '../aipgRoot.ts'
 import { createEnhancedErrorDetails, type ApiService, type ErrorDetails } from './service.ts'
+import { createApplicationControlWatch } from './applicationControl.ts'
 import { fetchInstallArtifact } from './fetchInstallArtifact.ts'
 import {
   spawnBackend,
@@ -1481,6 +1482,7 @@ export class LlamaCppBackendService implements ApiService {
       let memoryFailureDetected = false
       let processExited = false
       let exitCode: number | null = null
+      const applicationControl = createApplicationControlWatch()
 
       const memoryFailureMarkers = [
         'failed to allocate',
@@ -1496,6 +1498,7 @@ export class LlamaCppBackendService implements ApiService {
       }
 
       const serverOutput = this.captureServerOutput('[LLM]', (line) => {
+        applicationControl.noteText(line)
         // Once a failure is detected the flag never flips back, so there's no
         // need to keep scanning the (high-volume) startup output.
         if (!memoryFailureDetected) {
@@ -1510,6 +1513,8 @@ export class LlamaCppBackendService implements ApiService {
         // the pipes have drained, so the reason a server aborted with is often
         // still in flight at that point and has landed by the next poll.
         serverOutput.flush()
+        const blocked = applicationControl.message()
+        if (blocked) return blocked
         if (memoryFailureDetected) {
           return `Model failed to load: not enough memory to run "${modelRepoId}" with a context size of ${ctxSize}. Try reducing the context size and load the model again.`
         }
@@ -1532,6 +1537,7 @@ export class LlamaCppBackendService implements ApiService {
       childProcess.stderr!.on('data', serverOutput.handle)
 
       childProcess.on('error', (error: Error) => {
+        applicationControl.noteError(error)
         this.appLogger.error(`LLM server process error: ${error}`, this.name)
       })
 
@@ -1643,15 +1649,19 @@ export class LlamaCppBackendService implements ApiService {
         type: 'embedding',
         isReady: false,
       }
+      const applicationControl = createApplicationControlWatch()
 
       // Set up process event handlers
-      const serverOutput = this.captureServerOutput('[Embedding]')
+      const serverOutput = this.captureServerOutput('[Embedding]', (line) => {
+        applicationControl.noteText(line)
+      })
 
       childProcess.stdout!.on('data', serverOutput.handle)
 
       childProcess.stderr!.on('data', serverOutput.handle)
 
       childProcess.on('error', (error: Error) => {
+        applicationControl.noteError(error)
         this.appLogger.error(`Embedding server process error: ${error}`, this.name)
       })
 
@@ -1665,7 +1675,10 @@ export class LlamaCppBackendService implements ApiService {
       })
 
       // Wait for server to be ready
-      await this.waitForServerReady(`http://127.0.0.1:${port}/health`, childProcess)
+      await this.waitForServerReady(`http://127.0.0.1:${port}/health`, childProcess, () => {
+        serverOutput.flush()
+        return applicationControl.message()
+      })
       llamaProcess.isReady = true
 
       this.llamaEmbeddingProcess = llamaProcess

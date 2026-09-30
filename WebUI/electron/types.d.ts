@@ -36,6 +36,7 @@ declare interface SetupProgress {
     timestamp?: string
     duration?: number
     pipFreezeOutput?: string
+    hint?: string
   }
 }
 
@@ -56,6 +57,7 @@ declare interface ErrorDetails {
   timestamp?: string
   duration?: number
   pipFreezeOutput?: string
+  hint?: string
 }
 
 // Declare ApiServiceInformation type
