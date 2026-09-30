@@ -184,18 +184,23 @@
       ${if} $AipgShareState == "1"
         StrCpy $R2 "$AipgSharedDir"
         CreateDirectory "$R2"
-        ; The default base under C:\Users\Public is already writable by all users
-        ; via its inherited ACLs, so no grant is needed there. But the admin can
-        ; point $AipgSharedDir at an arbitrary folder (e.g. a roomier drive) that
-        ; may not be world-writable, so we still grant all users write access here
-        ; so the first user to launch can provision the shared resources (venvs,
-        ; backends, models - tens of GB) and later users can read them (and any
-        ; user can re-provision after an app update). The app creates the
-        ; <shared base>\resources subtree at runtime; the inheritable ACE below
-        ; propagates to it. On the default Public path this is a harmless no-op.
+        ; Public's default ACL lets every account create files, but not change
+        ; files another account created. (OI)(CI) is inherited by files created
+        ; in place. Shared installs run uv with UV_LINK_MODE=copy so wheel files
+        ; are created here and inherit this grant.
+        ; (OI)(CI) must stay unescaped: $$ would compile to a literal $(OI),
+        ; which icacls does not treat as an inheritance flag.
         ; S-1-5-32-545 = BUILTIN\Users (SID avoids locale-specific group names).
+        ; Re-applied on every install/upgrade (/T) so an existing tree becomes
+        ; writable without deleting each .venv by hand.
         nsExec::ExecToLog 'icacls "$R2" /grant "*S-1-5-32-545:(OI)(CI)M" /T /C'
         Pop $R3
+        ${if} $R3 != 0
+          DetailPrint "Failed to grant all users write access to $R2 (icacls exit $R3)."
+          IfSilent +2
+          MessageBox MB_ICONSTOP "AI Playground could not make the shared resources folder writable for every account (icacls exit $R3).$\r$\n$\r$\nFolder: $R2$\r$\n$\r$\nSetup will stop so backends are not left usable by only one account."
+          Abort
+        ${endif}
         ; Record the chosen path in a raw sidecar (avoids JSON backslash-escaping
         ; in NSIS). The app reads it back and roots the shared tree there — see
         ; electron/installConfig.ts and aipgRoot.ts.

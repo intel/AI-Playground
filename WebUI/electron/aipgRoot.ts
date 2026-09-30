@@ -3,6 +3,7 @@ import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
 import { readInstallConfig } from './installConfig.ts'
+import { grantUsersModifySync } from './sharedAcl.ts'
 
 /**
  * Resolves the packaged "resources root" — the directory the app treats as both
@@ -25,16 +26,18 @@ import { readInstallConfig } from './installConfig.ts'
  *
  * **Shared all-users install** (`install-config.json` = `"shared"`): the
  * resources root instead points at the machine-wide
- * `%PUBLIC%/AI Playground/resources` (under `C:\Users\Public`), which is
- * writable by all users out of the box via its default ACLs. The heavy
- * artifacts are provisioned there once (by whichever user
- * launches first) and read by everyone else. Each user's *mutable* config
- * (settings, logs, model_config, mcp, embeddingCache, ComfyUI scratch) is kept
- * private via `writableConfigRoot()` so users do not clobber each other. See
- * `userConfig.ts`.
+ * `%PUBLIC%/AI Playground/resources` (under `C:\Users\Public`). Public's
+ * default ACL lets every account create files, but files one account creates
+ * are not writable by the others. The installer grants inheritable Modify to
+ * BUILTIN\Users. Shared installs copy uv packages into that tree so new files
+ * inherit the grant. The heavy artifacts are
+ * provisioned there once (by whichever user launches first) and maintained by
+ * everyone else. Each user's *mutable* config (settings, logs, model_config,
+ * mcp, embeddingCache, ComfyUI scratch) is kept private via
+ * `writableConfigRoot()` so users do not clobber each other. See `userConfig.ts`.
  */
 
-/** `%PUBLIC%` (`C:\Users\Public`, or a sensible fallback) — machine-wide, world-writable by default. */
+/** `%PUBLIC%` (`C:\Users\Public`, or a sensible fallback) — machine-wide. */
 const publicDir = (): string => process.env.PUBLIC?.trim() || 'C:\\Users\\Public'
 
 /**
@@ -47,6 +50,10 @@ const sharedModeActive = (): boolean => {
   if (sharedMode !== undefined) return sharedMode
   sharedMode = process.platform === 'win32' && readInstallConfig()?.modelFolderMode === 'shared'
   return sharedMode
+}
+
+export function isSharedAllUsersInstall(): boolean {
+  return sharedModeActive()
 }
 
 /**
@@ -121,6 +128,9 @@ function seedWritableRoot(root: string): void {
   if (alreadySeeded) return
 
   fs.mkdirSync(root, { recursive: true })
+  // Grant before the copy so new files inherit Modify. Runtime environments must
+  // not be cloned out of Program Files: a copied .venv still looks installed.
+  if (sharedModeActive()) grantUsersModifySync(root)
 
   // Copy the bundled (shipped) files over the writable root. `force: true`
   // refreshes shipped files on app update; runtime-created directories that are
@@ -132,9 +142,15 @@ function seedWritableRoot(root: string): void {
     force: true,
     filter: (src) => {
       const name = path.basename(src)
-      return name !== 'app.asar' && name !== 'app.asar.unpacked'
+      return (
+        name !== 'app.asar' &&
+        name !== 'app.asar.unpacked' &&
+        name !== '.venv' &&
+        name !== 'python-interpreter'
+      )
     },
   })
+  if (sharedModeActive()) grantUsersModifySync(root)
 
   // cpSync does not reliably preserve the executable bit across filesystems,
   // so restore it for the bundled binaries the backends spawn.
@@ -163,10 +179,10 @@ export function packagedResourcesRoot(): string {
   if (!app.isPackaged) return process.resourcesPath
 
   // Shared all-users install: use the machine-wide root and seed it once from
-  // the read-only bundle. The root lives under C:\Users\Public and is writable
-  // by all users by default, so the first user provisions it (bundle + venvs +
-  // backends + models) and later users read it; a stale seed marker after an
-  // app update triggers a reseed.
+  // the read-only bundle. The installer grants every account inheritable write
+  // access, and seeding re-applies it, so the first user provisions the tree
+  // (bundle + venvs + backends + models) and later users can replace a broken
+  // environment. A stale seed marker after an app update triggers a reseed.
   const root = sharedModeActive() ? sharedInstallRoot() : writableUserRoot()
 
   if (sharedModeActive() || !isInstallDirWritable()) {

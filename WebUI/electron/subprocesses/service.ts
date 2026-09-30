@@ -13,7 +13,12 @@ import { createHash } from 'crypto'
 
 import * as childProcess from 'node:child_process'
 import { promisify } from 'util'
-import { removeBrokenVenv, venvInterpreterPath, venvIsUsable } from './uvBasedBackends/venvState.ts'
+import {
+  removeBrokenVenv,
+  removeVenvTree,
+  venvInterpreterPath,
+  venvIsUsable,
+} from './uvBasedBackends/venvState.ts'
 import { Arch, getArchPriority, getDeviceArch } from './deviceArch.ts'
 import { z } from 'zod'
 import { LocalSettings } from '../main.ts'
@@ -721,24 +726,23 @@ export abstract class LongLivedPythonApiService implements ApiService {
     await this.stop()
     this.setStatus('installing')
     this.appLogger.info(`removing existing ${this.name} venv for a clean install`, this.name)
-    await filesystem.remove(this.pythonEnvDir)
+    await removeVenvTree(this.pythonEnvDir)
   }
 
   /**
-   * Remove the venv only if it exists without an interpreter — the empty-husk
-   * state (e.g. the Windows uninstaller's `RMDir /r` cannot delete deeply nested
-   * `site-packages` paths, so it leaves a partial tree behind). Installing into
-   * such a tree yields an environment that can never boot. Unlike
-   * {@link prepareCleanPythonEnv} this preserves a usable venv, which matters for
-   * backends whose venv holds packages that are not in the lockfile (ComfyUI
-   * custom-node dependencies installed at runtime).
+   * Remove the venv when this account cannot use it — no interpreter, not
+   * writable, or `pyvenv.cfg` home pointing at a Python this account cannot
+   * read. Installing into that tree yields an environment that can never boot.
+   * Unlike {@link prepareCleanPythonEnv} this preserves a usable venv, which
+   * matters for backends whose venv holds packages that are not in the lockfile
+   * (ComfyUI custom-node dependencies installed at runtime).
    */
   protected async removeUnusablePythonEnv(): Promise<void> {
     if (!filesystem.existsSync(this.pythonEnvDir) || venvIsUsable(this.pythonEnvDir)) return
     await this.stop()
     this.setStatus('installing')
     this.appLogger.warn(
-      `venv of ${this.name} has no interpreter — removing the partial tree before installing`,
+      `venv of ${this.name} is not usable by this account — removing it before installing`,
       this.name,
     )
     await removeBrokenVenv(this.pythonEnvDir)
@@ -750,7 +754,7 @@ export abstract class LongLivedPythonApiService implements ApiService {
     // removal fails with EPERM.
     await this.stop()
     this.appLogger.info(`removing python env of ${this.name} service`, this.name)
-    await filesystem.remove(this.pythonEnvDir)
+    await removeVenvTree(this.pythonEnvDir)
     this.appLogger.info(`removed python env of ${this.name} service`, this.name)
     // Without this the service keeps reporting isSetUp: true after its
     // environment is gone — the wizard row reads as installed and dismiss()

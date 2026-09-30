@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -54,6 +54,39 @@ describe('venvIsUsable', () => {
     fs.writeFileSync(venvInterpreterPath(venvDir), '')
     expect(venvIsUsable(venvDir)).toBe(true)
   })
+
+  it('is false when this account cannot write the venv', () => {
+    const venvDir = path.join(createTempDir(), '.venv')
+    fs.mkdirSync(path.dirname(venvInterpreterPath(venvDir)), { recursive: true })
+    fs.writeFileSync(venvInterpreterPath(venvDir), '')
+    const spy = vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {
+      throw Object.assign(new Error('EACCES'), { code: 'EACCES' })
+    })
+    try {
+      expect(venvIsUsable(venvDir)).toBe(false)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('is false when pyvenv.cfg home is not readable', () => {
+    const venvDir = path.join(createTempDir(), '.venv')
+    fs.mkdirSync(path.dirname(venvInterpreterPath(venvDir)), { recursive: true })
+    fs.writeFileSync(venvInterpreterPath(venvDir), '')
+    fs.writeFileSync(path.join(venvDir, 'pyvenv.cfg'), 'home = /no/such/python-home\n')
+    expect(venvIsUsable(venvDir)).toBe(false)
+  })
+
+  it('is true when pyvenv.cfg home exists and is readable', () => {
+    const root = createTempDir()
+    const venvDir = path.join(root, '.venv')
+    const home = path.join(root, 'python-home')
+    fs.mkdirSync(path.dirname(venvInterpreterPath(venvDir)), { recursive: true })
+    fs.mkdirSync(home)
+    fs.writeFileSync(venvInterpreterPath(venvDir), '')
+    fs.writeFileSync(path.join(venvDir, 'pyvenv.cfg'), `home = ${home}\n`)
+    expect(venvIsUsable(venvDir)).toBe(true)
+  })
 })
 
 describe('requireUsableVenv', () => {
@@ -95,5 +128,26 @@ describe('removeBrokenVenv', () => {
     fs.writeFileSync(path.join(venvDir, 'pyvenv.cfg'), 'home = leftover')
     expect(await removeBrokenVenv(venvDir)).toBe(true)
     expect(fs.existsSync(venvDir)).toBe(false)
+  })
+
+  it('removes a venv whose base Python is not readable', async () => {
+    const venvDir = path.join(createTempDir(), '.venv')
+    fs.mkdirSync(path.dirname(venvInterpreterPath(venvDir)), { recursive: true })
+    fs.writeFileSync(venvInterpreterPath(venvDir), '')
+    fs.writeFileSync(path.join(venvDir, 'pyvenv.cfg'), 'home = /no/such/python-home\n')
+    expect(await removeBrokenVenv(venvDir)).toBe(true)
+    expect(fs.existsSync(venvDir)).toBe(false)
+  })
+
+  it('keeps a writable venv whose base Python is readable', async () => {
+    const root = createTempDir()
+    const venvDir = path.join(root, '.venv')
+    const home = path.join(root, 'python-home')
+    fs.mkdirSync(path.dirname(venvInterpreterPath(venvDir)), { recursive: true })
+    fs.mkdirSync(home)
+    fs.writeFileSync(venvInterpreterPath(venvDir), '')
+    fs.writeFileSync(path.join(venvDir, 'pyvenv.cfg'), `home = ${home}\n`)
+    expect(await removeBrokenVenv(venvDir)).toBe(false)
+    expect(fs.existsSync(venvInterpreterPath(venvDir))).toBe(true)
   })
 })

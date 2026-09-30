@@ -13,9 +13,10 @@ import path from 'node:path'
  * returns null and the app keeps its default per-user paths.
  *
  * In "shared" mode `aipgRoot.ts` points the resources root at
- * `%PUBLIC%/AI Playground/resources`. `C:\Users\Public` inherits permissive
- * all-users ACLs out of the box, so it is read/write for every user without the
- * installer having to grant a custom ACL. Each user's mutable config is
+ * `%PUBLIC%/AI Playground/resources`. Public's default ACL does not let one
+ * account modify files another account created, so the installer grants
+ * inheritable Modify to BUILTIN\Users. Shared installs copy uv packages into
+ * that tree so new files inherit the grant. Each user's mutable config is
  * relocated to a private per-user folder. See `aipgRoot.ts` and `userConfig.ts`.
  */
 
@@ -33,8 +34,8 @@ export interface InstallConfig {
 }
 
 /**
- * `%PUBLIC%` (`C:\Users\Public`, or a sensible fallback) — machine-wide and
- * writable by all users out of the box thanks to its default ACLs.
+ * `%PUBLIC%` (`C:\Users\Public`, or a sensible fallback) — machine-wide. The
+ * installer still has to grant inheritable write access; the default ACL does not.
  */
 function publicDir(): string {
   return process.env.PUBLIC?.trim() || 'C:\\Users\\Public'
