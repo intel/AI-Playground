@@ -45,12 +45,24 @@ const execAsync = promisify(exec)
 export const LLAMACPP_DEFAULT_PARAMETERS =
   '--gpu-layers 999 --log-prefix --jinja --no-mmap -fa on --cache-ram 16384'
 const platformExtension = process.platform === 'win32' ? 'zip' : 'tar.gz'
-type StorageTarget = {
-  id: string
-  name: string
-  path: string
-  selected: boolean
-}
+
+// How much of a model server's console output is kept for the error message it
+// gets if it dies during startup. The whole output goes to the app log either
+// way; this is only what is short enough to put in front of the user.
+const SERVER_OUTPUT_TAIL_LINES = 12
+
+// llama-server's log level, as it appears with `--log-prefix`:
+//
+//   0.00.036.445 I system_info: n_threads = 16 ...
+//   0.00.728.001 D create_tensor: loading tensor blk.39.ffn_down_shexp.weight
+//
+// The letter follows the timestamp rather than opening the line, which is why
+// matching on a leading `I `/`W `/`E ` never selected anything and silently
+// discarded every line a model server ever wrote. The timestamp is optional
+// here: without `--log-prefix` there is no timestamp and no level either, and
+// those lines still have to be recognised as ordinary output rather than
+// dropped.
+export const SERVER_LOG_LEVEL_PATTERN = /^(?:[\d.:]+\s+)?([IWED])\s/
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]'])
 
@@ -228,8 +240,8 @@ export class LlamaCppBackendService implements ApiService {
   readonly baseDir = app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../../')
   readonly serviceDir: string
   readonly llamaCppSsdOffloadConfigPath: string
+  readonly llamaCppSsdOffloadEmbeddingConfigPath: string
   devices: InferenceDevice[] = [{ id: '0', name: 'Auto select device', selected: true }]
-  storageTargets: StorageTarget[] = []
 
   // Health endpoint
   healthEndpointUrl: string
@@ -277,7 +289,6 @@ export class LlamaCppBackendService implements ApiService {
 
   private llamaCppParametersString: string = LLAMACPP_DEFAULT_PARAMETERS
   private llamaCppBuildVariant: LlamaCppBuildVariant = 'standard'
-  private llamaCppOffloadDrive: string | null = null
 
   updatePort(newPort: number) {
     this.port = newPort
@@ -326,19 +337,30 @@ export class LlamaCppBackendService implements ApiService {
     // Set up paths (binaries live under getActiveLlamaCppDir() — standard vs Phison use different folders)
     this.serviceDir = path.resolve(path.join(this.baseDir, 'LlamaCPP'))
     this.llamaCppSsdOffloadConfigPath = llamaCppPhison.getSsdOffloadConfigPath(this.serviceDir)
+    this.llamaCppSsdOffloadEmbeddingConfigPath = llamaCppPhison.getSsdOffloadEmbeddingConfigPath(
+      this.serviceDir,
+    )
     this.migrateLegacySsdOffloadConfigFile()
     this.ensureSsdOffloadConfigFileSync()
+    this.ensureSsdOffloadEmbeddingConfigFileSync()
     this.migrateLegacyPhisonIntoSeparateDirectory()
 
     this.syncSetupFlagsFromDisk()
     this.appLogger.info(`Service ${this.name} isSetUp: ${this.isSetUp}`, this.name)
 
-    this.detectStorageTargets()
-      .then(() => {
-        this.updateStatus()
-      })
+    // Repair configs written by older builds — a legacy key name, a debug log
+    // path naming a drive that only ever existed on the machine that picked it,
+    // or an offload drive letter the current middleware finds on its own —
+    // before anything can launch a server against them.
+    this.reconcileSsdOffloadConfigs()
       .catch((error) => {
-        this.appLogger.warn(`Failed to detect storage targets on startup: ${error}`, this.name)
+        this.appLogger.warn(
+          `Failed to reconcile SSD offload configs on startup: ${error}`,
+          this.name,
+        )
+      })
+      .finally(() => {
+        this.updateStatus()
       })
   }
 
@@ -504,8 +526,6 @@ export class LlamaCppBackendService implements ApiService {
 
   async detectDevices() {
     try {
-      await this.detectStorageTargets()
-
       // Check if llama-server.exe exists
       if (!filesystem.existsSync(this.getActiveLlamaCppExePath())) {
         this.appLogger.warn('llama-server.exe not found, using default device', this.name)
@@ -622,7 +642,6 @@ export class LlamaCppBackendService implements ApiService {
       isSetUp: this.isSetUp,
       isRequired: this.isRequired,
       devices: this.devices,
-      storageTargets: this.storageTargets,
       llamaCppSsdOffloadConfigPath: this.getRelativeSsdOffloadConfigPath(),
       errorDetails: this.lastStartupErrorDetails,
       installedVersion: this.cachedInstalledVersion,
@@ -678,21 +697,6 @@ export class LlamaCppBackendService implements ApiService {
         await this.stopLlamaLlmServer()
         await this.stopLlamaEmbeddingServer()
       }
-    }
-    if (
-      typeof settings.llamaCppOffloadDrive === 'string' ||
-      settings.llamaCppOffloadDrive === null
-    ) {
-      this.llamaCppOffloadDrive = this.normalizeOffloadDrivePath(settings.llamaCppOffloadDrive)
-      this.storageTargets = this.storageTargets.map((target) => ({
-        ...target,
-        selected: target.path === this.llamaCppOffloadDrive,
-      }))
-      this.appLogger.info(
-        `applied new LlamaCPP SSD offload drive: ${this.llamaCppOffloadDrive ?? 'none'}`,
-        this.name,
-      )
-      await this.updateSsdOffloadConfig()
     }
     this.syncSetupFlagsFromDisk()
   }
@@ -843,7 +847,7 @@ export class LlamaCppBackendService implements ApiService {
         }
       }
 
-      await this.updateSsdOffloadConfig()
+      await this.reconcileSsdOffloadConfigs()
       this.syncSetupFlagsFromDisk()
       this.setStatus('notYetStarted')
 
@@ -1057,20 +1061,26 @@ export class LlamaCppBackendService implements ApiService {
     )
   }
 
-  private normalizeOffloadDrivePath(offloadDrive?: string | null): string | null {
-    return llamaCppPhison.normalizeOffloadDrivePath(offloadDrive)
+  private getRelativeSsdOffloadEmbeddingConfigPath(): string {
+    return llamaCppPhison.getRelativeSsdOffloadConfigPath(
+      this.serviceDir,
+      this.llamaCppBuildVariant,
+      this.llamaCppSsdOffloadEmbeddingConfigPath,
+    )
   }
 
-  private async updateSsdOffloadConfig(): Promise<void> {
+  private async reconcileSsdOffloadConfigs(): Promise<void> {
     await this.ensureSsdOffloadConfigFile()
-    await llamaCppPhison.updateSsdOffloadConfig(
+    const logger = {
+      info: (message: string) => this.appLogger.info(message, this.name),
+      warn: (message: string) => this.appLogger.warn(message, this.name),
+    }
+    for (const configPath of [
       this.llamaCppSsdOffloadConfigPath,
-      this.llamaCppOffloadDrive,
-      {
-        info: (message) => this.appLogger.info(message, this.name),
-        warn: (message) => this.appLogger.warn(message, this.name),
-      },
-    )
+      this.llamaCppSsdOffloadEmbeddingConfigPath,
+    ]) {
+      await llamaCppPhison.reconcileSsdOffloadConfig(configPath, this.serviceDir, logger)
+    }
   }
 
   /**
@@ -1098,11 +1108,26 @@ export class LlamaCppBackendService implements ApiService {
     )
   }
 
+  private async ensureSsdOffloadEmbeddingConfigFile(): Promise<void> {
+    await llamaCppPhison.ensureSsdOffloadEmbeddingConfigFile(
+      this.serviceDir,
+      this.llamaCppSsdOffloadEmbeddingConfigPath,
+    )
+  }
+
+  private ensureSsdOffloadEmbeddingConfigFileSync(): void {
+    llamaCppPhison.ensureSsdOffloadEmbeddingConfigFileSync(
+      this.serviceDir,
+      this.llamaCppSsdOffloadEmbeddingConfigPath,
+    )
+  }
+
   private async ensureSsdOffloadConfigFile(): Promise<void> {
     await llamaCppPhison.ensureSsdOffloadConfigFile(
       this.serviceDir,
       this.llamaCppSsdOffloadConfigPath,
     )
+    await this.ensureSsdOffloadEmbeddingConfigFile()
   }
 
   private async ensureSsdOffloadWindowsService(): Promise<void> {
@@ -1139,28 +1164,32 @@ export class LlamaCppBackendService implements ApiService {
       return
     }
 
-    const activeDir = this.getActiveLlamaCppDir()
-    const deleteScriptPath = path.join(
-      activeDir,
-      llamaCppPhison.LLAMACPP_SSD_OFFLOAD_DELETE_SERVICE_SCRIPT,
-    )
-
-    // Batch the service teardown and the ada.exe kill into a single elevated session so the
-    // user sees one UAC prompt rather than one for the delete script plus one for taskkill.
-    const commands: string[] = []
-    if (filesystem.existsSync(deleteScriptPath)) {
-      commands.push(`call "${deleteScriptPath}"`)
+    const dirs = llamaCppPhison.phisonCleanupDirs(this.serviceDir)
+    if (dirs.length === 0) {
+      return
     }
-    // taskkill returns a non-zero exit code when the process is not running; the batch script
-    // intentionally runs every line (no early exit) so best-effort teardown always completes.
-    commands.push(`taskkill /F /IM "${llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME}" /T`)
+
+    // One elevated session for every tree that still has the service. taskkill
+    // returns non-zero when ada.exe is not running; the batch runs every line.
+    const commands: string[] = []
+    for (const dir of dirs) {
+      const deleteScriptPath = path.join(
+        dir,
+        llamaCppPhison.LLAMACPP_SSD_OFFLOAD_DELETE_SERVICE_SCRIPT,
+      )
+      commands.push(`cd /d "${dir}"`)
+      if (filesystem.existsSync(deleteScriptPath)) {
+        commands.push(`call "${deleteScriptPath}"`)
+      }
+      commands.push(`taskkill /F /IM "${llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME}" /T`)
+    }
 
     try {
       this.appLogger.info(
         `Stopping SSD offload Windows service and ${llamaCppPhison.LLAMACPP_SSD_OFFLOAD_PROCESS_NAME} before cleanup`,
         this.name,
       )
-      await this.runElevatedBatch(commands, activeDir)
+      await this.runElevatedBatch(commands, dirs[0])
     } catch (error) {
       this.appLogger.warn(
         `Failed to stop SSD offload artifacts before cleanup: ${error}`,
@@ -1375,9 +1404,26 @@ export class LlamaCppBackendService implements ApiService {
         this.name,
       )
 
-      const userParameters = sanitizeUserLlamaCppParameters(this.llamaCppParametersString, (msg) =>
-        this.appLogger.warn(msg, this.name, true),
+      const sanitizedParameters = sanitizeUserLlamaCppParameters(
+        this.llamaCppParametersString,
+        (msg) => this.appLogger.warn(msg, this.name, true),
       )
+      // In ssd-offload mode the aiDAPTIV config is not optional: without
+      // `--config-file` the runtime falls back to an empty configuration and
+      // loads the model with none of the offload budgets the build exists to
+      // apply. The flag normally arrives inside the startup-parameter string,
+      // which the renderer defaults per build variant — but that string is a
+      // single persisted setting shared by both variants, so a value saved
+      // while the standard build was selected (or hand-edited) follows the user
+      // to the Phison build without it. Appending it here makes the LLM server
+      // as robust to that as the embedding server already was; a `--config-file`
+      // the user did type still wins, since withConfigFileArg rewrites in place.
+      const userParameters = llamaCppPhison.isSsdOffloadVariant(this.llamaCppBuildVariant)
+        ? llamaCppPhison.withConfigFileArg(
+            sanitizedParameters,
+            this.getRelativeSsdOffloadConfigPath(),
+          )
+        : sanitizedParameters
       // Flags the model itself asks for (models.json `llamaCppArgs`), e.g.
       // speculative decoding off a model's own MTP head. Sanitized like the
       // user's, because the catalog can be refreshed from a remote repo. They
@@ -1449,38 +1495,41 @@ export class LlamaCppBackendService implements ApiService {
         }
       }
 
-      const handleServerOutput = (message: Buffer | string) => {
-        const msg = message.toString()
+      const serverOutput = this.captureServerOutput('[LLM]', (line) => {
         // Once a failure is detected the flag never flips back, so there's no
         // need to keep scanning the (high-volume) startup output.
         if (!memoryFailureDetected) {
-          scanForMemoryFailure(msg)
+          scanForMemoryFailure(line)
         }
-        if (msg.startsWith('I ')) {
-          this.appLogger.info(`[LLM] ${message}`, this.name)
-        } else if (msg.startsWith('W ')) {
-          this.appLogger.warn(`[LLM] ${message}`, this.name)
-        } else if (msg.startsWith('E ')) {
-          this.appLogger.error(`[LLM] ${message}`, this.name)
-        }
-      }
+      })
 
       // Returns an actionable error message if the server has failed to start,
       // otherwise null. Consumed by waitForServerReady to abort the wait early.
       const getStartupError = (): string | null => {
+        // Flushed here rather than in the exit handler: `exit` can fire before
+        // the pipes have drained, so the reason a server aborted with is often
+        // still in flight at that point and has landed by the next poll.
+        serverOutput.flush()
         if (memoryFailureDetected) {
           return `Model failed to load: not enough memory to run "${modelRepoId}" with a context size of ${ctxSize}. Try reducing the context size and load the model again.`
         }
         if (processExited) {
-          return `Model failed to load: the server for "${modelRepoId}" exited unexpectedly (code ${exitCode}). This is often caused by running out of memory — try reducing the context size and load the model again.`
+          const tail = serverOutput.tail()
+          // The tail is what distinguishes the guess from the answer: an
+          // unsupported architecture, a missing DLL and a genuine OOM all reach
+          // this line as the same bare exit code.
+          return (
+            `Model failed to load: the server for "${modelRepoId}" exited unexpectedly (code ${exitCode}). This is often caused by running out of memory — try reducing the context size and load the model again.` +
+            (tail ? `\n\nLast output from llama-server:\n${tail}` : '')
+          )
         }
         return null
       }
 
       // Set up process event handlers
-      childProcess.stdout!.on('data', handleServerOutput)
+      childProcess.stdout!.on('data', serverOutput.handle)
 
-      childProcess.stderr!.on('data', handleServerOutput)
+      childProcess.stderr!.on('data', serverOutput.handle)
 
       childProcess.on('error', (error: Error) => {
         this.appLogger.error(`LLM server process error: ${error}`, this.name)
@@ -1525,6 +1574,7 @@ export class LlamaCppBackendService implements ApiService {
 
   private async startLlamaEmbeddingServer(modelRepoId: string): Promise<LlamaServerProcess> {
     try {
+      await this.ensureSsdOffloadEmbeddingConfigFile()
       const modelPath = this.resolveEmbeddingModelPath(modelRepoId)
       const port = await getPort({ port: portNumbers(39200, 39299) })
 
@@ -1533,9 +1583,22 @@ export class LlamaCppBackendService implements ApiService {
         this.name,
       )
 
-      const userParameters = sanitizeUserLlamaCppParameters(this.llamaCppParametersString, (msg) =>
-        this.appLogger.warn(msg, this.name, true),
+      const sanitizedParameters = sanitizeUserLlamaCppParameters(
+        this.llamaCppParametersString,
+        (msg) => this.appLogger.warn(msg, this.name, true),
       )
+      const isSsdOffload = llamaCppPhison.isSsdOffloadVariant(this.llamaCppBuildVariant)
+      // The startup-parameter string is shared with the LLM server, so in
+      // ssd-offload mode it carries `--config-file <LLM config>`. Swap in the
+      // embedding server's own config: it needs none of the SSD/VRAM offload
+      // budget the LLM config reserves, and reserving it here takes it from
+      // the LLM server for the lifetime of the embedding process.
+      const userParameters = isSsdOffload
+        ? llamaCppPhison.withConfigFileArg(
+            sanitizedParameters,
+            this.getRelativeSsdOffloadEmbeddingConfigPath(),
+          )
+        : sanitizedParameters
       const args = [
         '--embedding',
         '--model',
@@ -1548,6 +1611,18 @@ export class LlamaCppBackendService implements ApiService {
         '-ub',
         '1024',
         ...userParameters,
+        // ssd-offload only. The standard build keeps llama-server's own default
+        // window, unchanged — see PHISON_EMBEDDING_CONTEXT_SIZE for why the
+        // Phison build pins one.
+        //
+        // After the user parameters, unlike the LLM server, which puts its
+        // --ctx-size first and lets the user override it. The parameter box is
+        // shared between the two servers, so a --ctx-size typed there is meant
+        // for the LLM; letting it through here would set a window larger than
+        // the -ub above, which a pooled embedding pass cannot batch.
+        ...(isSsdOffload
+          ? ['--ctx-size', String(llamaCppPhison.PHISON_EMBEDDING_CONTEXT_SIZE)]
+          : []),
         // Force-append --host AFTER user params so we always win, even if
         // the user tried to inject their own --host. Defense in depth on
         // top of llama-server's documented default (127.0.0.1).
@@ -1570,33 +1645,18 @@ export class LlamaCppBackendService implements ApiService {
       }
 
       // Set up process event handlers
-      childProcess.stdout!.on('data', (message) => {
-        const msg = message.toString()
-        if (msg.startsWith('I ')) {
-          this.appLogger.info(`[Embedding] ${message}`, this.name)
-        } else if (msg.startsWith('W ')) {
-          this.appLogger.warn(`[Embedding] ${message}`, this.name)
-        } else if (msg.startsWith('E ')) {
-          this.appLogger.error(`[Embedding] ${message}`, this.name)
-        }
-      })
+      const serverOutput = this.captureServerOutput('[Embedding]')
 
-      childProcess.stderr!.on('data', (message) => {
-        const msg = message.toString()
-        if (msg.startsWith('I ')) {
-          this.appLogger.info(`[Embedding] ${message}`, this.name)
-        } else if (msg.startsWith('W ')) {
-          this.appLogger.warn(`[Embedding] ${message}`, this.name)
-        } else if (msg.startsWith('E ')) {
-          this.appLogger.error(`[Embedding] ${message}`, this.name)
-        }
-      })
+      childProcess.stdout!.on('data', serverOutput.handle)
+
+      childProcess.stderr!.on('data', serverOutput.handle)
 
       childProcess.on('error', (error: Error) => {
         this.appLogger.error(`Embedding server process error: ${error}`, this.name)
       })
 
       childProcess.on('exit', (code: number | null) => {
+        serverOutput.flush()
         this.appLogger.info(`Embedding server process exited with code: ${code}`, this.name)
         if (this.llamaEmbeddingProcess === llamaProcess) {
           this.llamaEmbeddingProcess = null
@@ -1685,6 +1745,76 @@ export class LlamaCppBackendService implements ApiService {
     return modelPath
   }
 
+  /**
+   * Log everything a model server prints, and keep the tail of it.
+   *
+   * Every line is logged whatever it looks like. The `I `/`W `/`E ` prefixes
+   * only exist when llama-server runs with `--log-prefix`, and that flag
+   * reaches it through the user-editable startup-parameter string — the
+   * ssd-offload build is configured by a `--config-file` whose parameter string
+   * carries no such flag. Keying the log on those prefixes therefore discarded
+   * the entire startup log, abort reason included, on precisely the builds
+   * whose failures are hardest to guess at from the outside.
+   *
+   * Output is reassembled into lines before being scanned or logged: a chunk
+   * boundary falls wherever the pipe buffer happens to fill, so a marker like
+   * `failed to allocate` can otherwise arrive split across two reads and match
+   * neither. The trailing partial line is held back until it completes or
+   * `flush()` is called at exit — a process that aborts mid-line still gets its
+   * last words read.
+   */
+  private captureServerOutput(
+    label: string,
+    onLine?: (line: string) => void,
+  ): {
+    handle: (message: Buffer | string) => void
+    flush: () => void
+    tail: () => string
+  } {
+    const tail: string[] = []
+    let pending = ''
+
+    const consume = (line: string) => {
+      if (line.trim().length === 0) return
+      onLine?.(line)
+      tail.push(line)
+      if (tail.length > SERVER_OUTPUT_TAIL_LINES) tail.shift()
+
+      const level = SERVER_LOG_LEVEL_PATTERN.exec(line)?.[1]
+      if (level === 'E') {
+        this.appLogger.error(`${label} ${line}`, this.name)
+      } else if (level === 'W') {
+        this.appLogger.warn(`${label} ${line}`, this.name)
+      } else if (level === 'D') {
+        // Dropped, but only from the log — the tail above still carries the last
+        // of them into a startup error. aiDAPTIV's config sets `verbose: true`,
+        // which puts llama-server at maximum log verbosity, and at that level
+        // the debug stream is a line per tensor per load: thousands of them,
+        // enough to drown every other line in the console.
+      } else {
+        // Everything else, including output with no level at all: the aiDAPTIV
+        // `[MDW]` lines and llama-server's own banner carry no prefix, and they
+        // are exactly what the old filter threw away.
+        this.appLogger.info(`${label} ${line}`, this.name)
+      }
+    }
+
+    return {
+      handle: (message: Buffer | string) => {
+        pending += message.toString()
+        const lines = pending.split(/\r?\n/)
+        pending = lines.pop() ?? ''
+        lines.forEach(consume)
+      },
+      flush: () => {
+        const remainder = pending
+        pending = ''
+        consume(remainder)
+      },
+      tail: () => tail.join('\n'),
+    }
+  }
+
   private async waitForServerReady(
     healthUrl: string,
     process: ChildProcess,
@@ -1696,54 +1826,6 @@ export class LlamaCppBackendService implements ApiService {
       getStartupError,
       appLogger: this.appLogger,
     })
-  }
-
-  private async detectStorageTargets(): Promise<void> {
-    if (process.platform !== 'win32') {
-      this.storageTargets = []
-      return
-    }
-
-    try {
-      const command =
-        'powershell -NoProfile -Command "Get-Volume | Where-Object { $_.DriveLetter -and $_.DriveType -eq \'Fixed\' } | Select-Object DriveLetter, FileSystemLabel, FileSystem | ConvertTo-Json -Compress"'
-      const { stdout } = await execAsync(command, {
-        timeout: 10000,
-      })
-      const rawTargets = stdout.trim()
-      if (!rawTargets) {
-        this.storageTargets = []
-        return
-      }
-
-      const parsedTargets = JSON.parse(rawTargets) as
-        | Array<{ DriveLetter?: string; FileSystemLabel?: string; FileSystem?: string }>
-        | { DriveLetter?: string; FileSystemLabel?: string; FileSystem?: string }
-      const normalizedTargets = Array.isArray(parsedTargets) ? parsedTargets : [parsedTargets]
-
-      this.storageTargets = normalizedTargets
-        .filter((target) => typeof target.DriveLetter === 'string' && target.DriveLetter.length > 0)
-        .map((target) => {
-          const path = `${target.DriveLetter}:\\`
-          const labelParts = [`${target.DriveLetter}:`]
-          if (target.FileSystemLabel) {
-            labelParts.push(target.FileSystemLabel)
-          }
-          if (target.FileSystem) {
-            labelParts.push(`(${target.FileSystem})`)
-          }
-
-          return {
-            id: path,
-            name: labelParts.join(' '),
-            path,
-            selected: path === this.llamaCppOffloadDrive,
-          }
-        })
-    } catch (error) {
-      this.appLogger.warn(`Failed to detect storage targets: ${error}`, this.name)
-      this.storageTargets = []
-    }
   }
 
   // Error management methods for startup failures
@@ -1761,11 +1843,9 @@ export class LlamaCppBackendService implements ApiService {
 
   async uninstall(): Promise<void> {
     await this.stop()
-    // Phison / ada.exe teardown uses elevated batch + taskkill — only when replacing SSD-offload.
-    // Standard GGUF reinstall goes through uninstall()+set_up(); variant standard must not prompt UAC.
-    if (this.llamaCppBuildVariant === 'ssd-offload') {
-      await this.stopSsdOffloadArtifactsForCleanup()
-    }
+    // Stop ada.exe whenever its tree is still on disk. The selected variant may
+    // already be standard, and a standard-only install has nothing to elevate for.
+    await this.stopSsdOffloadArtifactsForCleanup()
     this.appLogger.info(`removing LlamaCPP service directory`, this.name)
     await this.removeDirectoryWithRetries(this.serviceDir)
     this.appLogger.info(`removed LlamaCPP service directory`, this.name)

@@ -272,7 +272,87 @@
 !macroend
 
 
+; Append stop/delete steps for one LlamaCPP tree when ada.exe or its service
+; script is there. $R9 is the open script, $R7 becomes "1" when any tree matches.
+; A normal install has neither file, so uninstall does not show UAC.
+!macro appendPhisonAdaCleanupDir
+  ${if} ${FileExists} "$R4\ada.exe"
+  ${orif} ${FileExists} "$R4\wService_delete.bat"
+    StrCpy $R7 "1"
+    FileWrite $R9 'cd /d "$R4"$\r$\n'
+    ${if} ${FileExists} "$R4\wService_delete.bat"
+      FileWrite $R9 'call "$R4\wService_delete.bat"$\r$\n'
+    ${endif}
+    FileWrite $R9 'taskkill /F /IM ada.exe /T$\r$\n'
+    FileWrite $R9 'del /f /q "$R4\ada.exe"$\r$\n'
+  ${endif}
+!macroend
+
+!macro appendPhisonAdaCleanup LLAMA_CPP_DIR
+  StrCpy $R8 "${LLAMA_CPP_DIR}"
+  StrCpy $R4 "$R8\llama-cpp-phison"
+  !insertmacro appendPhisonAdaCleanupDir
+  StrCpy $R4 "$R8\llama-cpp"
+  !insertmacro appendPhisonAdaCleanupDir
+!macroend
+
 !macro customUnInstall
+  ; ada.exe is a Windows service. The uninstaller is asInvoker, so RMDir cannot
+  ; stop it and the locked file is left behind. One elevated cmd stops the
+  ; service, kills the process, and deletes the binary before that RMDir.
+  ; Trees outside $INSTDIR (per-user and shared resources) are not removed by
+  ; RMDir, so the same cmd deletes ada.exe there too. No prompt when it is absent.
+  StrCpy $R7 "0"
+  StrCpy $R6 "$TEMP\aipg-stop-ada.cmd"
+  ClearErrors
+  FileOpen $R9 $R6 w
+  ${ifNot} ${Errors}
+    FileWrite $R9 "@echo off$\r$\n"
+    !insertmacro appendPhisonAdaCleanup "$INSTDIR\resources\LlamaCPP"
+    ReadEnvStr $R8 "LOCALAPPDATA"
+    ${if} $R8 != ""
+      !insertmacro appendPhisonAdaCleanup "$R8\ai-playground\resources\LlamaCPP"
+    ${endif}
+    ReadEnvStr $R5 "PUBLIC"
+    ${if} $R5 == ""
+      StrCpy $R5 "C:\Users\Public"
+    ${endif}
+    StrCpy $R3 ""
+    ClearErrors
+    FileOpen $R4 "$R5\AI Playground\shared-resources-dir.txt" r
+    ${ifNot} ${Errors}
+      FileRead $R4 $R3
+      FileClose $R4
+      StrCpy $R8 $R3 1 -1
+      ${if} $R8 == "$\n"
+        StrCpy $R3 $R3 -1
+      ${endif}
+      StrCpy $R8 $R3 1 -1
+      ${if} $R8 == "$\r"
+        StrCpy $R3 $R3 -1
+      ${endif}
+    ${endif}
+    ClearErrors
+    ${if} $R3 != ""
+      !insertmacro appendPhisonAdaCleanup "$R3\resources\LlamaCPP"
+    ${endif}
+    StrCpy $R8 "$R5\AI Playground"
+    ${if} $R3 == ""
+    ${orif} $R3 != $R8
+      !insertmacro appendPhisonAdaCleanup "$R8\resources\LlamaCPP"
+    ${endif}
+    FileClose $R9
+    ${if} $R7 == "1"
+      DetailPrint "Stopping aiDAPTIV service before removing ada.exe"
+      nsExec::ExecToLog 'powershell.exe -NoProfile -NonInteractive -Command "Start-Process -FilePath $\'$R6$\' -Verb RunAs -WindowStyle Hidden -Wait"'
+      Pop $R5
+      ${if} $R5 != 0
+        DetailPrint "Could not stop aiDAPTIV (ada.exe). Uninstall continues; ada.exe may remain if the service is still running."
+      ${endif}
+    ${endif}
+    Delete "$R6"
+  ${endif}
+
   ; Remove only the machine-wide install markers (mode + shared-folder path) so a
   ; future reinstall re-prompts for the choices. The shared resources tree (under
   ; %PUBLIC%\AI Playground\resources by default, or the admin-chosen folder)

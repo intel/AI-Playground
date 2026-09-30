@@ -48,13 +48,6 @@ declare interface InferenceDevice {
   uuid?: string | null
 }
 
-declare type StorageTarget = {
-  id: string
-  name: string
-  path: string
-  selected: boolean
-}
-
 declare interface ErrorDetails {
   command?: string
   exitCode?: number
@@ -74,7 +67,6 @@ declare interface ApiServiceInformation {
   isSetUp: boolean
   isRequired: boolean
   devices: InferenceDevice[]
-  storageTargets?: StorageTarget[]
   llamaCppSsdOffloadConfigPath?: string
   sttDevices?: InferenceDevice[]
   errorDetails: ErrorDetails | null

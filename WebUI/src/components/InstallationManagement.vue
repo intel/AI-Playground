@@ -332,7 +332,7 @@
                 <span class="inline-flex items-center gap-2">
                   <span
                     class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                    title="Llama.cpp-Phison aiDAPTIV+"
+                    title="Llama.cpp with Phison Pascari aiDAPTIV"
                   >
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path
@@ -349,7 +349,8 @@
                     </svg>
                   </span>
                   <span>{{
-                    languages.BACKEND_PHISON_AIDAPTIV_ROW || 'Llama.cpp-Phison aiDAPTIV+ SSD'
+                    languages.BACKEND_PHISON_AIDAPTIV_ROW ||
+                    'Llama.cpp with Phison Pascari aiDAPTIV'
                   }}</span>
                 </span>
               </td>

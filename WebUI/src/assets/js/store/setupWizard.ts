@@ -428,21 +428,21 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       toggleTooltip = 'Installation or startup in progress'
     } else if (isSsdVariant && isSetUp) {
       toggleTooltip =
-        'Toggle off to stop using the Phison aiDAPTIV+ build (switches to standard Llama.cpp)'
+        'Toggle off to stop using the Phison Pascari aiDAPTIV build (switches to standard Llama.cpp)'
     } else if (isSsdVariant && !isSetUp) {
-      toggleTooltip = 'Toggle on to install the Phison aiDAPTIV+ Llama.cpp build'
+      toggleTooltip = 'Toggle on to install Llama.cpp with Phison Pascari aiDAPTIV'
     } else if (!isSsdVariant && phisonArtifactReady) {
-      toggleTooltip =
-        'Phison build is installed — toggle on to use aiDAPTIV+ SSD offload with Llama.cpp'
+      toggleTooltip = 'Phison Pascari aiDAPTIV is installed - toggle on to use it with Llama.cpp'
     } else if (!isSsdVariant && installSelection.value.has('llamacpp-backend')) {
-      toggleTooltip = 'Turn on to switch from standard Llama.cpp GGUF to the Phison aiDAPTIV+ build'
+      toggleTooltip =
+        'Turn on to switch from standard Llama.cpp GGUF to Llama.cpp with Phison Pascari aiDAPTIV'
     } else {
-      toggleTooltip = 'Toggle on to enable Phison aiDAPTIV+ SSD offload for Llama.cpp'
+      toggleTooltip = 'Toggle on to enable Phison Pascari aiDAPTIV for Llama.cpp'
     }
 
     return {
       kind: 'phison-aidaptiv',
-      displayName: 'Llama.cpp-Phison aiDAPTIV+ SSD',
+      displayName: 'Llama.cpp with Phison Pascari aiDAPTIV',
       enabled: isSsdVariant,
       toggleDisabled: isInstalling,
       isInstalling,
@@ -498,7 +498,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
         toggleTooltip = 'Installation in progress'
       } else if (phisonVariantLocksLlamaRow) {
         toggleTooltip =
-          'Disabled while Phison aiDAPTIV+ SSD mode is on — use the Llama.cpp-Phison row below'
+          'Disabled while Phison Pascari aiDAPTIV is enabled - use the Llama.cpp with Phison Pascari aiDAPTIV row below'
       } else if (isSetUp && enabled) {
         toggleTooltip = 'Toggle off to stop this component'
       } else if (isSetUp && !enabled) {

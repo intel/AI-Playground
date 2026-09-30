@@ -17,8 +17,8 @@ import type { useBackendServices } from './store/backendServices'
  * Hard minimum context size for Phison KM group retrieval — not a recommendation.
  * A merged group is capped at ~13 000 tokens and the shared prefix must fit alongside
  * it, so below this the KV-cache prefix stops lining up and retrieval silently
- * truncates. Enforced continuously while KM mode is on (the settings input's `min`,
- * the contextSize clamp watcher, and preset load all use this same value), and KM is
+ * truncates. Enforced when a context size is committed (the settings box applies
+ * it on blur, the clamp watcher, and preset load all use this same value), and KM is
  * reported unavailable outright when the model's own ceiling can't reach it.
  */
 export const PHISON_KM_CONTEXT_FLOOR = 16384

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { ref, computed, nextTick } from 'vue'
 import { createPhisonKmRag, type PhisonKmRagDeps } from './phisonKmRag'
+import { useContextSizeField } from './contextSizeField'
 
 /**
  * The context-size clamp, isolated from the store that owns it.
@@ -110,5 +111,44 @@ describe('phisonKmRag context-size clamp', () => {
     modelCeiling.value = 2048
     await nextTick()
     expect(contextSize.value).toBe(32768)
+  })
+})
+
+describe('context size field under the KM floor', () => {
+  it('commits a typed window above the floor instead of snapping each keystroke', async () => {
+    const contextSize = ref(16384)
+    const requestedContextSize = ref(16384)
+    const modelCeiling = ref<number | undefined>(131072)
+
+    const km = createPhisonKmRag({
+      contextSize,
+      requestedContextSize,
+      maxContextSizeFromModel: computed(() => modelCeiling.value),
+      getActivePreset: () => ({ supportsPhisonKmRag: true, requiresPhison: true }),
+      backend: ref('llamaCPP'),
+      backendServices: {
+        phisonSsdDetected: true,
+        llamaCppBuildVariant: 'ssd-offload',
+        info: [],
+      },
+      isLoadingSettings: () => false,
+    } as unknown as PhisonKmRagDeps)
+    km.ragMode.value = 'phisonKm'
+    await nextTick()
+
+    const field = useContextSizeField(contextSize)
+    // The settings template reads `draft` directly. A nested Ref stringifies to
+    // "[object Object]" in the input.
+    expect(field.draft).toBe('16384')
+    field.onFocus()
+    field.onInput({ target: { value: '1' } } as unknown as Event)
+    expect(contextSize.value).toBe(16384)
+
+    field.onInput({ target: { value: '131072' } } as unknown as Event)
+    field.commit()
+    await nextTick()
+
+    expect(contextSize.value).toBe(131072)
+    expect(field.draft).toBe('131072')
   })
 })

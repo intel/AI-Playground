@@ -132,12 +132,15 @@
       <div class="flex items-center gap-3">
         <input
           id="agent-context-size"
-          type="number"
-          v-model="textInference.contextSize"
-          min="512"
-          max="131072"
-          step="512"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          :value="contextSizeField.draft"
           class="rounded-sm text-foreground text-center h-7 w-24 leading-7 p-0 bg-transparent border border-border"
+          @focus="contextSizeField.onFocus"
+          @input="contextSizeField.onInput"
+          @blur="contextSizeField.commit"
+          @keydown.enter="contextSizeField.commit"
         />
         <span v-if="textInference.contextSize < 16384" class="text-xs text-amber-500">
           Agentic sessions typically need 32k+ context.
@@ -287,7 +290,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, toRef, watch } from 'vue'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import DropDownNew from '@/components/DropDownNew.vue'
@@ -313,12 +316,16 @@ import PresetSelector from '@/components/PresetSelector.vue'
 import SettingsBuiltinTools from '@/components/SettingsBuiltinTools.vue'
 import { usePresets } from '@/assets/js/store/presets'
 import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
+import { useContextSizeField } from '@/assets/js/contextSizeField'
 import * as toast from '@/assets/js/toast'
 
 const agentMode = useAgentMode()
 const presetsStore = usePresets()
 const presetSwitching = usePresetSwitching()
 const textInference = useTextInference()
+const contextSizeField = useContextSizeField(toRef(textInference, 'contextSize'), () =>
+  textInference.markContextSizeEdited(),
+)
 const backendServices = useBackendServices()
 const cloudMode = useCloudMode()
 const productModeStore = useProductMode()

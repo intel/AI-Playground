@@ -31,7 +31,6 @@ type ServiceSettings = {
   comfyUiParameters?: string
   llamaCppParameters?: string
   llamaCppBuildVariant?: 'standard' | 'ssd-offload'
-  llamaCppOffloadDrive?: string | null
   // OVMS --kv_cache_precision value ('u8' | 'u4' | 'f16' | 'fp32'); '' = OVMS default.
   ovmsKvCachePrecision?: string
 }
@@ -997,7 +996,6 @@ type ApiServiceInformation = {
   isSetUp: boolean
   isRequired: boolean
   devices: InferenceDevice[]
-  storageTargets?: StorageTarget[]
   llamaCppSsdOffloadConfigPath?: string
   sttDevices?: InferenceDevice[]
   errorDetails: ErrorDetails | null
@@ -1006,13 +1004,6 @@ type ApiServiceInformation = {
   llamaCppPhisonArtifactReady?: boolean
   llamaCppStandardInstalledVersion?: { version: string; releaseTag?: string }
   llamaCppPhisonInstalledVersion?: { version: string; releaseTag?: string }
-}
-
-type StorageTarget = {
-  id: string
-  name: string
-  path: string
-  selected: boolean
 }
 
 // The catalog entry `loadModels` returns. Mirrors `ModelSchema` in

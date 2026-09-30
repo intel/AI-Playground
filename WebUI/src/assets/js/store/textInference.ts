@@ -688,6 +688,13 @@ export const useTextInference = defineStore(
     // whenever they move. See PhisonKmRagDeps.requestedContextSize for why the bounded
     // value alone is not enough to hold on to.
     const requestedContextSize = ref<number>(8192)
+    // True once the context box has been committed by hand. Until then a Phison
+    // preset stuck on the KM floor (the box used to reject keystrokes) adopts the
+    // preset's context size instead of keeping that floor.
+    const contextSizeEdited = ref(false)
+    function markContextSizeEdited() {
+      contextSizeEdited.value = true
+    }
     const DEFAULT_TEMPERATURE = 0.7
     const temperature = ref<number>(DEFAULT_TEMPERATURE)
     // The recommendation we last wrote into `temperature` / `reasoningEffort`.
@@ -1856,6 +1863,21 @@ export const useTextInference = defineStore(
         requestedContextSize.value = preset.contextSize
       }
 
+      // A saved size at or under the KM floor on the aiDAPTIV preset is the floor
+      // the box was locked to (the preset used to ship 8192). Take the preset's
+      // window unless the box has been committed since.
+      contextSizeEdited.value = savedSettings.contextSizeEdited === true
+      if (
+        !contextSizeEdited.value &&
+        preset.requiresPhison === true &&
+        preset.contextSize !== undefined &&
+        requestedContextSize.value <= PHISON_KM_CONTEXT_FLOOR &&
+        preset.contextSize > requestedContextSize.value
+      ) {
+        requestedContextSize.value = preset.contextSize
+        contextSize.value = preset.contextSize
+      }
+
       // Load temperature, plus the model recommendation it came from (if any) so
       // applyModelInferenceDefaults can still tell an adopted value from a
       // deliberate one after a restart.
@@ -1930,16 +1952,12 @@ export const useTextInference = defineStore(
       // models that support the toggle via modelSupportsThinkingToggle).
       thinkingEnabled.value = (savedSettings.thinkingEnabled as boolean | undefined) ?? true
 
-      // Load retrieval mode.
-      //   • Presets with requiresPhison === true are dedicated Phison KM presets — always
-      //     force 'phisonKm' so stale persisted 'standard' never silently disables KV reuse.
-      //   • Other presets: persisted choice wins, else preset's declared default, else standard.
-      //     Clamp to 'standard' when the preset doesn't advertise KM support.
+      // Load retrieval mode. Persisted choice wins, else the preset's declared
+      // default (aiDAPTIV™ ships `phisonKm`), else standard. Clamp to standard
+      // when the preset doesn't advertise KM support — the toggle is what
+      // changes the mode, including on the Phison preset.
       const savedRagMode = savedSettings.ragMode as 'standard' | 'phisonKm' | undefined
-      const resolvedRagMode =
-        preset.requiresPhison === true
-          ? 'phisonKm'
-          : (savedRagMode ?? preset.defaultRagMode ?? 'standard')
+      const resolvedRagMode = savedRagMode ?? preset.defaultRagMode ?? 'standard'
       ragMode.value = preset.supportsPhisonKmRag === true ? resolvedRagMode : 'standard'
       console.log(
         `[textInference] loadSettingsForActivePreset: preset="${preset.name}" ` +
@@ -2129,6 +2147,7 @@ export const useTextInference = defineStore(
         maxTokens,
         contextSize,
         requestedContextSize,
+        contextSizeEdited,
         temperature,
         reasoningEffort,
         systemPrompt,
@@ -2163,6 +2182,7 @@ export const useTextInference = defineStore(
           maxTokens: maxTokens.value,
           contextSize: contextSize.value,
           requestedContextSize: requestedContextSize.value,
+          contextSizeEdited: contextSizeEdited.value,
           temperature: temperature.value,
           temperatureFromModel: temperatureFromModel.value,
           reasoningEffort: reasoningEffort.value,
@@ -2336,9 +2356,9 @@ export const useTextInference = defineStore(
       screenshotWindow,
       maxTokens,
       contextSize,
-      // Returned so it is part of the store's state and therefore persistable — the
-      // `pick` list below only reaches what setup() returns.
+      // Returned so the persist `pick` list can see it — Pinia only persists what setup() returns.
       requestedContextSize,
+      markContextSizeEdited,
       maxContextSizeFromModel,
       effectiveContextWindow,
       effectiveMaxTokens,
