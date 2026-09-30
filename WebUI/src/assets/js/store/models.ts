@@ -361,7 +361,7 @@ export const useModels = defineStore(
 
     /**
      * Check if a speech (TTS) model exists
-     * @param modelName - The model name (e.g., 'microsoft/speecht5_tts')
+     * @param modelName - The model name (e.g., 'OpenVINO/Kokoro-82M-int8-ov')
      * @returns Promise<boolean> - True if model exists
      */
     async function checkSpeechModelExists(modelName: string): Promise<boolean> {
@@ -378,7 +378,7 @@ export const useModels = defineStore(
 
     /**
      * Get missing speech (TTS) model download parameters
-     * @param modelName - The model name (e.g., 'microsoft/speecht5_tts')
+     * @param modelName - The model name (e.g., 'OpenVINO/Kokoro-82M-int8-ov')
      * @returns Promise<DownloadModelParam[]> - Array with model if missing, empty if exists
      */
     async function getMissingSpeechModel(modelName: string): Promise<DownloadModelParam[]> {

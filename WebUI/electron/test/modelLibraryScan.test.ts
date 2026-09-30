@@ -161,8 +161,8 @@ describe('PathsManager.scanModelLibrary', () => {
 
   it('reports STT and TTS weights as speech models', () => {
     const ttsDir = path.join(root, 'TTS')
-    fs.mkdirSync(path.join(ttsDir, 'tngtech---Kokoro-82M-int8-ov'), { recursive: true })
-    fs.writeFileSync(path.join(ttsDir, 'tngtech---Kokoro-82M-int8-ov', 'model.bin'), 'x')
+    fs.mkdirSync(path.join(ttsDir, 'OpenVINO---Kokoro-82M-int8-ov'), { recursive: true })
+    fs.writeFileSync(path.join(ttsDir, 'OpenVINO---Kokoro-82M-int8-ov', 'model.bin'), 'x')
     writeConfig({
       ggufLLM: path.join(root, 'gguf'),
       openvinoLLM: path.join(root, 'ov'),
@@ -174,7 +174,7 @@ describe('PathsManager.scanModelLibrary', () => {
 
     expect(model.useCase).toBe('speech')
     expect(model.serviceBackend).toBe('openvino')
-    expect(model.name).toBe('tngtech---Kokoro-82M-int8-ov')
+    expect(model.name).toBe('OpenVINO---Kokoro-82M-int8-ov')
   })
 
   it('skips path keys that are absent or unconfigured instead of failing', () => {

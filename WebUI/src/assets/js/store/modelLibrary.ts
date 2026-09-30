@@ -80,7 +80,7 @@ export const useModelLibrary = defineStore('modelLibrary', () => {
    * reclaim its disk space.
    */
   const speechModels = computed<SpeechModelInput[]>(() => [
-    // Whisper and SpeechT5 are served by OVMS, so an NVIDIA install — which never
+    // Whisper and Kokoro are served by OVMS, so an NVIDIA install — which never
     // gets the OpenVINO backend — cannot run them at all. Qwen3-TTS has its own
     // sidecar and runs on CUDA there, so it stays listed.
     ...(nvidiaMode.value

@@ -93,6 +93,7 @@ export class OpenVINOBackendService implements ApiService {
   private currentTranscriptionModel: string | null = null
   private currentTranscriptionDevice: string | null = null
   private currentSpeechModel: string | null = null
+  private currentSpeechDevice: string | null = null
   private currentImageModel: string | null = null
   private currentImageResolution: string | null = null
 
@@ -1878,19 +1879,26 @@ export class OpenVINOBackendService implements ApiService {
 
   /**
    * Start text-to-speech server independently
-   * @param modelName - The TTS model name (e.g., 'microsoft/speecht5_tts')
+   * @param modelName - The TTS model name (e.g., 'OpenVINO/Kokoro-82M-int8-ov')
    */
   async startSpeechServer(modelName: string): Promise<void> {
     try {
+      const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
       this.appLogger.info(`Starting speech server for model: ${modelName}`, this.name)
 
-      // Check if already running with the same model
-      if (this.ovmsSpeechProcess?.isReady && this.currentSpeechModel === modelName) {
-        this.appLogger.info(`Speech server already running with model: ${modelName}`, this.name)
+      if (
+        this.ovmsSpeechProcess?.isReady &&
+        this.currentSpeechModel === modelName &&
+        this.currentSpeechDevice === selectedDevice
+      ) {
+        this.appLogger.info(
+          `Speech server already running with model: ${modelName} on device ${selectedDevice}`,
+          this.name,
+        )
         return
       }
 
-      // Stop existing server if running different model
+      // Stop existing server if running a different model or device
       if (this.ovmsSpeechProcess) {
         await this.stopOvmsSpeechServer()
       }
@@ -2446,8 +2454,7 @@ export class OpenVINOBackendService implements ApiService {
 
   private async startOvmsSpeechServer(modelRepoId: string): Promise<OvmsServerProcess> {
     try {
-      // The TTS model (SpeechT5) is CPU-only under OVMS, so ignore the selected GPU/NPU device.
-      const selectedDevice = 'CPU'
+      const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
       const port = await getPort({ port: portNumbers(29400, 29499) })
       // Validate model path exists
       this.resolveSpeechModelPath(modelRepoId)
@@ -2517,6 +2524,7 @@ export class OpenVINOBackendService implements ApiService {
         if (this.ovmsSpeechProcess === ovmsProcess) {
           this.ovmsSpeechProcess = null
           this.currentSpeechModel = null
+          this.currentSpeechDevice = null
         }
       })
 
@@ -2526,6 +2534,7 @@ export class OpenVINOBackendService implements ApiService {
 
       this.ovmsSpeechProcess = ovmsProcess
       this.currentSpeechModel = modelRepoId
+      this.currentSpeechDevice = selectedDevice
 
       this.appLogger.info(`OVMS speech server ready for model: ${modelRepoId}`, this.name)
       return ovmsProcess
@@ -2548,6 +2557,7 @@ export class OpenVINOBackendService implements ApiService {
 
       this.ovmsSpeechProcess = null
       this.currentSpeechModel = null
+      this.currentSpeechDevice = null
     }
   }
 
