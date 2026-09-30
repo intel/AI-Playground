@@ -48,27 +48,12 @@ const LLAMA_CPP_SUBDIR_STANDARD = 'llama-cpp'
 const LLAMA_CPP_SUBDIR_PHISON = 'llama-cpp-phison'
 
 /**
- * The aiDAPTIV offload budgets, in GB, for both the KV cache spilled to the SSD
- * and the experts held back in VRAM.
- *
- * Positive caps, because the `-1` these shipped as does not mean "let the
- * runtime decide" — it turns the offload off. That is not a reading of the
- * documentation, there is none for these keys, but of two runs differing in
- * nothing else: at `-1` the daemon wrote not one byte to the SSD while
- * llama.cpp tried to place all of a 35B MoE on an 18 GiB card and died doing
- * it; at a positive value the same model loaded and ran. Whatever `-1` denotes
- * to the runtime, shipping it means shipping the ssd-offload build with its
- * reason for existing disabled, and the failure it produces names neither the
- * setting nor the SSD — only a Vulkan allocation that came up short. Phison are
- * being told `-1` does not work; until they say otherwise, a number.
- *
- * `10` is the value validation settled on, not one derived here: the units
- * behind these keys are still undocumented, so scaling them to the installed
- * GPU or SSD would be arithmetic dressed up as understanding. A constant known
- * to work is the honest version of what is actually known.
+ * aiDAPTIV offload budgets, in GB. `-1` is the current middleware's automatic
+ * budget (NXWVB306.1). A fixed cap — the `10` this used to seed, or a `0` left
+ * on disk — is what fails a large MoE load with MDW-EPC-0710.
  */
-export const PHISON_DEFAULT_CACHE_KV_OFFLOAD_GB = 10
-export const PHISON_DEFAULT_VRAM_EXPERTS_CACHED_GB = 10
+export const PHISON_DEFAULT_CACHE_KV_OFFLOAD_GB = -1
+export const PHISON_DEFAULT_VRAM_EXPERTS_CACHED_GB = -1
 
 /**
  * Default for the aiDAPTIV config's `debug_log_path`.
@@ -107,7 +92,6 @@ function ssdOffloadDefaultConfig(serviceDir: string) {
       swa_full: true,
       threads: 10,
       mmap: false,
-      fit: 'off',
       context_shift: false,
       verbose: true,
       split_mode: 'none',
@@ -264,6 +248,19 @@ export function computeVariantArtifactsReady(
     : computeStandardArtifactsReady(serviceDir)
 }
 
+/**
+ * Trees that still hold the aiDAPTIV service binary or its delete script.
+ * The selected variant can already be standard while ada.exe is locked in the
+ * Phison tree, or in a legacy extract that landed in `llama-cpp/`.
+ */
+export function phisonCleanupDirs(serviceDir: string): string[] {
+  const markers = [LLAMACPP_SSD_OFFLOAD_PROCESS_NAME, LLAMACPP_SSD_OFFLOAD_DELETE_SERVICE_SCRIPT]
+  return [
+    getLlamaCppDirForVariant(serviceDir, 'ssd-offload'),
+    getLlamaCppDirForVariant(serviceDir, 'standard'),
+  ].filter((dir) => markers.some((name) => filesystem.existsSync(path.join(dir, name))))
+}
+
 export function migrateLegacySsdOffloadConfigFile(serviceDir: string, configPath: string): void {
   const legacyConfigPath = getLegacySsdOffloadConfigPath(serviceDir)
   if (filesystem.existsSync(legacyConfigPath) && !filesystem.existsSync(configPath)) {
@@ -337,19 +334,15 @@ export async function ensureSsdOffloadEmbeddingConfigFile(
  *   the service directory. Configs seeded by older builds name a drive that was
  *   only ever valid on the machine that picked it, and aiDAPTIV cannot log to a
  *   path that is not there;
- * - `offload_path` is dropped, and the `-1` budgets are raised. Both are
- *   settings previous builds wrote that the current middleware is better off
- *   without: it detects the aiDAPTIV device itself, so a drive letter left in
- *   the file can only send the spill somewhere it does not belong (or nowhere,
- *   on a machine now provisioned without a letter), and `-1` disables the
- *   offload outright.
+ * - `offload_path` is dropped, `common.fit: "off"` is dropped, and the offload
+ *   budgets are set to `-1`. The drive letter is the middleware's job now, and
+ *   `fit: off` plus a fixed GB cap is what fails large-MoE loads on NXWVB306.1.
  *
  * The repairs reach existing installs deliberately. Changing what is *seeded*
  * only affects configs written from now on, so without a rewrite every machine
- * already in the field keeps the old drive letter and the offload switched off
- * until someone reinstalls the backend or edits JSON by hand — having first
- * worked out, from an error naming neither the key nor the SSD, that it was the
- * cause.
+ * already in the field keeps `fit: off` and a fixed offload cap — the
+ * combination that fails a large MoE load — until someone reinstalls the
+ * backend or edits JSON by hand.
  *
  * Anything else the app does not know about survives this read-modify-write via
  * the spreads below.
@@ -366,7 +359,9 @@ export async function reconcileSsdOffloadConfig(
   try {
     const config = await filesystem.readJson(configPath)
     const aidaptiv = { ...(config.aidaptiv ?? {}) }
+    const common = { ...(config.common ?? {}) }
     const changes: string[] = []
+    let commonChanged = false
 
     if ('ssd_kv_offload_gb' in aidaptiv) {
       if (!('cache_kv_offload_gb' in aidaptiv)) {
@@ -394,24 +389,45 @@ export async function reconcileSsdOffloadConfig(
       changes.push('removed offload_path (the aiDAPTIV middleware detects the device)')
     }
 
-    // The `-1` sentinels that shipped as defaults, repaired wherever they are
-    // still on disk. Only the known-bad value is touched; any other number is a
-    // deliberate choice and is left alone.
+    // `fit: off` disables llama.cpp's own fit pass. Large MoE models then fail
+    // to come up under the Phison build. Any other value was typed by hand.
+    if (common.fit === 'off') {
+      delete common.fit
+      commonChanged = true
+      changes.push('removed fit: off')
+    }
+
+    // The LLM config carries these budgets; the embedding config deliberately
+    // does not, and must not gain them. A fixed cap (including the `10` older
+    // builds seeded and a `0` left on disk) fails the load, so anything other
+    // than `-1` is brought back to the middleware's automatic budget.
+    const isLlmConfig =
+      config.common != null ||
+      'kv_cache_resume_policy' in aidaptiv ||
+      'dram_kv_offload_gb' in aidaptiv
     for (const [key, replacement] of [
       ['cache_kv_offload_gb', PHISON_DEFAULT_CACHE_KV_OFFLOAD_GB],
       ['vram_experts_cached_gb', PHISON_DEFAULT_VRAM_EXPERTS_CACHED_GB],
     ] as const) {
-      if (aidaptiv[key] === -1) {
-        aidaptiv[key] = replacement
-        changes.push(`raised ${key} from -1 (offload disabled) to ${replacement}`)
-      }
+      if (!(key in aidaptiv) && !isLlmConfig) continue
+      if (aidaptiv[key] === replacement) continue
+      const previous = aidaptiv[key]
+      aidaptiv[key] = replacement
+      changes.push(
+        previous === undefined ? `set ${key} to -1` : `set ${key} from ${previous} to -1`,
+      )
     }
 
     if (changes.length === 0) {
       return
     }
 
-    await filesystem.writeJson(configPath, { ...config, aidaptiv }, { spaces: 2 })
+    const nextConfig: Record<string, unknown> = { ...config, aidaptiv }
+    if (commonChanged) {
+      if (Object.keys(common).length === 0) delete nextConfig.common
+      else nextConfig.common = common
+    }
+    await filesystem.writeJson(configPath, nextConfig, { spaces: 2 })
     logger?.info?.(`Reconciled ${path.basename(configPath)}: ${changes.join('; ')}`)
   } catch (error) {
     logger?.warn?.(`Failed to reconcile SSD offload config: ${error}`)
