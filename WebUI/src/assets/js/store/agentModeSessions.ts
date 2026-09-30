@@ -25,6 +25,11 @@ export type AgentSessionRecord = {
    * Absent on sessions archived before presets drove Agent Mode.
    */
   presetName?: string
+  /**
+   * UI locale frozen when the session started, so later turns keep the same
+   * response-language clause (Pi rebuilds if instructions change).
+   */
+  responseLocale?: string
 }
 
 /**
@@ -163,6 +168,7 @@ export function snapshotSession(options: {
   existing?: AgentSessionRecord
   capabilities: string[]
   presetName: string
+  responseLocale?: string
 }): AgentSessionRecord | null {
   const plainMessages = JSON.parse(JSON.stringify(options.messages)) as UIMessage[]
   if (plainMessages.length === 0) return null
@@ -180,6 +186,7 @@ export function snapshotSession(options: {
     updatedAt: unchanged && existing ? existing.updatedAt : Date.now(),
     capabilities: options.existing?.capabilities ?? [...options.capabilities],
     presetName: options.existing?.presetName ?? options.presetName,
+    responseLocale: existing?.responseLocale ?? options.responseLocale,
   }
 }
 

@@ -68,6 +68,10 @@ vi.mock('@/assets/js/store/cloudMode', () => ({
 const report = vi.fn()
 vi.mock('@/assets/js/store/errors', () => ({ useErrors: () => ({ report }) }))
 
+vi.mock('@/assets/js/store/i18n', () => ({
+  useI18N: () => ({ langName: 'en-US', state: {} }),
+}))
+
 vi.mock('@/assets/js/tools/agentBridge', () => ({
   executeAgentTool: vi.fn(),
   getAgentToolSpecs: () => [],

@@ -17,6 +17,7 @@ import {
   UIMessage,
 } from 'ai'
 import { chatTraceContext, createChatModel } from '@/lib/chatModel'
+import { withResponseLanguageAtStart } from '@/lib/responseLanguage'
 import { useTextInference } from './textInference'
 import { useBackendServices } from './backendServices'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from './conversations'
@@ -141,7 +142,8 @@ export const useOpenAiCompatibleChat = defineStore(
     const errors = useErrors()
     const activities = useActivities()
     const confirmations = useConfirmations()
-    const i18nState = useI18N().state
+    const i18n = useI18N()
+    const i18nState = i18n.state
     const manuallyStopped = ref(false)
 
     // True while the model is actively emitting reasoning (i.e. the last content
@@ -448,7 +450,11 @@ export const useOpenAiCompatibleChat = defineStore(
         { category: 'tools', label: i18nState.COM_ACTIVITY_PREPARING_TOOLS, scope: activityScope },
         () => resolveMcpInstructions(),
       )
-      const systemPromptToUse = `${baseSystemPrompt}${mcpInstructions}`
+      const systemPromptToUse = withResponseLanguageAtStart(
+        `${baseSystemPrompt}${mcpInstructions}`,
+        i18n.langName,
+        Array.isArray(m.messages) ? m.messages : [],
+      )
       // Self-heal orphaned tool calls (interrupted/stopped turns, HMR) before
       // converting: an assistant tool-call with no matching result would make
       // convertToModelMessages/streamText throw "Tool result is missing …" and

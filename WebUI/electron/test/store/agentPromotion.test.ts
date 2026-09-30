@@ -70,6 +70,10 @@ vi.mock('@/assets/js/store/errors', () => ({
   useErrors: () => ({ report: vi.fn() }),
 }))
 
+vi.mock('@/assets/js/store/i18n', () => ({
+  useI18N: () => ({ langName: 'en-US', state: {} }),
+}))
+
 // The media bridge must never see this tool: it is a question for the user, and
 // the media lane it would queue on is busy with work waiting on the answer.
 const executeAgentTool = vi.fn()
