@@ -2,6 +2,7 @@ import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import { HYBRID_CLOUD_NAME } from '@/lib/cloudModeName'
+import { fittedReferenceSize, type PixelBudget } from '@/lib/referenceImageFit'
 
 /**
  * Compares two version strings using numeric segment comparison.
@@ -359,34 +360,16 @@ function resolveDownscaleEncoding(sourceType: string | undefined): {
   return { mimeType, quality }
 }
 
-/**
- * Draw a loaded image onto a canvas scaled down so its pixel count does not
- * exceed 1MP (maintaining aspect ratio) and return the resulting blob. Returns
- * `null` when the image is already <= 1MP or when the canvas context/blob is
- * unavailable, signalling callers to keep the original.
- */
-function downscaleLoadedImageToBlob(
+function drawImageToBlob(
   img: HTMLImageElement,
+  width: number,
+  height: number,
   sourceType: string | undefined,
 ): Promise<Blob | null> {
   return new Promise((resolve) => {
-    const currentPixels = img.width * img.height
-
-    // If image is already <= 1MP, keep the original (return null).
-    if (currentPixels <= MAX_IMAGE_PIXELS) {
-      resolve(null)
-      return
-    }
-
-    // Calculate new dimensions maintaining aspect ratio
-    const scale = Math.sqrt(MAX_IMAGE_PIXELS / currentPixels)
-    const newWidth = Math.round(img.width * scale)
-    const newHeight = Math.round(img.height * scale)
-
-    // Create canvas and draw resized image
     const canvas = document.createElement('canvas')
-    canvas.width = newWidth
-    canvas.height = newHeight
+    canvas.width = width
+    canvas.height = height
     const ctx = canvas.getContext('2d')
 
     if (!ctx) {
@@ -395,7 +378,7 @@ function downscaleLoadedImageToBlob(
       return
     }
 
-    ctx.drawImage(img, 0, 0, newWidth, newHeight)
+    ctx.drawImage(img, 0, 0, width, height)
 
     const { mimeType, quality } = resolveDownscaleEncoding(sourceType)
     canvas.toBlob(
@@ -410,6 +393,36 @@ function downscaleLoadedImageToBlob(
       mimeType,
       quality,
     )
+  })
+}
+
+/**
+ * Draw a loaded image onto a canvas scaled down so its pixel count does not
+ * exceed 1MP (maintaining aspect ratio) and return the resulting blob. Returns
+ * `null` when the image is already <= 1MP or when the canvas context/blob is
+ * unavailable, signalling callers to keep the original.
+ */
+function downscaleLoadedImageToBlob(
+  img: HTMLImageElement,
+  sourceType: string | undefined,
+): Promise<Blob | null> {
+  const currentPixels = img.width * img.height
+  if (currentPixels <= MAX_IMAGE_PIXELS) return Promise.resolve(null)
+  const scale = Math.sqrt(MAX_IMAGE_PIXELS / currentPixels)
+  return drawImageToBlob(
+    img,
+    Math.round(img.width * scale),
+    Math.round(img.height * scale),
+    sourceType,
+  )
+}
+
+function loadImageElement(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('Failed to load image'))
+    img.src = src
   })
 }
 
@@ -475,4 +488,28 @@ export async function downscaleDataUriTo1MP(dataUri: string): Promise<string> {
 
     img.src = dataUri
   })
+}
+
+/**
+ * Resize a reference image to the size its workflow will generate at. Returns
+ * the original URI when the preset does not declare a model size, the image
+ * already matches, or scaling fails.
+ */
+export async function fitReferenceDataUri(
+  dataUri: string,
+  workflow: unknown,
+  fallback?: PixelBudget,
+): Promise<string> {
+  try {
+    const img = await loadImageElement(dataUri)
+    const fitted = fittedReferenceSize(img.width, img.height, workflow, fallback)
+    if (!fitted || (fitted.width === img.width && fitted.height === img.height)) return dataUri
+    const sourceType = dataUri.match(/^data:([^;,]+)[;,]/)?.[1]
+    const blob = await drawImageToBlob(img, fitted.width, fitted.height, sourceType)
+    if (!blob) return dataUri
+    return await blobToDataUri(blob)
+  } catch (e) {
+    console.error('Failed to fit reference image, using original', e)
+    return dataUri
+  }
 }
