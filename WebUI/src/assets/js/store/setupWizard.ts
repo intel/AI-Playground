@@ -997,7 +997,9 @@ export const useSetupWizard = defineStore('setupWizard', () => {
     if (result.success) {
       await restartBackend(name)
     } else {
-      const msg = result.errorDetails ? 'Setup failed — see error log for details' : 'Setup failed'
+      const msg =
+        result.errorDetails?.hint ??
+        (result.errorDetails ? 'Setup failed — see error log for details' : 'Setup failed')
       toast.error(msg)
     }
   }
@@ -1045,16 +1047,20 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       const startStatus = await backendServices.startService(name)
       if (startStatus !== 'running') {
         const errorDetails = backendServices.getServiceErrorDetails(name)
-        const msg = errorDetails
-          ? 'Service failed to start — see error log for details'
-          : 'Service failed to start'
+        const msg =
+          errorDetails?.hint ??
+          (errorDetails
+            ? 'Service failed to start — see error log for details'
+            : 'Service failed to start')
         toast.error(msg)
       }
     } catch (error) {
       const errorDetails = backendServices.getServiceErrorDetails(name)
-      const msg = errorDetails
-        ? 'Service startup failed — see error log for details'
-        : `Service startup failed: ${error instanceof Error ? error.message : String(error)}`
+      const msg =
+        errorDetails?.hint ??
+        (errorDetails
+          ? 'Service startup failed — see error log for details'
+          : `Service startup failed: ${error instanceof Error ? error.message : String(error)}`)
       toast.error(msg)
     } finally {
       wizardActivity.value.delete(name)

@@ -731,9 +731,11 @@ async function installBackend(name: BackendServiceName) {
     errors.report('Backend setup failed', {
       category: 'setup',
       code: 'setup/backend-setup-failed',
-      userMessage: setupProgress.errorDetails
-        ? 'Setup failed - Click the info icon for details'
-        : 'Setup failed',
+      userMessage:
+        setupProgress.errorDetails?.hint ??
+        (setupProgress.errorDetails
+          ? 'Setup failed - Click the info icon for details'
+          : 'Setup failed'),
       context: { serviceName: name },
     })
     loadingComponents.value.delete(name)
@@ -777,9 +779,11 @@ async function restartBackend(name: BackendServiceName) {
       errors.report('Service failed to start', {
         category: 'backend',
         code: 'backend/start-failed',
-        userMessage: errorDetails
-          ? 'Service failed to start - Click the info icon for details'
-          : 'Service failed to start',
+        userMessage:
+          errorDetails?.hint ??
+          (errorDetails
+            ? 'Service failed to start - Click the info icon for details'
+            : 'Service failed to start'),
         context: { serviceName: name },
       })
       loadingComponents.value.delete(name)
@@ -791,9 +795,11 @@ async function restartBackend(name: BackendServiceName) {
     errors.report(error, {
       category: 'backend',
       code: 'backend/start-failed',
-      userMessage: errorDetails
-        ? 'Service startup failed - Click the info icon for details'
-        : `Service startup failed: ${error instanceof Error ? error.message : String(error)}`,
+      userMessage:
+        errorDetails?.hint ??
+        (errorDetails
+          ? 'Service startup failed - Click the info icon for details'
+          : `Service startup failed: ${error instanceof Error ? error.message : String(error)}`),
       context: { serviceName: name },
     })
     loadingComponents.value.delete(name)

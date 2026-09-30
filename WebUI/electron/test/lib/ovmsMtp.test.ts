@@ -112,7 +112,7 @@ describe('claimOvmsMtpStaleNotice', () => {
     const storage = memoryStorage()
     expect(claimOvmsMtpStaleNotice('OpenVINO/Qwen3.5-9B-int4-ov', storage)).toBe(true)
     expect(claimOvmsMtpStaleNotice('OpenVINO/Qwen3.5-9B-int4-ov', storage)).toBe(false)
-    expect(claimOvmsMtpStaleNotice('OpenVINO/Qwen3.6-27B-int4-ov', storage)).toBe(true)
+    expect(claimOvmsMtpStaleNotice('OpenVINO/Qwen3.8-27B-int4-ov', storage)).toBe(true)
     expect(claimOvmsMtpStaleNotice(undefined, storage)).toBe(false)
   })
 })
@@ -128,7 +128,6 @@ describe('OpenVINO catalog MTP', () => {
     const repos = [
       'OpenVINO/Qwen3.5-4B-int4-ov',
       'OpenVINO/Qwen3.5-9B-int4-ov',
-      'OpenVINO/Qwen3.6-27B-int4-ov',
       'OpenVINO/Qwen3.8-27B-int4-ov',
       'OpenVINO/Qwen3.6-35B-A3B-int4-ov',
     ]

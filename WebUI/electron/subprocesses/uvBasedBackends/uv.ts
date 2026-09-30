@@ -100,6 +100,11 @@ const uv = (
     // on "Installing..." with no terminal progress update.
     uvProcess.on('error', (error) => {
       logger.error(`UV process failed to start: ${error.message}`)
+      // Keep the spawn errno: wrapping this error drops the code a blocked CreateProcess reports.
+      const stderr = stderrChunks.join('').trim()
+      if (stderr && !error.message.includes(stderr)) {
+        error.message = `${error.message}\n${stderr}`
+      }
       reject(error)
     })
   })
@@ -158,6 +163,10 @@ const uvWithJsonOutput = (
       })
 
       uvProcess.on('error', (error) => {
+        const stderrText = stderr.trim()
+        if (stderrText && !error.message.includes(stderrText)) {
+          error.message = `${error.message}\n${stderrText}`
+        }
         reject(error)
       })
     },
@@ -190,7 +199,13 @@ const uvWithStdout = (
         reject(new Error(stderr.trim() || stdout.trim() || `UV process exited with code ${code}`))
       }
     })
-    uvProcess.on('error', (error) => reject(error))
+    uvProcess.on('error', (error) => {
+      const stderrText = stderr.trim()
+      if (stderrText && !error.message.includes(stderrText)) {
+        error.message = `${error.message}\n${stderrText}`
+      }
+      reject(error)
+    })
   })
 
 /**

@@ -17,6 +17,8 @@ export interface ProcessResult {
   args: string[]
   duration: number
   timestamp: string
+  spawnCode?: string
+  spawnSyscall?: string
 }
 
 export class ProcessError extends Error {
@@ -124,6 +126,7 @@ export async function spawnProcessAsync(
     spawnedProcess.on('error', (err) => {
       clearSpawnTimeout()
       const duration = Date.now() - startTime
+      const errno = err as NodeJS.ErrnoException
       const result: ProcessResult = {
         stdout: stdOut.join(''),
         stderr: stdErr.join('') + `\nProcess error: ${err.message}`,
@@ -132,6 +135,8 @@ export async function spawnProcessAsync(
         args,
         duration,
         timestamp,
+        spawnCode: errno.code,
+        spawnSyscall: errno.syscall,
       }
       reject(new ProcessError(result))
     })

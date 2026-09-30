@@ -1,7 +1,7 @@
 {
   "defaults": {
     "chatPreset": "Assistant",
-    "chatModel": "unsloth/Qwen3-4B-Instruct-2507-GGUF/Qwen3-4B-Instruct-2507-Q5_K_S.gguf",
+    "chatModel": "unsloth/Qwen3.5-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf",
     "imageGenPreset": "Draft Image",
     "imageEditPreset": "Sketch to Photo"
   },

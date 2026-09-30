@@ -986,6 +986,7 @@ type ErrorDetails = {
   timestamp?: string
   duration?: number
   pipFreezeOutput?: string
+  hint?: string
 }
 
 type ApiServiceInformation = {
@@ -1032,4 +1033,5 @@ type Model = {
   llamaCppArgs?: string
   npuSupport?: boolean
   largeMoe?: boolean
+  requiresPhison?: boolean
 }
