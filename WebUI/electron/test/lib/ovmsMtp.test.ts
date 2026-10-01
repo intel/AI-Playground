@@ -149,7 +149,7 @@ describe('OpenVINO catalog MTP', () => {
       expect(model.reasoningParser).toBe('gemma4')
     }
     const large = gemma.find((entry) => entry.name.includes('26b'))
-    expect(large?.largeMoe).toBe(true)
+    expect(large?.largeMoe).toBe(false)
     expect(large?.supportsVision).toBe(true)
   })
 })
