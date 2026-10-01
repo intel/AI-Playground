@@ -75,7 +75,7 @@
     "maxContextSize": 8192
   },
   {
-    "name": "ggml-org/gpt-oss-20b-GGUF/gpt-oss-20b-mxfp4.gguf",
+    "name": "ggml-org/gpt-oss-20b-GGUF/gpt-oss-20b-MXFP4.gguf",
     "type": "llamaCPP",
     "supportsToolCalling": true,
     "supportsVision": false,
@@ -269,7 +269,7 @@
     "maxContextSize": 131072
   },
   {
-    "name": "ggml-org/gpt-oss-120b-GGUF/gpt-oss-120b-mxfp4-00001-of-00003.gguf",
+    "name": "ggml-org/gpt-oss-120b-GGUF/gpt-oss-120b-MXFP4.gguf",
     "type": "llamaCPP",
     "supportsToolCalling": true,
     "supportsVision": false,
