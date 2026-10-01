@@ -59,6 +59,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.doUnmock('electron')
   vi.doUnmock('../installConfig.ts')
+  vi.doUnmock('../sharedAcl.ts')
   vi.resetModules()
   setProp(process, 'platform', origPlatform)
   setProp(process, 'resourcesPath', origResourcesPath)
@@ -102,6 +103,20 @@ describe('packagedResourcesRoot', () => {
     const mod = await loadAipgRoot({ isPackaged: true, mode: 'shared', platform: 'win32' })
 
     expect(mod.packagedResourcesRoot()).toBe(path.join(tmpPublic, 'AI Playground', 'resources'))
+  })
+
+  it('does not copy a bundled .venv or python-interpreter into the shared root', async () => {
+    fs.mkdirSync(path.join(tmpResources, '.venv'), { recursive: true })
+    fs.writeFileSync(path.join(tmpResources, '.venv', 'pyvenv.cfg'), 'home = leftover')
+    fs.mkdirSync(path.join(tmpResources, 'python-interpreter'), { recursive: true })
+    fs.writeFileSync(path.join(tmpResources, 'python-interpreter', 'python.exe'), '')
+    fs.writeFileSync(path.join(tmpResources, 'uv.exe'), '')
+    const mod = await loadAipgRoot({ isPackaged: true, mode: 'shared', platform: 'win32' })
+
+    const root = mod.packagedResourcesRoot()
+    expect(fs.existsSync(path.join(root, 'uv.exe'))).toBe(true)
+    expect(fs.existsSync(path.join(root, '.venv'))).toBe(false)
+    expect(fs.existsSync(path.join(root, 'python-interpreter'))).toBe(false)
   })
 
   it('honors an admin-chosen shared resources base dir, appending the resources leaf', async () => {

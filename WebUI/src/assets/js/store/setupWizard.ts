@@ -428,21 +428,21 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       toggleTooltip = 'Installation or startup in progress'
     } else if (isSsdVariant && isSetUp) {
       toggleTooltip =
-        'Toggle off to stop using the Phison aiDAPTIV+ build (switches to standard Llama.cpp)'
+        'Toggle off to stop using the Phison Pascari aiDAPTIV build (switches to standard Llama.cpp)'
     } else if (isSsdVariant && !isSetUp) {
-      toggleTooltip = 'Toggle on to install the Phison aiDAPTIV+ Llama.cpp build'
+      toggleTooltip = 'Toggle on to install Llama.cpp with Phison Pascari aiDAPTIV'
     } else if (!isSsdVariant && phisonArtifactReady) {
-      toggleTooltip =
-        'Phison build is installed — toggle on to use aiDAPTIV+ SSD offload with Llama.cpp'
+      toggleTooltip = 'Phison Pascari aiDAPTIV is installed - toggle on to use it with Llama.cpp'
     } else if (!isSsdVariant && installSelection.value.has('llamacpp-backend')) {
-      toggleTooltip = 'Turn on to switch from standard Llama.cpp GGUF to the Phison aiDAPTIV+ build'
+      toggleTooltip =
+        'Turn on to switch from standard Llama.cpp GGUF to Llama.cpp with Phison Pascari aiDAPTIV'
     } else {
-      toggleTooltip = 'Toggle on to enable Phison aiDAPTIV+ SSD offload for Llama.cpp'
+      toggleTooltip = 'Toggle on to enable Phison Pascari aiDAPTIV for Llama.cpp'
     }
 
     return {
       kind: 'phison-aidaptiv',
-      displayName: 'Llama.cpp-Phison aiDAPTIV+ SSD',
+      displayName: 'Llama.cpp with Phison Pascari aiDAPTIV',
       enabled: isSsdVariant,
       toggleDisabled: isInstalling,
       isInstalling,
@@ -498,7 +498,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
         toggleTooltip = 'Installation in progress'
       } else if (phisonVariantLocksLlamaRow) {
         toggleTooltip =
-          'Disabled while Phison aiDAPTIV+ SSD mode is on — use the Llama.cpp-Phison row below'
+          'Disabled while Phison Pascari aiDAPTIV is enabled - use the Llama.cpp with Phison Pascari aiDAPTIV row below'
       } else if (isSetUp && enabled) {
         toggleTooltip = 'Toggle off to stop this component'
       } else if (isSetUp && !enabled) {
@@ -997,7 +997,9 @@ export const useSetupWizard = defineStore('setupWizard', () => {
     if (result.success) {
       await restartBackend(name)
     } else {
-      const msg = result.errorDetails ? 'Setup failed — see error log for details' : 'Setup failed'
+      const msg =
+        result.errorDetails?.hint ??
+        (result.errorDetails ? 'Setup failed — see error log for details' : 'Setup failed')
       toast.error(msg)
     }
   }
@@ -1045,16 +1047,20 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       const startStatus = await backendServices.startService(name)
       if (startStatus !== 'running') {
         const errorDetails = backendServices.getServiceErrorDetails(name)
-        const msg = errorDetails
-          ? 'Service failed to start — see error log for details'
-          : 'Service failed to start'
+        const msg =
+          errorDetails?.hint ??
+          (errorDetails
+            ? 'Service failed to start — see error log for details'
+            : 'Service failed to start')
         toast.error(msg)
       }
     } catch (error) {
       const errorDetails = backendServices.getServiceErrorDetails(name)
-      const msg = errorDetails
-        ? 'Service startup failed — see error log for details'
-        : `Service startup failed: ${error instanceof Error ? error.message : String(error)}`
+      const msg =
+        errorDetails?.hint ??
+        (errorDetails
+          ? 'Service startup failed — see error log for details'
+          : `Service startup failed: ${error instanceof Error ? error.message : String(error)}`)
       toast.error(msg)
     } finally {
       wizardActivity.value.delete(name)

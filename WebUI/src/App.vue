@@ -177,7 +177,7 @@
 
     <SideModalAppSettings :isVisible="showAppSettings" @close="showAppSettings = false" />
 
-    <div class="flex-1 flex flex-col relative justify-center min-h-0">
+    <div class="flex-1 flex flex-col relative justify-center-safe min-h-0 overflow-y-auto">
       <div class="fixed top-18 left-4 z-5 flex flex-col gap-2">
         <button
           id="show-history-button"

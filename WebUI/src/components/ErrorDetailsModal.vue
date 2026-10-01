@@ -27,6 +27,12 @@
       <!-- Content -->
       <div class="p-4 overflow-y-auto max-h-[calc(80vh-120px)]">
         <div v-if="errorDetails" class="space-y-4">
+          <div
+            v-if="errorDetails.hint"
+            class="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded-lg p-4"
+          >
+            <p class="text-yellow-100 text-sm whitespace-pre-wrap">{{ errorDetails.hint }}</p>
+          </div>
           <!-- Command Info -->
           <div class="bg-gray-900 rounded-lg p-4">
             <h3 class="text-lg font-medium text-white mb-2">Failed Command</h3>
@@ -135,6 +141,7 @@ interface ErrorDetails {
   timestamp?: string
   duration?: number
   pipFreezeOutput?: string
+  hint?: string
 }
 
 interface Props {
@@ -174,6 +181,7 @@ const copyErrorDetails = async () => {
 
   const details = [
     `Service: ${props.serviceName}`,
+    ...(props.errorDetails.hint ? [props.errorDetails.hint, ''] : []),
     `Command: ${props.errorDetails.command || 'Unknown'}`,
     `Exit Code: ${props.errorDetails.exitCode || 'Unknown'}`,
     `Duration: ${formatDuration(props.errorDetails.duration)}`,

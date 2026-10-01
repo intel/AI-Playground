@@ -232,14 +232,14 @@
           </div>
           <div class="flex justify-between pr-4 items-center gap-4 mb-4">
             <div class="flex items-center gap-2">
-              <Label class="whitespace-nowrap">Pretend Phison SSD</Label>
+              <Label class="whitespace-nowrap">Simulate aiDAPTIV Cache Memory</Label>
               <TooltipProvider :delay-duration="200">
                 <Tooltip>
                   <TooltipTrigger as-child>
                     <span class="svg-icon i-info w-4 h-4 opacity-50 cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent side="bottom" class="max-w-[300px]">
-                    Skip the hardware probe and report a Phison aiDAPTIV+ SSD as present, so the
+                    Skip the hardware probe and report aiDAPTIV Cache Memory as present, so the
                     SSD-offload option can be exercised on any machine.
                   </TooltipContent>
                 </Tooltip>

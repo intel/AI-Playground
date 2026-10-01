@@ -247,7 +247,11 @@ export const useHistorySessions = defineStore('historySessions', () => {
     }
     const mode = entry.media.mode
     setSelectedMediaId(mode, entry.id)
-    if (promptStore.currentMode === mode) return
+    if (promptStore.currentMode === mode) {
+      // Same id does not retrigger the store watcher, but the slot may have been cleared.
+      imageGeneration.syncSelectedReferenceImage()
+      return
+    }
     const settings = mediaSettings(entry.media)
     if (settings.preset && presetsStore.presets.some((p) => p.name === settings.preset)) {
       await presetSwitching.switchPreset(settings.preset, {

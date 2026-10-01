@@ -50,9 +50,8 @@ export type ModelCapabilityValues = {
    */
   supportsCoding?: boolean
   /**
-   * Large Mixture-of-Experts model. NOT a plain capability: it is a hardware
-   * gate. Such models only load via Phison aiDAPTIV+ SSD offload, so pickers
-   * hide them when no Phison SSD is detected.
+   * Large Mixture-of-Experts model. Puts it on the aiDAPTIV preset list.
+   * Hiding it everywhere else is `requiresPhison`, not this flag.
    */
   largeMoe?: boolean
 }
@@ -115,6 +114,10 @@ export type ModelEntry = {
   inferenceDefaults?: InferenceDefaults
   /** Extra `llama-server` flags the catalog asks for. Read-only, as above. */
   llamaCppArgs?: string
+  /** OVMS `--reasoning_parser` the catalog asks for. Read-only, as above. */
+  reasoningParser?: string
+  /** OpenVINO repo ships an MTP graph. Read-only, as above. */
+  enableMtp?: boolean
   /** True when the user has edited any capability, so the UI can offer "reset to defaults". */
   hasCapabilityOverrides: boolean
   favorite: boolean

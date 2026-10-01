@@ -6,6 +6,9 @@ dependencies = [
   "Flask",
   "flask-cors",
   "Requests",
+  # urllib3 2.8.0: clears GHSA-vxq7-64xx-v4gw, GHSA-8988-9cw3-xx77 and
+  # GHSA-gh4c-6fx4-qh6g. Transitive via Requests (urllib3<3).
+  "urllib3>=2.8.0",
   "python-telegram-bot",
   "slack-bolt",
   "aiohttp",

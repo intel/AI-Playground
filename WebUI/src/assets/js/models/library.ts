@@ -93,6 +93,8 @@ export type CatalogModelInput = ModelCapabilityValues & {
   /** Publisher recommendations, shown read-only. See `ModelEntry`. */
   inferenceDefaults?: InferenceDefaults
   llamaCppArgs?: string
+  reasoningParser?: string
+  enableMtp?: boolean
 }
 
 /**
@@ -239,6 +241,8 @@ export function buildEntries(input: BuildEntriesInput): ModelEntry[] {
       isDirectory: onDisk?.isDirectory,
       inferenceDefaults: model.inferenceDefaults,
       llamaCppArgs: model.llamaCppArgs,
+      reasoningParser: model.reasoningParser,
+      enableMtp: model.enableMtp,
       // Through `mergeCapabilities` rather than field by field, so a capability
       // added to `CAPABILITY_KEYS` reaches the row without a second edit here.
       baseCapabilities: mergeCapabilities(model),

@@ -1,6 +1,7 @@
 import { app } from 'electron'
 import { appLoggerInstance } from '../../logging/logger.ts'
-import { packagedResourcesRoot } from '../../aipgRoot.ts'
+import { isSharedAllUsersInstall, packagedResourcesRoot } from '../../aipgRoot.ts'
+import { withSharedUvLinkMode } from './uvLinkMode.ts'
 import path from 'path'
 import fs from 'fs'
 import { spawn } from 'child_process'
@@ -18,14 +19,18 @@ export const buildResources = app.isPackaged
 // The fetch-external-resources script stores the uv binary as `uv.exe` on ALL
 // platforms (including Linux/macOS) for naming consistency — do not use binary().
 export const uvPath = path.join(buildResources, 'uv.exe')
-const uvEnv = (extraEnv: Record<string, string> = {}) => ({
-  ...process.env,
-  UV_NO_ENV_FILE: '1',
-  UV_NO_CONFIG: '1',
-  UV_PYTHON_INSTALL_DIR: path.join(aipgBaseDir, 'python-interpreter'),
-  VIRTUAL_ENV: undefined,
-  ...extraEnv,
-})
+const uvEnv = (extraEnv: Record<string, string> = {}) =>
+  withSharedUvLinkMode(
+    {
+      ...process.env,
+      UV_NO_ENV_FILE: '1',
+      UV_NO_CONFIG: '1',
+      UV_PYTHON_INSTALL_DIR: path.join(aipgBaseDir, 'python-interpreter'),
+      VIRTUAL_ENV: undefined,
+      ...extraEnv,
+    },
+    isSharedAllUsersInstall(),
+  )
 
 const assertUv = async (logger: ReturnType<typeof loggerFor>) => {
   try {
@@ -95,6 +100,11 @@ const uv = (
     // on "Installing..." with no terminal progress update.
     uvProcess.on('error', (error) => {
       logger.error(`UV process failed to start: ${error.message}`)
+      // Keep the spawn errno: wrapping this error drops the code a blocked CreateProcess reports.
+      const stderr = stderrChunks.join('').trim()
+      if (stderr && !error.message.includes(stderr)) {
+        error.message = `${error.message}\n${stderr}`
+      }
       reject(error)
     })
   })
@@ -153,6 +163,10 @@ const uvWithJsonOutput = (
       })
 
       uvProcess.on('error', (error) => {
+        const stderrText = stderr.trim()
+        if (stderrText && !error.message.includes(stderrText)) {
+          error.message = `${error.message}\n${stderrText}`
+        }
         reject(error)
       })
     },
@@ -185,7 +199,13 @@ const uvWithStdout = (
         reject(new Error(stderr.trim() || stdout.trim() || `UV process exited with code ${code}`))
       }
     })
-    uvProcess.on('error', (error) => reject(error))
+    uvProcess.on('error', (error) => {
+      const stderrText = stderr.trim()
+      if (stderrText && !error.message.includes(stderrText)) {
+        error.message = `${error.message}\n${stderrText}`
+      }
+      reject(error)
+    })
   })
 
 /**
@@ -201,6 +221,8 @@ const uvWithStdout = (
  * @param version - Requested version, e.g. '3.12' or '3.12.8'.
  * @returns Absolute path to the managed python executable (e.g. `.../bin/python3.12`).
  */
+const backendVenvDir = (backend: string) => path.join(aipgBaseDir, backend, '.venv')
+
 export const ensureManagedPython = async (version: string): Promise<string> => {
   const logger = loggerFor(`uv.python.${version}`)
   await assertUv(logger)
@@ -248,17 +270,13 @@ const isHashMismatchError = (errorMessage: string): boolean => {
   return /hash mismatch/i.test(errorMessage)
 }
 
-const backendVenvDir = (backend: string) => path.join(aipgBaseDir, backend, '.venv')
-
 const removeBrokenBackendVenv = async (
   backend: string,
   logger: ReturnType<typeof loggerFor>,
 ): Promise<void> => {
   const venvDir = backendVenvDir(backend)
   if (await removeBrokenVenv(venvDir)) {
-    logger.warn(
-      `Removed broken venv at ${venvDir} (python interpreter missing); it will be recreated`,
-    )
+    logger.warn(`Removed broken venv at ${venvDir}; it will be recreated`)
   }
 }
 
@@ -409,8 +427,17 @@ export const checkBackend = async (backend: string, extra?: UvExtra) => {
   // callers of the plain check need the same protection.
   const venvPath = backendVenvDir(backend)
   if (!venvIsUsable(venvPath)) {
-    logger.info(`Venv at ${venvPath} has no interpreter — reporting backend as not installed`)
-    throw new Error(`Python environment for ${backend} is missing its interpreter`)
+    const interpreter = venvInterpreterPath(venvPath)
+    if (!fs.existsSync(interpreter)) {
+      logger.info(`Venv at ${venvPath} has no interpreter — reporting backend as not installed`)
+      throw new Error(`Python environment for ${backend} is missing its interpreter`)
+    }
+    logger.warn(
+      `Venv at ${venvPath} is not usable by this account — reporting backend as not installed`,
+    )
+    throw new Error(
+      `Python environment for ${backend} is not writable by this account, or its base Python is not readable`,
+    )
   }
   const uvCommand = ['sync', '--check', '--directory', aipgBaseDir, '--project', backend]
   // Resolve against the same optional-dependency extra the backend was installed
@@ -452,23 +479,29 @@ export const checkBackendWithDetails = async (
   const venvExists = venvIsUsable(venvPath)
   if (!venvExists) {
     const interpreter = venvInterpreterPath(venvPath)
+    const interpreterExists = fs.existsSync(interpreter)
     const dirExists = fs.existsSync(venvPath)
-    if (dirExists) {
+    if (interpreterExists) {
+      logger.warn(`Venv at ${venvPath} is not usable by this account`)
+    } else if (dirExists) {
       logger.warn(
         `Venv directory exists at ${venvPath} but interpreter is missing at ${interpreter}`,
       )
     } else {
       logger.info(`Venv directory does not exist at ${venvPath}`)
     }
+    const stdout = interpreterExists
+      ? `Virtual environment at ${venvPath} is not writable by this account, or its base Python is not readable.\nThe environment needs to be recreated.`
+      : dirExists
+        ? `Virtual environment directory exists at ${venvPath} but ${interpreter} is missing.\nThe environment needs to be recreated.`
+        : undefined
     return {
       venvExists: false,
       action: 'create',
       needsInstallation: true,
       envMismatch: false,
       exitCode: -1,
-      stdout: dirExists
-        ? `Virtual environment directory exists at ${venvPath} but ${interpreter} is missing.\nThe environment needs to be recreated.`
-        : undefined,
+      stdout,
     }
   }
   logger.info(`Venv interpreter exists at ${venvInterpreterPath(venvPath)}`)

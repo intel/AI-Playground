@@ -87,17 +87,6 @@ function ensureBrowserSession(sessionId: string): BrowserSession {
   return session
 }
 
-/** Whether the script is a single expression (`document.title`) rather than statements. */
-function parsesAsExpression(script: string): boolean {
-  try {
-    // Compiled as a syntax check only — never called, and never in the page.
-    new Function(`return (\n${script}\n)`)
-    return true
-  } catch {
-    return false
-  }
-}
-
 /**
  * Run the script inside its own try/catch in the page, reporting what actually
  * went wrong. Electron rejects a throwing `executeJavaScript` with one fixed
@@ -106,14 +95,24 @@ function parsesAsExpression(script: string): boolean {
  * script. The real message ("move is not defined") ends the guessing.
  *
  * Models write both forms — a bare expression and a statement list ending in
- * `return` — so the script goes into a function body, and an expression is
- * returned from it.
+ * `return` — so the page compiles an expression wrapper first and, only when
+ * that fails to parse, compiles the script as statements. The script is passed
+ * in as data; compiling it here would run untrusted source in the main process.
+ * A runtime failure is not a parse failure: retrying it would run the script twice.
  */
 function wrapForEval(script: string): string {
-  const body = parsesAsExpression(script) ? `return (\n${script}\n)` : script
   return `(async () => {
+    const script = ${JSON.stringify(script)}
+    const compile = Object.getPrototypeOf(async function () {}).constructor
     try {
-      const value = await (async () => { ${body} })()
+      let runner
+      try {
+        runner = new compile('return (\\n' + script + '\\n)')
+      } catch (error) {
+        if (!(error instanceof SyntaxError)) throw error
+        runner = new compile(script)
+      }
+      const value = await runner()
       // Stringified in the page: the result may be a DOM node or a cycle, which
       // could not cross the IPC boundary as-is.
       try {

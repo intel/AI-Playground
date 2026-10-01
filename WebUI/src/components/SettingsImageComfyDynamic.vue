@@ -69,6 +69,7 @@
         :label="languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label"
         :image-url-ref="input.current as WritableComputedRef<string>"
         :disabled="!isModifiable(input)"
+        :prepare-data-uri="prepareReferenceImage"
         @image-loaded="handleImageLoaded"
       ></LoadImageWithPreview>
 
@@ -79,6 +80,7 @@
         :label="languages[getTranslationLabel('SETTINGS_IMAGE_COMFY_', input.label)] ?? input.label"
         :image-url-ref="input.current as WritableComputedRef<string>"
         :disabled="!isModifiable(input)"
+        :prepare-data-uri="prepareReferenceImage"
         @image-loaded="handleImageLoaded"
       ></LoadImage>
 
@@ -129,7 +131,8 @@ import { computed, watch } from 'vue'
 import { Input } from './ui/aipgInput'
 import { LoadImage, LoadImageWithPreview } from './ui/loadImage'
 import { LoadVideo } from './ui/loadVideo'
-import { getTranslationLabel } from '@/lib/utils'
+import { fitReferenceDataUri, getTranslationLabel } from '@/lib/utils'
+import { referencePixelBudget } from '@/lib/referenceImageFit'
 import DropDownNew from './DropDownNew.vue'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
 import { useDialogStore } from '@/assets/js/store/dialogs'
@@ -148,14 +151,26 @@ const presetsStore = usePresets()
 const i18nState = useI18N().state
 const languages = i18nState
 
+function prepareReferenceImage(dataUri: string): Promise<string> {
+  const preset = presetsStore.activePresetWithVariant
+  const workflow = preset?.type === 'comfy' ? preset.comfyUiApiWorkflow : undefined
+  return fitReferenceDataUri(
+    dataUri,
+    workflow,
+    referencePixelBudget(preset?.category, imageGeneration.width, imageGeneration.height),
+  )
+}
+
 // Handle image loaded event from LoadImage components
 function handleImageLoaded(imageUrl: string) {
-  // Create MediaItem and add to history (same as "Send to Edit")
+  // Video references belong in the video history; edit references stay on image edit.
+  const mode: WorkflowModeType =
+    imageGeneration.activePreset?.category === 'create-videos' ? 'video' : 'imageEdit'
   const imageItem: ImageMediaItem = {
     id: crypto.randomUUID(),
     createdAt: Date.now(),
     type: 'image',
-    mode: 'imageEdit',
+    mode,
     state: 'done',
     imageUrl: imageUrl,
     fromImageGen: true,
@@ -163,7 +178,8 @@ function handleImageLoaded(imageUrl: string) {
   }
 
   imageGeneration.generatedImages.push(imageItem)
-  imageGeneration.selectedEditedImageId = imageItem.id
+  if (mode === 'video') imageGeneration.selectedVideoId = imageItem.id
+  else imageGeneration.selectedEditedImageId = imageItem.id
 }
 
 // Clear preview state when preset changes

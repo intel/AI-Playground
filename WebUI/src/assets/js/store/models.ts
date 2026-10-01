@@ -29,6 +29,9 @@ export type Model = ModelCapabilityValues & {
   backend?: LlmBackend
   inferenceDefaults?: InferenceDefaults // Sampling/reasoning settings the publisher recommends
   llamaCppArgs?: string // Extra llama-server flags this model wants (llama.cpp only)
+  reasoningParser?: string // OVMS `--reasoning_parser`; qwen3 when omitted
+  enableMtp?: boolean // OpenVINO repo ships an MTP graph
+  requiresPhison?: boolean // Hide unless a Phison SSD is detected; largeMoe still lists it
   isPredefined?: boolean // true if model is defined in models.json
   isCustom?: boolean // true if the user added it, so it can be removed from the list again
 }
@@ -168,6 +171,16 @@ export const useModels = defineStore(
               predefinedModel?.llamaCppArgs ??
               existingModel?.llamaCppArgs ??
               customMetadata?.llamaCppArgs,
+            reasoningParser:
+              predefinedModel?.reasoningParser ??
+              existingModel?.reasoningParser ??
+              customMetadata?.reasoningParser,
+            enableMtp:
+              predefinedModel?.enableMtp ?? existingModel?.enableMtp ?? customMetadata?.enableMtp,
+            requiresPhison:
+              predefinedModel?.requiresPhison ??
+              existingModel?.requiresPhison ??
+              customMetadata?.requiresPhison,
             isPredefined: !!predefinedModel, // true if model is defined in models.json
             // Added by the user, whether or not its files have arrived since.
             isCustom: !predefinedModel && !!customMetadata,
@@ -361,7 +374,7 @@ export const useModels = defineStore(
 
     /**
      * Check if a speech (TTS) model exists
-     * @param modelName - The model name (e.g., 'microsoft/speecht5_tts')
+     * @param modelName - The model name (e.g., 'OpenVINO/Kokoro-82M-int8-ov')
      * @returns Promise<boolean> - True if model exists
      */
     async function checkSpeechModelExists(modelName: string): Promise<boolean> {
@@ -378,7 +391,7 @@ export const useModels = defineStore(
 
     /**
      * Get missing speech (TTS) model download parameters
-     * @param modelName - The model name (e.g., 'microsoft/speecht5_tts')
+     * @param modelName - The model name (e.g., 'OpenVINO/Kokoro-82M-int8-ov')
      * @returns Promise<DownloadModelParam[]> - Array with model if missing, empty if exists
      */
     async function getMissingSpeechModel(modelName: string): Promise<DownloadModelParam[]> {

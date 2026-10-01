@@ -14,11 +14,10 @@ import { test, expect } from './fixtures'
 
 /**
  * The smallest chat model per backend, as of the current `WebUI/external/models.json`:
- * SmolLM2-1.7B-Instruct Q4_K_M is 1.06 GB (the only GGUF below the DeepSeek-R1 1.5B
- * Q4_K_S at 1.07 GB) and the TinyLlama-1.1B OpenVINO IR is 0.64 GB. Both are plain
- * instruct models — no reasoning, no tool calling — so a chat turn is a single short
- * reply, and the Chat settings' tool section (which only renders for tool-calling
- * models) stays out of their small context window.
+ * Qwen3.5-4B Q4_K_M (~2.5 GB) on llama.cpp and Qwen3.5-4B int4 on OpenVINO. Both
+ * call tools and think, and both have a context window large enough that the Chat
+ * settings' tool section fits. They are still the smallest LLMs left in the catalog,
+ * which is what keeps this download-bound spec from pulling a 9B.
  *
  * Hard-coded rather than derived: the library sorts by *on-disk* size, which is blank
  * for a model that hasn't been downloaded, so "the smallest" cannot be read off the UI.
@@ -26,35 +25,34 @@ import { test, expect } from './fixtures'
  */
 const TARGETS = {
   'llamaCPP - GGUF': {
-    label: 'smollm2-1.7b-instruct-q4_k_m.gguf',
-    repo: 'HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF',
+    label: 'Qwen3.5-4B-Q4_K_M.gguf',
+    repo: 'unsloth/Qwen3.5-4B-GGUF',
     /** The "Assistant" preset's `preferredModels` entries for this backend. */
     presetDefaults: ['Qwen3.5-9B-Q4_K_M.gguf'],
   },
   OpenVINO: {
-    label: 'TinyLlama-1.1B-Chat-v1.0-int4-ov',
+    label: 'Qwen3.5-4B-int4-ov',
     repo: 'OpenVINO',
     /**
-     * Two entries because OpenVINO ships this model twice and the picker offers
-     * exactly one of them, decided by the inference device: ModelSelector filters
-     * out `npuSupport` models on GPU and non-`npuSupport` models on NPU, and the
-     * `-cw-` (channel-wise) build is the NPU one. Whichever device the run has
-     * landed on by then is the variant that exists, so the restore below takes the
-     * one on offer rather than assuming.
+     * The picker offers exactly one of these, decided by the inference device:
+     * ModelSelector hides `npuSupport` models on GPU and everything else on NPU.
+     * Qwen3.5-9B is the GPU OpenVINO model; `Qwen3-8B-int4-cw-ov` is the NPU build
+     * the Assistant preset pins. The unload step above may have switched devices,
+     * so the restore takes whichever of the two this device is listing.
      */
-    presetDefaults: ['Qwen3-8B-int4-ov', 'Qwen3-8B-int4-cw-ov'],
+    presetDefaults: ['Qwen3.5-9B-int4-ov', 'Qwen3-8B-int4-cw-ov'],
   },
 } as const
 
 type BackendLabel = keyof typeof TARGETS
 
-/** A short, low-context prompt any 1B-class instruct model can answer in one line. */
+/** A short prompt the smallest remaining chat model can answer in one line. */
 const PROMPT = 'In one short sentence: what colour is the sky on a clear day?'
 
 test('the model library lists, filters and round-trips a model through download, use and delete', async ({
   app,
 }) => {
-  // One model download (~1 GB) plus backend installation and a chat turn.
+  // One model download (Qwen3.5-4B, a few GB) plus backend installation and a chat turn.
   test.setTimeout(40 * 60_000)
   await app.installAllBackends()
 
@@ -253,15 +251,12 @@ test('the model library lists, filters and round-trips a model through download,
   })
 
   await test.step('Put the "Assistant" preset back on its default model', async () => {
-    // The model picked in Chat settings is saved *per preset* and outlives this spec,
-    // and the tiny model used above cannot call tools — which hides the whole tool
-    // section (SettingsBuiltinTools.vue) and breaks the agentic specs that come after.
-    // Deleting it doesn't help: the picker then falls back to the first catalog entry,
-    // which is a non-tool-calling model too. So restore the preset's own default
-    // explicitly, the way the Text-to-Speech flow re-pins its voice.
+    // The model picked in Chat settings is saved *per preset* and outlives this spec.
+    // Restore the preset's own default explicitly, the way the Text-to-Speech flow
+    // re-pins its voice, so a later spec is not left on the 4B this one downloaded.
     //
-    // Whichever of its builds this device offers: the step above deliberately moved
-    // the inference device to unload the model, and on OpenVINO that decides which
+    // Whichever build this device offers: the step above deliberately moved the
+    // inference device to unload the model, and on OpenVINO that decides which
     // variant the picker lists at all (see TARGETS).
     await app.settings.open('Chat')
     const restored = await app.settings.selectFirstOfferedModel(target.presetDefaults)

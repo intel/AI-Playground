@@ -264,6 +264,8 @@ describe('buildEntries', () => {
             isPredefined: true,
             inferenceDefaults: { temperature: 0.6, reasoningEffort: 'low' },
             llamaCppArgs: '--spec-type draft-mtp',
+            reasoningParser: 'gemma4',
+            enableMtp: true,
           },
         ],
       }),
@@ -271,6 +273,8 @@ describe('buildEntries', () => {
 
     expect(entries[0].inferenceDefaults).toMatchObject({ reasoningEffort: 'low' })
     expect(entries[0].llamaCppArgs).toBe('--spec-type draft-mtp')
+    expect(entries[0].reasoningParser).toBe('gemma4')
+    expect(entries[0].enableMtp).toBe(true)
   })
 
   it('skips cloud models, which have nothing local to manage', () => {
@@ -385,8 +389,8 @@ describe('buildEntries', () => {
             pathKey: 'TTS',
             useCase: 'speech',
             serviceBackend: 'openvino',
-            name: 'tngtech---Kokoro-82M-int8-ov',
-            absolutePath: '/models/TTS/tngtech---Kokoro-82M-int8-ov',
+            name: 'OpenVINO---Kokoro-82M-int8-ov',
+            absolutePath: '/models/TTS/OpenVINO---Kokoro-82M-int8-ov',
             sizeBytes: 4096,
             modifiedAt: 5,
             isDirectory: true,
@@ -394,7 +398,7 @@ describe('buildEntries', () => {
         ],
         speechModels: [
           {
-            name: 'tngtech/Kokoro-82M-int8-ov',
+            name: 'OpenVINO/Kokoro-82M-int8-ov',
             pathKey: 'TTS',
             usedBy: 'Text To Speech',
             serviceBackend: 'openvino',
@@ -406,7 +410,7 @@ describe('buildEntries', () => {
     expect(entries).toHaveLength(1)
     expect(entries[0]).toMatchObject({
       // The catalog spelling wins over the `---` form found on disk.
-      name: 'tngtech/Kokoro-82M-int8-ov',
+      name: 'OpenVINO/Kokoro-82M-int8-ov',
       downloaded: true,
       source: 'catalog',
       sizeBytes: 4096,

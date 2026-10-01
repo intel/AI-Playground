@@ -8,7 +8,9 @@ import { usePresetSwitching } from './presetSwitching'
 import { useConfirmations } from './confirmations'
 import { useOemBranding } from './oemBranding'
 import { useErrors } from './errors'
+import { useI18N } from './i18n'
 import { unregisterAgentModeIpc } from './agentModeIpc'
+import { withResponseLanguage } from '@/lib/responseLanguage'
 import {
   DEFAULT_CAPABILITY_IDS,
   GAME_STUDIO_QUICK_ID,
@@ -72,6 +74,7 @@ export const useAgentMode = defineStore(
     const confirmations = useConfirmations()
     const oemBranding = useOemBranding()
     const errors = useErrors()
+    const i18n = useI18N()
 
     const workspaceDir = ref<string>('')
 
@@ -224,23 +227,39 @@ export const useAgentMode = defineStore(
       if (next !== bags) textInference.settingsPerPreset = next
     }
 
+    // Frozen per session so a later turn does not rebuild Pi (instructions are
+    // part of the session key) or pick up a Language-selector change mid-run.
+    const pendingResponseLocales: Record<string, string> = {}
+
+    function sessionResponseLocale(sessionId: string): string {
+      const stored = sessions.value[sessionId]?.responseLocale ?? pendingResponseLocales[sessionId]
+      if (stored) return stored
+      pendingResponseLocales[sessionId] = i18n.langName
+      return pendingResponseLocales[sessionId]
+    }
+
     const turn = createAgentTurnRuntime({
       errors,
       storeTools: { [OFFER_GAME_AGENT_TOOL]: (input) => offerGameAgent(input) },
-      buildTurnConfig: () =>
-        buildTurnConfig({
-          sessionId: ensureSessionId(activeSessionId),
+      buildTurnConfig: () => {
+        const sessionId = ensureSessionId(activeSessionId)
+        return buildTurnConfig({
+          sessionId,
           workspaceDir: workspaceDir.value,
           // The remembered agent preset, not the active one: a media call
           // switches the active preset to an image-gen one mid-turn.
           presetName: agentPresetName.value,
-          instructions: activeAgentPreset.value?.systemPrompt?.trim() ?? '',
+          instructions: withResponseLanguage(
+            activeAgentPreset.value?.systemPrompt?.trim() ?? '',
+            sessionResponseLocale(sessionId),
+          ),
           capabilities: [...capabilities.value],
           unsandboxed: unsandboxed.value,
           planningThinkingOnly: planningThinkingOnly.value,
           textInference,
           cloudMode,
-        }),
+        })
+      },
     })
     const { chat, processing, toolProgress, toolImages, abortRunningTools } = turn
 
@@ -285,6 +304,7 @@ export const useAgentMode = defineStore(
         existing: sessions.value[id],
         capabilities: capabilities.value,
         presetName,
+        responseLocale: sessions.value[id]?.responseLocale ?? pendingResponseLocales[id],
       })
       if (!record) return
       sessions.value = { ...sessions.value, [id]: record }

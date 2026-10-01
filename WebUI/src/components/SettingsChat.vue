@@ -102,12 +102,15 @@
             <div class="flex flex-col gap-1">
               <input
                 id="chat-context-size"
-                type="number"
-                v-model="textInference.contextSize"
-                :min="textInference.enforceKmContextFloor ? PHISON_KM_CONTEXT_FLOOR : 512"
-                max="131072"
-                step="512"
-                class="rounded-sm text-foreground text-center h-[30px] w-20 leading-[30px] p-0 bg-transparent border border-border"
+                type="text"
+                inputmode="numeric"
+                autocomplete="off"
+                :value="contextSizeField.draft"
+                class="rounded-sm text-foreground text-center h-[30px] w-24 leading-[30px] p-0 bg-transparent border border-border"
+                @focus="contextSizeField.onFocus"
+                @input="contextSizeField.onInput"
+                @blur="contextSizeField.commit"
+                @keydown.enter="contextSizeField.commit"
               />
               <p v-if="textInference.enforceKmContextFloor" class="text-xs text-muted-foreground">
                 {{ languages.PHISON_KM_CONTEXT_HINT }}
@@ -288,7 +291,7 @@ import SettingsHeading from '@/components/SettingsHeading.vue'
 import SettingsRow from '@/components/SettingsRow.vue'
 import { DocumentTextIcon, PlusIcon } from '@heroicons/vue/24/solid'
 import CapabilityIcons from '@/components/CapabilityIcons.vue'
-import { ref, computed } from 'vue'
+import { ref, computed, toRef } from 'vue'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import Rag from '@/components/Rag.vue'
 import SettingsMcp from '@/components/SettingsMcp.vue'
@@ -301,7 +304,7 @@ import PresetSelector from '@/components/PresetSelector.vue'
 import * as toast from '@/assets/js/toast'
 import { useProductMode } from '@/assets/js/store/productMode'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from '@/assets/js/store/conversations'
-import { PHISON_KM_CONTEXT_FLOOR } from '@/assets/js/phisonKmRag'
+import { useContextSizeField } from '@/assets/js/contextSizeField'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import { useCloudMode } from '@/assets/js/store/cloudMode'
 import { reasoningEfforts, type ReasoningEffort } from '@/types/shared'
@@ -312,6 +315,9 @@ const showUploader = ref(false)
 const processing = ref(false)
 const i18nState = useI18N().state
 const textInference = useTextInference()
+const contextSizeField = useContextSizeField(toRef(textInference, 'contextSize'), () =>
+  textInference.markContextSizeEdited(),
+)
 const presetsStore = usePresets()
 const presetSwitching = usePresetSwitching()
 const backendServices = useBackendServices()
@@ -374,7 +380,6 @@ const showRetrievalModeToggle = computed(
   () =>
     enableRAG.value &&
     activeChatPreset.value?.supportsPhisonKmRag === true &&
-    activeChatPreset.value?.requiresPhison !== true &&
     textInference.phisonSsdPresent,
 )
 const disableRetrievalModeToggle = computed(() => !textInference.phisonKmAvailable)

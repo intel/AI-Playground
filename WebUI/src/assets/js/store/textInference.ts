@@ -17,6 +17,7 @@ import {
   resolveSampling,
   toRequestBody,
 } from '@/lib/samplingDefaults'
+import { claimOvmsMtpStaleNotice, ovmsMtpRequestFields } from '@/lib/ovmsMtp'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePresets, type ChatPreset } from './presets'
 import { useDeveloperSettings } from './developerSettings'
@@ -26,6 +27,7 @@ import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from './conversations'
 import * as toast from '@/assets/js/toast.ts'
 import { useActivities } from './activities'
 import { useI18N } from './i18n'
+import { useUIStore } from './ui'
 import { renamePresetKeys } from '@/lib/presetRenames'
 import { HYBRID_CLOUD_NAME } from '@/lib/cloudModeName'
 import { boundMaxOutputTokens } from '@/lib/maxOutputTokens'
@@ -71,8 +73,11 @@ export type LlmModel = {
   maxContextSize?: number
   inferenceDefaults?: InferenceDefaults
   llamaCppArgs?: string
+  reasoningParser?: string
+  enableMtp?: boolean
   npuSupport?: boolean
   largeMoe?: boolean
+  requiresPhison?: boolean
   isPredefined?: boolean
   /** User preference from `store/modelPreferences.ts`; applied by pickers, not here. */
   favorite?: boolean
@@ -128,22 +133,7 @@ export type EmbedInquiry = {
 
 // Thinking model markers for different models
 export const thinkingModels: Record<string, string> = {
-  'bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_S.gguf':
-    '</think>\n\n',
-  'bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF/DeepSeek-R1-Distill-Qwen-7B-Q4_K_S.gguf':
-    '</think>\n\n',
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B': '</think>\n\n',
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-14B': '</think>\n\n',
-  'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-14B-int4-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-cw-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-cw-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-gq-ov': '</think>\n\n',
-  'OpenVINO/DeepSeek-R1-Distill-Qwen-7B-nf4-ov': '</think>\n\n',
   'OpenVINO/Qwen3-8B-int4-cw-ov': '</think>\n\n',
-  'OpenVINO/Qwen3-8B-int4-ov': '</think>\n\n',
   'unsloth/gpt-oss-20b-GGUF/gpt-oss-20b-Q8_0.gguf': '<|start|>assistant<|channel|>final<|message|>',
   'OpenVINO/gpt-oss-20b-int4-ov': '<|start|>assistant<|channel|>final<|message|>',
 }
@@ -184,6 +174,7 @@ export const useTextInference = defineStore(
     const activities = useActivities()
     const modelPreferences = useModelPreferences()
     const i18nState = useI18N().state
+    const uiStore = useUIStore()
     // Tracks the in-flight backend-preparation activity (begin/end are paired with
     // start/completeBackendPreparation).
     let backendPrepActivityId: string | null = null
@@ -272,8 +263,11 @@ export const useTextInference = defineStore(
             maxContextSize: m.maxContextSize,
             inferenceDefaults: m.inferenceDefaults,
             llamaCppArgs: m.llamaCppArgs,
+            reasoningParser: m.reasoningParser,
+            enableMtp: m.enableMtp,
             npuSupport: m.npuSupport,
             largeMoe: m.largeMoe,
+            requiresPhison: m.requiresPhison,
             isPredefined: m.isPredefined,
           }
         }),
@@ -321,8 +315,11 @@ export const useTextInference = defineStore(
             // describes local models.
             inferenceDefaults: undefined,
             llamaCppArgs: undefined,
+            reasoningParser: undefined,
+            enableMtp: undefined,
             npuSupport: undefined,
             largeMoe: undefined,
+            requiresPhison: undefined,
             isPredefined: false,
             // Cloud model ids have no on-disk path of their own, so their flags
             // are keyed under the dedicated CLOUD_MODEL_PATH_KEY — which is what
@@ -688,6 +685,13 @@ export const useTextInference = defineStore(
     // whenever they move. See PhisonKmRagDeps.requestedContextSize for why the bounded
     // value alone is not enough to hold on to.
     const requestedContextSize = ref<number>(8192)
+    // True once the context box has been committed by hand. Until then a Phison
+    // preset stuck on the KM floor (the box used to reject keystrokes) adopts the
+    // preset's context size instead of keeping that floor.
+    const contextSizeEdited = ref(false)
+    function markContextSizeEdited() {
+      contextSizeEdited.value = true
+    }
     const DEFAULT_TEMPERATURE = 0.7
     const temperature = ref<number>(DEFAULT_TEMPERATURE)
     // The recommendation we last wrote into `temperature` / `reasoningEffort`.
@@ -785,7 +789,12 @@ export const useTextInference = defineStore(
     // the recommendation was written for, so remote turns get nothing.
     const samplingRequestBody = computed<Record<string, number>>(() => {
       if (backend.value === 'cloud') return {}
-      return toRequestBody(recommendedSampling.value, backend.value)
+      const body = toRequestBody(recommendedSampling.value, backend.value)
+      if (backend.value !== 'openVINO') return body
+      const mtpArmed =
+        backendServices.info.find((service) => service.serviceName === 'openvino-backend')
+          ?.ovmsMtpArmed === true
+      return { ...body, ...ovmsMtpRequestFields(mtpArmed) }
     })
 
     // A model that recommends an effort is one whose template reads it.
@@ -1506,6 +1515,17 @@ export const useTextInference = defineStore(
       backendReadinessState.lastUsedContextSize[currentBackend] = contextSize.value
     }
 
+    function notifyOvmsMtpStale(): void {
+      const modelRepoId = backendServices.info.find(
+        (service) => service.serviceName === 'openvino-backend',
+      )?.ovmsMtpStaleModel
+      if (!claimOvmsMtpStaleNotice(modelRepoId, localStorage)) return
+      const message = (i18nState.OVMS_MTP_STALE_MODEL ?? '').replace('{model}', modelRepoId ?? '')
+      dialogStore.showWarningDialog(message, () => {
+        uiStore.openModelManager()
+      })
+    }
+
     async function ensureBackendReadiness(): Promise<void> {
       // Cloud Mode has no local subprocess and no model to (re)load — the
       // remote provider is always "ready".
@@ -1540,10 +1560,11 @@ export const useTextInference = defineStore(
             llmModelName,
             embeddingModelToSend,
             contextSize.value,
-            // Only llama.cpp reads these; OVMS is started from a different
-            // command line and ignores them.
+            // Only llama.cpp reads these; OVMS MTP is `--draft_model_path`, decided
+            // in the main process from the catalog's `enableMtp` flag.
             backend.value === 'llamaCPP' ? activeLlmModel.value?.llamaCppArgs : undefined,
           )
+          if (backend.value === 'openVINO') notifyOvmsMtpStale()
         } catch (error) {
           // Surface model-load failures (e.g. out of memory for the chosen
           // context size) to the user. This is the single chokepoint for both
@@ -1856,6 +1877,21 @@ export const useTextInference = defineStore(
         requestedContextSize.value = preset.contextSize
       }
 
+      // A saved size at or under the KM floor on the aiDAPTIV preset is the floor
+      // the box was locked to (the preset used to ship 8192). Take the preset's
+      // window unless the box has been committed since.
+      contextSizeEdited.value = savedSettings.contextSizeEdited === true
+      if (
+        !contextSizeEdited.value &&
+        preset.requiresPhison === true &&
+        preset.contextSize !== undefined &&
+        requestedContextSize.value <= PHISON_KM_CONTEXT_FLOOR &&
+        preset.contextSize > requestedContextSize.value
+      ) {
+        requestedContextSize.value = preset.contextSize
+        contextSize.value = preset.contextSize
+      }
+
       // Load temperature, plus the model recommendation it came from (if any) so
       // applyModelInferenceDefaults can still tell an adopted value from a
       // deliberate one after a restart.
@@ -1930,16 +1966,12 @@ export const useTextInference = defineStore(
       // models that support the toggle via modelSupportsThinkingToggle).
       thinkingEnabled.value = (savedSettings.thinkingEnabled as boolean | undefined) ?? true
 
-      // Load retrieval mode.
-      //   • Presets with requiresPhison === true are dedicated Phison KM presets — always
-      //     force 'phisonKm' so stale persisted 'standard' never silently disables KV reuse.
-      //   • Other presets: persisted choice wins, else preset's declared default, else standard.
-      //     Clamp to 'standard' when the preset doesn't advertise KM support.
+      // Load retrieval mode. Persisted choice wins, else the preset's declared
+      // default (aiDAPTIV™ ships `phisonKm`), else standard. Clamp to standard
+      // when the preset doesn't advertise KM support — the toggle is what
+      // changes the mode, including on the Phison preset.
       const savedRagMode = savedSettings.ragMode as 'standard' | 'phisonKm' | undefined
-      const resolvedRagMode =
-        preset.requiresPhison === true
-          ? 'phisonKm'
-          : (savedRagMode ?? preset.defaultRagMode ?? 'standard')
+      const resolvedRagMode = savedRagMode ?? preset.defaultRagMode ?? 'standard'
       ragMode.value = preset.supportsPhisonKmRag === true ? resolvedRagMode : 'standard'
       console.log(
         `[textInference] loadSettingsForActivePreset: preset="${preset.name}" ` +
@@ -2129,6 +2161,7 @@ export const useTextInference = defineStore(
         maxTokens,
         contextSize,
         requestedContextSize,
+        contextSizeEdited,
         temperature,
         reasoningEffort,
         systemPrompt,
@@ -2163,6 +2196,7 @@ export const useTextInference = defineStore(
           maxTokens: maxTokens.value,
           contextSize: contextSize.value,
           requestedContextSize: requestedContextSize.value,
+          contextSizeEdited: contextSizeEdited.value,
           temperature: temperature.value,
           temperatureFromModel: temperatureFromModel.value,
           reasoningEffort: reasoningEffort.value,
@@ -2336,9 +2370,9 @@ export const useTextInference = defineStore(
       screenshotWindow,
       maxTokens,
       contextSize,
-      // Returned so it is part of the store's state and therefore persistable — the
-      // `pick` list below only reaches what setup() returns.
+      // Returned so the persist `pick` list can see it — Pinia only persists what setup() returns.
       requestedContextSize,
+      markContextSizeEdited,
       maxContextSizeFromModel,
       effectiveContextWindow,
       effectiveMaxTokens,

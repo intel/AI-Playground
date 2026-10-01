@@ -47,7 +47,7 @@ const llamaInfo = computed(() =>
 )
 
 const phisonDisplayName = computed(
-  () => i18nState.PHISON_AIDAPTIV_MENU_LABEL || 'Llama.cpp - Phison aiDAPTIV+ SSD',
+  () => i18nState.PHISON_AIDAPTIV_MENU_LABEL || 'Llama.cpp with Phison Pascari aiDAPTIV',
 )
 
 const backendStatus = computed(() => llamaInfo.value?.status ?? 'notInstalled')
@@ -55,8 +55,6 @@ const backendStatus = computed(() => llamaInfo.value?.status ?? 'notInstalled')
 const showReinstall = computed(
   () => backendStatus.value !== 'installing' && backendStatus.value !== 'notInstalled',
 )
-
-const llamaCppStorageTargets = computed(() => llamaInfo.value?.storageTargets ?? [])
 
 const llamaCppSsdOffloadConfigPath = computed(
   () => llamaInfo.value?.llamaCppSsdOffloadConfigPath ?? '',
@@ -76,13 +74,11 @@ function defaultSsdParameters(): string {
 }
 
 const formSchema = z.object({
-  llamaCppOffloadDrive: z.string().optional(),
   llamaCppParameters: z.string().optional(),
 })
 
 function getInitialFormValues() {
   return {
-    llamaCppOffloadDrive: backendServices.llamaCppOffloadDrive ?? '',
     llamaCppParameters: backendServices.llamaCppParameters ?? defaultSsdParameters(),
   }
 }
@@ -91,16 +87,13 @@ async function pushPhisonLlamaSettingsToMain() {
   await backendServices.updateServiceSettings({
     serviceName: 'llamacpp-backend',
     llamaCppBuildVariant: 'ssd-offload',
-    llamaCppOffloadDrive: backendServices.llamaCppOffloadDrive,
     llamaCppParameters: backendServices.effectiveLlamaCppParameters,
   })
 }
 
 async function applySettings(values: Record<string, unknown>) {
-  const offload = (values.llamaCppOffloadDrive as string) || null
   const params = (values.llamaCppParameters as string) || ''
   backendServices.llamaCppBuildVariant = 'ssd-offload'
-  backendServices.llamaCppOffloadDrive = offload
   const def = defaultSsdParameters()
   backendServices.llamaCppParameters = !params || params === def ? null : params
   try {
@@ -108,7 +101,7 @@ async function applySettings(values: Record<string, unknown>) {
   } catch (error) {
     console.error('Llama.cpp (Phison) settings update failed:', error)
     toast.error(
-      `Failed to update Phison aiDAPTIV+ settings: ${error instanceof Error ? error.message : String(error)}`,
+      `Failed to update Phison Pascari aiDAPTIV settings: ${error instanceof Error ? error.message : String(error)}`,
     )
     // Leave dialogs open so the user can retry without losing context.
     return
@@ -126,7 +119,7 @@ async function handlePhisonReinstall() {
     } catch (e) {
       console.error('Llama.cpp (Phison) settings push failed:', e)
       toast.error(
-        `Failed to push Phison aiDAPTIV+ settings: ${e instanceof Error ? e.message : String(e)}`,
+        `Failed to push Phison Pascari aiDAPTIV settings: ${e instanceof Error ? e.message : String(e)}`,
       )
       return
     }
@@ -177,7 +170,7 @@ async function handlePhisonReinstall() {
   <SettingsMenu
     v-model:open="menuOpen"
     :label="phisonDisplayName"
-    title="Llama.cpp-Phison aiDAPTIV+ settings"
+    title="Llama.cpp with Phison Pascari aiDAPTIV settings"
   >
     <DropdownMenuItem v-if="showReinstall" @select="reinstallDialogOpen = true">{{
       i18nState.BACKEND_REINSTALL
@@ -208,12 +201,12 @@ async function handlePhisonReinstall() {
     <DialogContent>
       <DialogHeader>
         <DialogTitle>{{
-          i18nState.PHISON_AIDAPTIV_SETTINGS_TITLE || 'Llama.cpp-Phison aiDAPTIV+ SSD offload'
+          i18nState.PHISON_AIDAPTIV_SETTINGS_TITLE || 'Llama.cpp with Phison Pascari aiDAPTIV'
         }}</DialogTitle>
         <DialogDescription>
           {{
             i18nState.PHISON_AIDAPTIV_SETTINGS_DESCRIPTION ||
-            'SSD offload path and startup parameters for the Phison aiDAPTIV+ Llama.cpp build.'
+            'Startup parameters for Llama.cpp with Phison Pascari aiDAPTIV. The aiDAPTIV drive is detected automatically; offload budgets are edited directly in aidaptiv_config.json.'
           }}
         </DialogDescription>
       </DialogHeader>
@@ -234,41 +227,8 @@ async function handlePhisonReinstall() {
             })
           "
         >
-          <FormField v-slot="{ componentField }" name="llamaCppOffloadDrive">
-            <FormItem>
-              <FormLabel>{{
-                i18nState.BACKEND_LLAMACPP_OFFLOAD_DRIVE_LABEL || 'SSD Offload Drive'
-              }}</FormLabel>
-              <FormControl>
-                <select
-                  class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  v-bind="componentField"
-                >
-                  <option value="">Select a drive</option>
-                  <option
-                    v-for="target in llamaCppStorageTargets"
-                    :key="target.id"
-                    :value="target.path"
-                  >
-                    {{ target.name }}
-                  </option>
-                </select>
-              </FormControl>
-              <FormDescription>
-                {{
-                  llamaCppStorageTargets.length > 0
-                    ? i18nState.BACKEND_LLAMACPP_OFFLOAD_DRIVE_DESCRIPTION ||
-                      'Assign the drive used for SSD KV offload.'
-                    : i18nState.BACKEND_LLAMACPP_OFFLOAD_DRIVE_EMPTY ||
-                      'No fixed drives detected yet. Install Llama.cpp or reopen settings.'
-                }}
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          </FormField>
-
           <FormField v-slot="{ componentField }" name="llamaCppParameters">
-            <FormItem class="mt-4">
+            <FormItem>
               <FormLabel>{{
                 i18nState.BACKEND_LLAMACPP_PARAMETERS_LABEL || 'Startup Parameters'
               }}</FormLabel>

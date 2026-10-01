@@ -36,6 +36,7 @@ declare interface SetupProgress {
     timestamp?: string
     duration?: number
     pipFreezeOutput?: string
+    hint?: string
   }
 }
 
@@ -48,13 +49,6 @@ declare interface InferenceDevice {
   uuid?: string | null
 }
 
-declare type StorageTarget = {
-  id: string
-  name: string
-  path: string
-  selected: boolean
-}
-
 declare interface ErrorDetails {
   command?: string
   exitCode?: number
@@ -63,6 +57,7 @@ declare interface ErrorDetails {
   timestamp?: string
   duration?: number
   pipFreezeOutput?: string
+  hint?: string
 }
 
 // Declare ApiServiceInformation type
@@ -74,7 +69,6 @@ declare interface ApiServiceInformation {
   isSetUp: boolean
   isRequired: boolean
   devices: InferenceDevice[]
-  storageTargets?: StorageTarget[]
   llamaCppSsdOffloadConfigPath?: string
   sttDevices?: InferenceDevice[]
   errorDetails: ErrorDetails | null
@@ -84,6 +78,10 @@ declare interface ApiServiceInformation {
   llamaCppPhisonArtifactReady?: boolean
   llamaCppStandardInstalledVersion?: { version: string; releaseTag?: string }
   llamaCppPhisonInstalledVersion?: { version: string; releaseTag?: string }
+  /** OpenVINO LLM was launched with `--draft_model_path`. Absent means not armed. */
+  ovmsMtpArmed?: boolean
+  /** OpenVINO repo whose snapshot is missing `openvino_mtp_model.xml`. */
+  ovmsMtpStaleModel?: string
 }
 
 // Declare ComfyUICustomNodeRepoId type

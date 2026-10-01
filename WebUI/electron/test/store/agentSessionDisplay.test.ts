@@ -136,6 +136,28 @@ describe('snapshotSession', () => {
     })
     expect(next?.updatedAt).toBeGreaterThan(2_000)
   })
+
+  it('freezes the response locale from the first archive', () => {
+    const first = snapshotSession({
+      id: 's1',
+      workspaceDir: '/code/app',
+      messages: [userTurn('hello')],
+      capabilities: [],
+      presetName: 'Agent',
+      responseLocale: 'ja',
+    })
+    expect(first?.responseLocale).toBe('ja')
+    const next = snapshotSession({
+      id: 's1',
+      workspaceDir: '/code/app',
+      messages: [...first!.messages, userTurn('again')],
+      existing: first!,
+      capabilities: [],
+      presetName: 'Agent',
+      responseLocale: 'en-US',
+    })
+    expect(next?.responseLocale).toBe('ja')
+  })
 })
 
 describe('gameAgentHandoffPrompt', () => {

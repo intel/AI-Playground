@@ -1,119 +1,5 @@
 [
   {
-    "name": "bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q4_K_S.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "maxContextSize": 128000
-  },
-  {
-    "name": "bartowski/Llama-3.2-3B-Instruct-GGUF/Llama-3.2-3B-Instruct-Q8_0.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "maxContextSize": 128000
-  },
-  {
-    "name": "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/Meta-Llama-3.1-8B-Instruct-Q5_K_S.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "maxContextSize": 128000
-  },
-  {
-    "name": "HuggingFaceTB/SmolLM2-1.7B-Instruct-GGUF/smollm2-1.7b-instruct-q4_k_m.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "maxContextSize": 8192
-  },
-  {
-    "name": "bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_S.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": true,
-    "maxContextSize": 131072
-  },
-  {
-    "name": "bartowski/DeepSeek-R1-Distill-Qwen-7B-GGUF/DeepSeek-R1-Distill-Qwen-7B-Q8_0.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": true,
-    "maxContextSize": 131072
-  },
-  {
-    "name": "bartowski/Mistral-7B-Instruct-v0.3-GGUF/Mistral-7B-Instruct-v0.3-Q4_K_S.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "maxContextSize": 32000
-  },
-  {
-    "name": "unsloth/gpt-oss-20b-GGUF/gpt-oss-20b-Q8_0.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": false,
-    "supportsReasoning": true,
-    "supportsCoding": true,
-    "maxContextSize": 8192
-  },
-  {
-    "name": "unsloth/gemma-3-4b-it-GGUF/gemma-3-4b-it-Q5_K_S.gguf",
-    "mmproj": "unsloth/gemma-3-4b-it-GGUF/mmproj-BF16.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": true,
-    "supportsReasoning": false,
-    "maxContextSize": 128000
-  },
-  {
-    "name": "unsloth/gemma-4-12b-it-GGUF/gemma-4-12b-it-Q5_K_M.gguf",
-    "mmproj": "unsloth/gemma-4-12b-it-GGUF/mmproj-BF16.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": true,
-    "supportsReasoning": false,
-    "supportsCoding": true,
-    "supportsThinkingToggle": true,
-    "maxContextSize": 128000
-  },
-  {
-    "name": "unsloth/Qwen3-VL-4B-Instruct-GGUF/Qwen3-VL-4B-Instruct-Q5_K_S.gguf",
-    "mmproj": "unsloth/Qwen3-VL-4B-Instruct-GGUF/mmproj-BF16.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": true,
-    "supportsReasoning": false,
-    "supportsCoding": true,
-    "maxContextSize": 256000
-  },
-  {
-    "name": "unsloth/Qwen3-4B-GGUF/Qwen3-4B-Q5_K_S.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": false,
-    "supportsReasoning": true,
-    "supportsCoding": true,
-    "supportsThinkingToggle": true,
-    "maxContextSize": 40960
-  },
-  {
-    "name": "unsloth/Qwen3-4B-Instruct-2507-GGUF/Qwen3-4B-Instruct-2507-Q5_K_S.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "supportsCoding": true,
-    "maxContextSize": 262144
-  },
-  {
     "name": "unsloth/Qwen3.5-9B-GGUF/Qwen3.5-9B-Q4_K_M.gguf",
     "mmproj": "unsloth/Qwen3.5-9B-GGUF/mmproj-BF16.gguf",
     "type": "llamaCPP",
@@ -148,6 +34,16 @@
     "maxContextSize": 262144
   },
   {
+    "name": "unsloth/Qwen3-VL-4B-Instruct-GGUF/Qwen3-VL-4B-Instruct-Q5_K_S.gguf",
+    "mmproj": "unsloth/Qwen3-VL-4B-Instruct-GGUF/mmproj-BF16.gguf",
+    "type": "llamaCPP",
+    "supportsToolCalling": true,
+    "supportsVision": true,
+    "supportsReasoning": false,
+    "supportsCoding": true,
+    "maxContextSize": 256000
+  },
+  {
     "name": "unsloth/gemma-4-E4B-it-GGUF/gemma-4-E4B-it-UD-Q4_K_XL.gguf",
     "mmproj": "unsloth/gemma-4-E4B-it-GGUF/mmproj-BF16.gguf",
     "type": "llamaCPP",
@@ -157,6 +53,36 @@
     "supportsCoding": true,
     "supportsThinkingToggle": true,
     "maxContextSize": 131072
+  },
+  {
+    "name": "unsloth/gemma-4-12b-it-GGUF/gemma-4-12b-it-Q5_K_M.gguf",
+    "mmproj": "unsloth/gemma-4-12b-it-GGUF/mmproj-BF16.gguf",
+    "type": "llamaCPP",
+    "supportsToolCalling": true,
+    "supportsVision": true,
+    "supportsReasoning": false,
+    "supportsCoding": true,
+    "supportsThinkingToggle": true,
+    "maxContextSize": 128000
+  },
+  {
+    "name": "unsloth/gpt-oss-20b-GGUF/gpt-oss-20b-Q8_0.gguf",
+    "type": "llamaCPP",
+    "supportsToolCalling": true,
+    "supportsVision": false,
+    "supportsReasoning": true,
+    "supportsCoding": true,
+    "maxContextSize": 8192
+  },
+  {
+    "name": "ggml-org/gpt-oss-20b-GGUF/gpt-oss-20b-MXFP4.gguf",
+    "type": "llamaCPP",
+    "supportsToolCalling": true,
+    "supportsVision": false,
+    "supportsReasoning": true,
+    "supportsCoding": true,
+    "largeMoe": true,
+    "maxContextSize": 8192
   },
   {
     "name": "unsloth/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-IQ2_XXS.gguf",
@@ -172,8 +98,16 @@
       "topK": 20,
       "minP": 0,
       "repetitionPenalty": 1,
-      "thinking": { "temperature": 1, "topP": 0.95, "presencePenalty": 0 },
-      "instruct": { "temperature": 0.7, "topP": 0.8, "presencePenalty": 1.5 },
+      "thinking": {
+        "temperature": 1,
+        "topP": 0.95,
+        "presencePenalty": 0
+      },
+      "instruct": {
+        "temperature": 0.7,
+        "topP": 0.8,
+        "presencePenalty": 1.5
+      },
       "reasoningEffort": "low"
     },
     "llamaCppArgs": "--spec-type draft-mtp --reasoning-budget 2048 --reasoning-budget-message \"I have thought about this long enough. Time to act on what I have.\""
@@ -192,8 +126,16 @@
       "topK": 20,
       "minP": 0,
       "repetitionPenalty": 1,
-      "thinking": { "temperature": 1, "topP": 0.95, "presencePenalty": 0 },
-      "instruct": { "temperature": 0.7, "topP": 0.8, "presencePenalty": 1.5 },
+      "thinking": {
+        "temperature": 1,
+        "topP": 0.95,
+        "presencePenalty": 0
+      },
+      "instruct": {
+        "temperature": 0.7,
+        "topP": 0.8,
+        "presencePenalty": 1.5
+      },
       "reasoningEffort": "low"
     },
     "llamaCppArgs": "--spec-type draft-mtp --reasoning-budget 2048 --reasoning-budget-message \"I have thought about this long enough. Time to act on what I have.\""
@@ -212,8 +154,16 @@
       "topK": 20,
       "minP": 0,
       "repetitionPenalty": 1,
-      "thinking": { "temperature": 1, "topP": 0.95, "presencePenalty": 0 },
-      "instruct": { "temperature": 0.7, "topP": 0.8, "presencePenalty": 1.5 },
+      "thinking": {
+        "temperature": 1,
+        "topP": 0.95,
+        "presencePenalty": 0
+      },
+      "instruct": {
+        "temperature": 0.7,
+        "topP": 0.8,
+        "presencePenalty": 1.5
+      },
       "reasoningEffort": "low"
     },
     "llamaCppArgs": "--spec-type draft-mtp --reasoning-budget 2048 --reasoning-budget-message \"I have thought about this long enough. Time to act on what I have.\""
@@ -232,70 +182,19 @@
       "topK": 20,
       "minP": 0,
       "repetitionPenalty": 1,
-      "thinking": { "temperature": 1, "topP": 0.95, "presencePenalty": 0 },
-      "instruct": { "temperature": 0.7, "topP": 0.8, "presencePenalty": 1.5 },
+      "thinking": {
+        "temperature": 1,
+        "topP": 0.95,
+        "presencePenalty": 0
+      },
+      "instruct": {
+        "temperature": 0.7,
+        "topP": 0.8,
+        "presencePenalty": 1.5
+      },
       "reasoningEffort": "low"
     },
     "llamaCppArgs": "--spec-type draft-mtp --reasoning-budget 2048 --reasoning-budget-message \"I have thought about this long enough. Time to act on what I have.\""
-  },
-  {
-    "name": "unsloth/Qwen3.6-27B-GGUF/Qwen3.6-27B-UD-Q4_K_XL.gguf",
-    "mmproj": "unsloth/Qwen3.6-27B-GGUF/mmproj-BF16.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": true,
-    "supportsReasoning": true,
-    "supportsCoding": true,
-    "supportsThinkingToggle": true,
-    "maxContextSize": 262144
-  },
-  {
-    "name": "unsloth/Qwen3.6-27B-MTP-GGUF/Qwen3.6-27B-UD-Q4_K_XL.gguf",
-    "mmproj": "unsloth/Qwen3.6-27B-MTP-GGUF/mmproj-BF16.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": true,
-    "supportsReasoning": true,
-    "supportsCoding": true,
-    "supportsThinkingToggle": true,
-    "maxContextSize": 262144,
-    "llamaCppArgs": "--spec-default --spec-type draft-mtp --spec-draft-n-max 2"
-  },
-  {
-    "name": "unsloth/Qwen3.6-35B-A3B-GGUF/Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf",
-    "mmproj": "unsloth/Qwen3.6-35B-A3B-GGUF/mmproj-BF16.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": true,
-    "supportsReasoning": true,
-    "supportsCoding": true,
-    "supportsThinkingToggle": true,
-    "largeMoe": false,
-    "maxContextSize": 262144
-  },
-  {
-    "name": "unsloth/Qwen3.6-35B-A3B-GGUF/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf",
-    "mmproj": "unsloth/Qwen3.6-35B-A3B-GGUF/mmproj-BF16.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": true,
-    "supportsReasoning": true,
-    "supportsCoding": true,
-    "supportsThinkingToggle": true,
-    "largeMoe": false,
-    "maxContextSize": 262144
-  },
-  {
-    "name": "unsloth/Qwen3.6-35B-A3B-GGUF/Qwen3.6-35B-A3B-UD-Q5_K_M.gguf",
-    "mmproj": "unsloth/Qwen3.6-35B-A3B-GGUF/mmproj-BF16.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": true,
-    "supportsReasoning": true,
-    "supportsCoding": true,
-    "supportsThinkingToggle": true,
-    "largeMoe": false,
-    "maxContextSize": 262144
   },
   {
     "name": "unsloth/Qwen3.6-35B-A3B-MTP-GGUF/Qwen3.6-35B-A3B-UD-Q3_K_XL.gguf",
@@ -337,22 +236,22 @@
     "llamaCppArgs": "--spec-default --spec-type draft-mtp --spec-draft-n-max 2"
   },
   {
+    "name": "Qwen/Qwen3-VL-30B-A3B-Instruct-GGUF/Qwen3VL-30B-A3B-Instruct-Q4_K_M.gguf",
+    "mmproj": "Qwen/Qwen3-VL-30B-A3B-Instruct-GGUF/mmproj-Qwen3VL-30B-A3B-Instruct-Q8_0.gguf",
+    "type": "llamaCPP",
+    "supportsToolCalling": true,
+    "supportsVision": true,
+    "supportsReasoning": false,
+    "supportsCoding": true,
+    "largeMoe": true,
+    "maxContextSize": 256000
+  },
+  {
     "name": "unsloth/gemma-4-26B-A4B-it-qat-GGUF/gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf",
     "type": "llamaCPP",
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": false,
-    "supportsCoding": true,
-    "supportsThinkingToggle": true,
-    "largeMoe": true,
-    "maxContextSize": 262144
-  },
-  {
-    "name": "unsloth/Qwen3.5-122B-A10B-GGUF/Q5_K_M/Qwen3.5-122B-A10B-Q5_K_M-00001-of-00003.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": false,
-    "supportsReasoning": true,
     "supportsCoding": true,
     "supportsThinkingToggle": true,
     "largeMoe": true,
@@ -366,87 +265,18 @@
     "supportsReasoning": true,
     "supportsCoding": true,
     "largeMoe": true,
+    "requiresPhison": true,
     "maxContextSize": 131072
   },
   {
-    "name": "Qwen/Qwen3-VL-30B-A3B-Instruct-GGUF/Qwen3VL-30B-A3B-Instruct-Q4_K_M.gguf",
-    "mmproj": "Qwen/Qwen3-VL-30B-A3B-Instruct-GGUF/mmproj-Qwen3VL-30B-A3B-Instruct-Q8_0.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": true,
-    "supportsReasoning": false,
-    "supportsCoding": true,
-    "largeMoe": true,
-    "maxContextSize": 256000
-  },
-  {
-    "name": "bartowski/Phi-3.5-MoE-instruct-GGUF/Phi-3.5-MoE-instruct-Q4_K_M.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "largeMoe": true,
-    "maxContextSize": 131072
-  },
-  {
-    "name": "unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF/Qwen3-30B-A3B-Instruct-2507-Q4_K_M.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "supportsCoding": true,
-    "largeMoe": true,
-    "maxContextSize": 262144
-  },
-  {
-    "name": "unsloth/Qwen3.5-35B-A3B-GGUF/Qwen3.5-35B-A3B-Q4_K_M.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": false,
-    "supportsReasoning": true,
-    "supportsCoding": true,
-    "supportsThinkingToggle": true,
-    "largeMoe": true,
-    "maxContextSize": 262144
-  },
-  {
-    "name": "LiquidAI/LFM2-24B-A2B-GGUF/LFM2-24B-A2B-Q4_K_M.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "largeMoe": true,
-    "maxContextSize": 128000
-  },
-  {
-    "name": "ggml-org/gpt-oss-20b-GGUF/gpt-oss-20b-mxfp4.gguf",
+    "name": "ggml-org/gpt-oss-120b-GGUF/gpt-oss-120b-MXFP4.gguf",
     "type": "llamaCPP",
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
     "supportsCoding": true,
     "largeMoe": true,
-    "maxContextSize": 8192
-  },
-  {
-    "name": "unsloth/gemma-4-26B-A4B-it-GGUF/gemma-4-26B-A4B-it-UD-Q4_K_M.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "supportsCoding": true,
-    "supportsThinkingToggle": true,
-    "largeMoe": true,
-    "maxContextSize": 262144
-  },
-  {
-    "name": "ggml-org/gpt-oss-120b-GGUF/gpt-oss-120b-mxfp4-00001-of-00003.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": false,
-    "supportsReasoning": true,
-    "supportsCoding": true,
-    "largeMoe": true,
+    "requiresPhison": true,
     "maxContextSize": 131072
   },
   {
@@ -458,97 +288,54 @@
     "supportsCoding": true,
     "supportsThinkingToggle": true,
     "largeMoe": true,
+    "requiresPhison": true,
     "maxContextSize": 262144
   },
   {
-    "name": "unsloth/Qwen3-Next-80B-A3B-Instruct-GGUF/Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf",
-    "type": "llamaCPP",
-    "supportsToolCalling": true,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "supportsCoding": true,
-    "largeMoe": true,
-    "maxContextSize": 262144
-  },
-  {
-    "name": "Qwen/Qwen3-Next-80B-A3B-Thinking-GGUF/Qwen3-Next-80B-A3B-Thinking-Q4_K_M.gguf",
+    "name": "unsloth/Qwen3.5-122B-A10B-GGUF/Q5_K_M/Qwen3.5-122B-A10B-Q5_K_M-00001-of-00003.gguf",
     "type": "llamaCPP",
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsThinkingToggle": true,
     "largeMoe": true,
+    "requiresPhison": true,
     "maxContextSize": 262144
   },
   {
-    "name": "OpenVINO/Qwen3-8B-int4-ov",
+    "name": "OpenVINO/Qwen3.5-9B-int4-ov",
     "type": "openVINO",
     "supportsToolCalling": true,
-    "supportsVision": false,
+    "toolParser": "qwen3coder",
+    "supportsVision": true,
     "supportsReasoning": true,
     "supportsCoding": true,
     "supportsThinkingToggle": true,
-    "maxContextSize": 40960
+    "maxContextSize": 262144,
+    "enableMtp": true
   },
   {
-    "name": "OpenVINO/Phi-3.5-mini-instruct-int4-ov",
-    "type": "openVINO",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "maxContextSize": 131072
-  },
-  {
-    "name": "OpenVINO/Phi-3-mini-4k-instruct-int4-ov",
-    "type": "openVINO",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "maxContextSize": 4096
-  },
-  {
-    "name": "OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-ov",
-    "type": "openVINO",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": true,
-    "maxContextSize": 131072
-  },
-  {
-    "name": "OpenVINO/DeepSeek-R1-Distill-Qwen-7B-int4-ov",
-    "type": "openVINO",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": true,
-    "maxContextSize": 131072
-  },
-  {
-    "name": "OpenVINO/TinyLlama-1.1B-Chat-v1.0-int4-ov",
-    "type": "openVINO",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "maxContextSize": 2048
-  },
-  {
-    "name": "OpenVINO/Qwen3-4B-int4-ov",
+    "name": "OpenVINO/Qwen3.5-4B-int4-ov",
     "type": "openVINO",
     "supportsToolCalling": true,
-    "supportsVision": false,
+    "toolParser": "qwen3coder",
+    "supportsVision": true,
     "supportsReasoning": true,
     "supportsCoding": true,
     "supportsThinkingToggle": true,
-    "maxContextSize": 40960
+    "maxContextSize": 262144,
+    "enableMtp": true
   },
   {
-    "name": "OpenVINO/gpt-oss-20b-int4-ov",
+    "name": "OpenVINO/Qwen3-VL-8B-Instruct-int4-ov",
     "type": "openVINO",
     "supportsToolCalling": true,
-    "toolParser": "gptoss",
-    "supportsVision": false,
-    "supportsReasoning": true,
+    "toolParser": "qwen3coder",
+    "supportsVision": true,
+    "supportsReasoning": false,
     "supportsCoding": true,
-    "maxContextSize": 131072
+    "maxContextSize": 262144
   },
   {
     "name": "OpenVINO/Qwen3-8B-int4-cw-ov",
@@ -562,107 +349,26 @@
     "npuSupport": true
   },
   {
-    "name": "OpenVINO/Mistral-7B-Instruct-v0.3-int4-cw-ov",
+    "name": "OpenVINO/gpt-oss-20b-int4-ov",
     "type": "openVINO",
     "supportsToolCalling": true,
-    "toolParser": "mistral",
+    "toolParser": "gptoss",
     "supportsVision": false,
-    "supportsReasoning": false,
-    "maxContextSize": 32768,
-    "npuSupport": true
-  },
-  {
-    "name": "OpenVINO/InternVL2-4B-int4-ov",
-    "type": "openVINO",
-    "supportsToolCalling": false,
-    "supportsVision": true,
-    "supportsReasoning": false,
+    "supportsReasoning": true,
+    "supportsCoding": true,
     "maxContextSize": 131072
   },
   {
-    "name": "OpenVINO/Qwen2-VL-7B-Instruct-int4-ov",
-    "type": "openVINO",
-    "supportsToolCalling": false,
-    "supportsVision": true,
-    "supportsReasoning": false,
-    "maxContextSize": 32768
-  },
-  {
-    "name": "OpenVINO/Qwen2.5-VL-7B-Instruct-int4-ov",
+    "name": "OpenVINO/gemma-4-E4B-it-int4-ov",
     "type": "openVINO",
     "supportsToolCalling": true,
+    "toolParser": "gemma4",
+    "reasoningParser": "gemma4",
     "supportsVision": true,
     "supportsReasoning": false,
-    "maxContextSize": 128000
-  },
-  {
-    "name": "OpenVINO/Phi-3.5-mini-instruct-int4-gq-ov",
-    "type": "openVINO",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": false,
-    "maxContextSize": 131072,
-    "npuSupport": true
-  },
-  {
-    "name": "OpenVINO/DeepSeek-R1-Distill-Qwen-1.5B-int4-gq-ov",
-    "type": "openVINO",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": true,
+    "supportsCoding": true,
+    "supportsThinkingToggle": true,
     "maxContextSize": 131072
-  },
-  {
-    "name": "OpenVINO/DeepSeek-R1-Distill-Qwen-7B-nf4-ov",
-    "type": "openVINO",
-    "supportsToolCalling": false,
-    "supportsVision": false,
-    "supportsReasoning": true,
-    "maxContextSize": 131072,
-    "npuSupport": true
-  },
-  {
-    "name": "OpenVINO/Qwen3.5-4B-int4-ov",
-    "type": "openVINO",
-    "supportsToolCalling": true,
-    "toolParser": "qwen3coder",
-    "supportsVision": true,
-    "supportsReasoning": true,
-    "supportsCoding": true,
-    "supportsThinkingToggle": true,
-    "maxContextSize": 262144
-  },
-  {
-    "name": "OpenVINO/Qwen3-VL-8B-Instruct-int4-ov",
-    "type": "openVINO",
-    "supportsToolCalling": true,
-    "toolParser": "qwen3coder",
-    "supportsVision": true,
-    "supportsReasoning": false,
-    "supportsCoding": true,
-    "maxContextSize": 262144
-  },
-  {
-    "name": "OpenVINO/Qwen3.5-9B-int4-ov",
-    "type": "openVINO",
-    "supportsToolCalling": true,
-    "toolParser": "qwen3coder",
-    "supportsVision": true,
-    "supportsReasoning": true,
-    "supportsCoding": true,
-    "supportsThinkingToggle": true,
-    "maxContextSize": 262144
-  },
-  {
-    "name": "OpenVINO/Qwen3.6-27B-int4-ov",
-    "type": "openVINO",
-    "supportsToolCalling": true,
-    "toolParser": "qwen3coder",
-    "supportsVision": true,
-    "supportsReasoning": true,
-    "supportsCoding": true,
-    "supportsThinkingToggle": true,
-    "maxContextSize": 262144
   },
   {
     "name": "OpenVINO/Qwen3.8-27B-int4-ov",
@@ -678,10 +384,19 @@
       "topK": 20,
       "minP": 0,
       "repetitionPenalty": 1,
-      "thinking": { "temperature": 1, "topP": 0.95, "presencePenalty": 0 },
-      "instruct": { "temperature": 0.7, "topP": 0.8, "presencePenalty": 1.5 },
+      "thinking": {
+        "temperature": 1,
+        "topP": 0.95,
+        "presencePenalty": 0
+      },
+      "instruct": {
+        "temperature": 0.7,
+        "topP": 0.8,
+        "presencePenalty": 1.5
+      },
       "reasoningEffort": "low"
-    }
+    },
+    "enableMtp": true
   },
   {
     "name": "OpenVINO/Qwen3.6-35B-A3B-int4-ov",
@@ -692,6 +407,20 @@
     "supportsReasoning": true,
     "supportsCoding": true,
     "supportsThinkingToggle": true,
+    "maxContextSize": 262144,
+    "enableMtp": true
+  },
+  {
+    "name": "OpenVINO/gemma-4-26b-a4b-it-int4-ov",
+    "type": "openVINO",
+    "supportsToolCalling": true,
+    "toolParser": "gemma4",
+    "reasoningParser": "gemma4",
+    "supportsVision": true,
+    "supportsReasoning": false,
+    "supportsCoding": true,
+    "supportsThinkingToggle": true,
+    "largeMoe": false,
     "maxContextSize": 262144
   },
   {

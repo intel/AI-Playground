@@ -31,6 +31,12 @@ import {
 } from './linuxPackageInstaller.ts'
 import { resolveDefaultDevice } from './defaultDeviceSelection.ts'
 import { npuPromptLen } from '../../src/types/shared.ts'
+import {
+  OVMS_MTP_GRAPH_FILE,
+  ovmsMtpLaunchArgs,
+  resolveOvmsMtpLaunch,
+  type OvmsMtpLaunch,
+} from '../../src/lib/ovmsMtp.ts'
 
 const execAsync = promisify(exec)
 
@@ -83,6 +89,12 @@ export class OpenVINOBackendService implements ApiService {
   private ovmsImageProcess: OvmsServerProcess | null = null
   private currentModel: string | null = null
   private currentContextSize: number | null = null
+  /** Draft directory the running LLM server was given, or null when MTP is off. */
+  private currentDraftModelPath: string | null = null
+  /** True only after a launch that actually passed `--draft_model_path`. */
+  private ovmsMtpArmed = false
+  /** Repo id whose on-disk snapshot is missing the MTP graph, if that is the running model. */
+  private ovmsMtpStaleModel: string | null = null
   /**
    * The command line the running LLM server was launched with. OVMS compiles
    * the graph from these (target device, NPU prompt length, KV cache
@@ -93,6 +105,7 @@ export class OpenVINOBackendService implements ApiService {
   private currentTranscriptionModel: string | null = null
   private currentTranscriptionDevice: string | null = null
   private currentSpeechModel: string | null = null
+  private currentSpeechDevice: string | null = null
   private currentImageModel: string | null = null
   private currentImageResolution: string | null = null
 
@@ -827,15 +840,20 @@ export class OpenVINOBackendService implements ApiService {
         await this.ensureLinuxRuntimeDependenciesForStartup()
       }
 
-      // Handle LLM model
+      // Handle LLM model. The draft path is baked into the command line the
+      // same way llama.cpp's model flags are, so a catalog or snapshot change
+      // only takes effect on a relaunch.
+      const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
+      const mtp = await this.resolveMtpLaunch(llmModelName, selectedDevice)
       const needsLlmRestart =
         this.currentModel !== llmModelName ||
         (contextSize && contextSize !== this.currentContextSize) ||
+        mtp.draftModelPath !== this.currentDraftModelPath ||
         !this.ovmsLlmProcess?.isReady
 
       if (needsLlmRestart) {
         await this.stopOvmsLlmServer()
-        await this.startOvmsLlmServer(llmModelName, contextSize)
+        await this.startOvmsLlmServer(llmModelName, contextSize, mtp)
         this.appLogger.info(`LLM server ready with model: ${llmModelName}`, this.name)
       } else {
         this.appLogger.info(`LLM server already running with model: ${llmModelName}`, this.name)
@@ -862,6 +880,7 @@ export class OpenVINOBackendService implements ApiService {
         `OpenVINO backend fully ready - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}`,
         this.name,
       )
+      this.updateStatus()
     } catch (error) {
       this.appLogger.error(
         `Failed to ensure backend readiness - LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}: ${error}`,
@@ -1229,6 +1248,8 @@ export class OpenVINOBackendService implements ApiService {
       sttDevices: this.sttDevices,
       errorDetails: this.lastStartupErrorDetails,
       installedVersion: this.cachedInstalledVersion,
+      ovmsMtpArmed: this.ovmsMtpArmed,
+      ...(this.ovmsMtpStaleModel ? { ovmsMtpStaleModel: this.ovmsMtpStaleModel } : {}),
     }
   }
 
@@ -1878,19 +1899,26 @@ export class OpenVINOBackendService implements ApiService {
 
   /**
    * Start text-to-speech server independently
-   * @param modelName - The TTS model name (e.g., 'microsoft/speecht5_tts')
+   * @param modelName - The TTS model name (e.g., 'OpenVINO/Kokoro-82M-int8-ov')
    */
   async startSpeechServer(modelName: string): Promise<void> {
     try {
+      const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
       this.appLogger.info(`Starting speech server for model: ${modelName}`, this.name)
 
-      // Check if already running with the same model
-      if (this.ovmsSpeechProcess?.isReady && this.currentSpeechModel === modelName) {
-        this.appLogger.info(`Speech server already running with model: ${modelName}`, this.name)
+      if (
+        this.ovmsSpeechProcess?.isReady &&
+        this.currentSpeechModel === modelName &&
+        this.currentSpeechDevice === selectedDevice
+      ) {
+        this.appLogger.info(
+          `Speech server already running with model: ${modelName} on device ${selectedDevice}`,
+          this.name,
+        )
         return
       }
 
-      // Stop existing server if running different model
+      // Stop existing server if running a different model or device
       if (this.ovmsSpeechProcess) {
         await this.stopOvmsSpeechServer()
       }
@@ -2046,14 +2074,76 @@ export class OpenVINOBackendService implements ApiService {
     return fallback
   }
 
+  /**
+   * Resolve the OVMS `--reasoning_parser` for a model from its models.json entry.
+   * Falls back to 'qwen3'. Gemma 4 sets `gemma4`; the qwen3 parser mis-reads it.
+   */
+  private async resolveReasoningParser(modelRepoId: string): Promise<string> {
+    const fallback = 'qwen3'
+    try {
+      const models = await resolveModels(this.settings)
+      const parser = models.find((m) => m.name === modelRepoId)?.reasoningParser
+      if (parser) {
+        this.appLogger.info(`Using reasoning_parser '${parser}' for ${modelRepoId}`, this.name)
+        return parser
+      }
+    } catch (error) {
+      this.appLogger.warn(
+        `Failed to resolve reasoning_parser for ${modelRepoId}, using '${fallback}': ${error}`,
+        this.name,
+      )
+    }
+    return fallback
+  }
+
+  /**
+   * Whether this launch should point OVMS at the model's MTP graph.
+   * A snapshot downloaded before the graph was published still starts; the
+   * stale bit is what asks the user to delete and re-download it.
+   */
+  private async resolveMtpLaunch(modelRepoId: string, deviceId: string): Promise<OvmsMtpLaunch> {
+    const modelDir = path.join(
+      path.resolve(path.join(this.baseDir, 'models', 'LLM', 'openvino')),
+      modelRepoId.split('/').join('---'),
+    )
+    let enableMtp = false
+    try {
+      const models = await resolveModels(this.settings)
+      enableMtp = models.find((m) => m.name === modelRepoId)?.enableMtp === true
+    } catch (error) {
+      this.appLogger.warn(
+        `Failed to resolve enableMtp for ${modelRepoId}, leaving MTP off: ${error}`,
+        this.name,
+      )
+    }
+    const folderExists = await filesystem.pathExists(modelDir)
+    const mtpGraphExists =
+      folderExists && (await filesystem.pathExists(path.join(modelDir, OVMS_MTP_GRAPH_FILE)))
+    const decision = resolveOvmsMtpLaunch({
+      enableMtp,
+      deviceId,
+      folderExists,
+      mtpGraphExists,
+    })
+    if (decision.stale) {
+      this.appLogger.info(
+        `${modelRepoId} supports MTP but ${OVMS_MTP_GRAPH_FILE} is missing from the downloaded snapshot. Delete the model in Model management and download it again to pick up the graph.`,
+        this.name,
+      )
+    }
+    return decision
+  }
+
   // Model server management methods
   private async startOvmsLlmServer(
     modelRepoId: string,
-    contextSize?: number,
+    contextSize: number | undefined,
+    mtp: OvmsMtpLaunch,
   ): Promise<OvmsServerProcess> {
     try {
       const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
       const toolParser = await this.resolveToolParser(modelRepoId)
+      const reasoningParser = await this.resolveReasoningParser(modelRepoId)
       const servedModelName = modelRepoId.split('/').join('---')
 
       this.appLogger.info(
@@ -2079,10 +2169,12 @@ export class OpenVINOBackendService implements ApiService {
         '--tool_parser',
         toolParser,
         '--reasoning_parser',
-        'qwen3',
+        reasoningParser,
         '--cache_dir',
         'cache',
       ]
+
+      args.push(...ovmsMtpLaunchArgs(mtp.draftModelPath))
 
       if (selectedDevice.startsWith('NPU')) {
         const maxPromptLen = npuPromptLen(contextSize)
@@ -2145,6 +2237,9 @@ export class OpenVINOBackendService implements ApiService {
           this.ovmsLlmProcess = null
           this.currentModel = null
           this.currentContextSize = null
+          this.currentDraftModelPath = null
+          this.ovmsMtpArmed = false
+          this.ovmsMtpStaleModel = null
         }
       })
 
@@ -2176,6 +2271,9 @@ export class OpenVINOBackendService implements ApiService {
       this.currentModel = modelRepoId
       this.currentContextSize = contextSize ?? null
       this.currentLlmServerArgs = args
+      this.currentDraftModelPath = mtp.draftModelPath
+      this.ovmsMtpArmed = mtp.draftModelPath !== null
+      this.ovmsMtpStaleModel = mtp.stale ? modelRepoId : null
 
       this.appLogger.info(`OVMS LLM server ready for model: ${modelRepoId}`, this.name)
       return ovmsProcess
@@ -2226,6 +2324,9 @@ export class OpenVINOBackendService implements ApiService {
       this.ovmsLlmProcess = null
       this.currentModel = null
       this.currentContextSize = null
+      this.currentDraftModelPath = null
+      this.ovmsMtpArmed = false
+      this.ovmsMtpStaleModel = null
     }
   }
 
@@ -2446,8 +2547,7 @@ export class OpenVINOBackendService implements ApiService {
 
   private async startOvmsSpeechServer(modelRepoId: string): Promise<OvmsServerProcess> {
     try {
-      // The TTS model (SpeechT5) is CPU-only under OVMS, so ignore the selected GPU/NPU device.
-      const selectedDevice = 'CPU'
+      const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
       const port = await getPort({ port: portNumbers(29400, 29499) })
       // Validate model path exists
       this.resolveSpeechModelPath(modelRepoId)
@@ -2517,6 +2617,7 @@ export class OpenVINOBackendService implements ApiService {
         if (this.ovmsSpeechProcess === ovmsProcess) {
           this.ovmsSpeechProcess = null
           this.currentSpeechModel = null
+          this.currentSpeechDevice = null
         }
       })
 
@@ -2526,6 +2627,7 @@ export class OpenVINOBackendService implements ApiService {
 
       this.ovmsSpeechProcess = ovmsProcess
       this.currentSpeechModel = modelRepoId
+      this.currentSpeechDevice = selectedDevice
 
       this.appLogger.info(`OVMS speech server ready for model: ${modelRepoId}`, this.name)
       return ovmsProcess
@@ -2548,6 +2650,7 @@ export class OpenVINOBackendService implements ApiService {
 
       this.ovmsSpeechProcess = null
       this.currentSpeechModel = null
+      this.currentSpeechDevice = null
     }
   }
 

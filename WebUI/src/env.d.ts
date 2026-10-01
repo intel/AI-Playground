@@ -31,7 +31,6 @@ type ServiceSettings = {
   comfyUiParameters?: string
   llamaCppParameters?: string
   llamaCppBuildVariant?: 'standard' | 'ssd-offload'
-  llamaCppOffloadDrive?: string | null
   // OVMS --kv_cache_precision value ('u8' | 'u4' | 'f16' | 'fp32'); '' = OVMS default.
   ovmsKvCachePrecision?: string
 }
@@ -429,7 +428,7 @@ type electronAPI = {
     embeddingModelName?: string,
     contextSize?: number,
     modelArgs?: string,
-  ): Promise<{ success: boolean; error?: string }>
+  ): Promise<{ success: boolean; error?: string; service?: ApiServiceInformation }>
   ensureComfyUIBackendRunning(): Promise<{
     success: boolean
     error?: string
@@ -987,6 +986,7 @@ type ErrorDetails = {
   timestamp?: string
   duration?: number
   pipFreezeOutput?: string
+  hint?: string
 }
 
 type ApiServiceInformation = {
@@ -997,7 +997,6 @@ type ApiServiceInformation = {
   isSetUp: boolean
   isRequired: boolean
   devices: InferenceDevice[]
-  storageTargets?: StorageTarget[]
   llamaCppSsdOffloadConfigPath?: string
   sttDevices?: InferenceDevice[]
   errorDetails: ErrorDetails | null
@@ -1006,13 +1005,10 @@ type ApiServiceInformation = {
   llamaCppPhisonArtifactReady?: boolean
   llamaCppStandardInstalledVersion?: { version: string; releaseTag?: string }
   llamaCppPhisonInstalledVersion?: { version: string; releaseTag?: string }
-}
-
-type StorageTarget = {
-  id: string
-  name: string
-  path: string
-  selected: boolean
+  /** OpenVINO LLM was launched with `--draft_model_path`. Absent means not armed. */
+  ovmsMtpArmed?: boolean
+  /** OpenVINO repo whose snapshot is missing `openvino_mtp_model.xml`. */
+  ovmsMtpStaleModel?: string
 }
 
 // The catalog entry `loadModels` returns. Mirrors `ModelSchema` in
@@ -1026,6 +1022,8 @@ type Model = {
   backend?: 'openVINO' | 'llamaCPP' | 'cloud' | undefined
   supportsToolCalling?: boolean
   toolParser?: string
+  reasoningParser?: string
+  enableMtp?: boolean
   supportsVision?: boolean
   supportsReasoning?: boolean
   supportsCoding?: boolean
@@ -1035,4 +1033,5 @@ type Model = {
   llamaCppArgs?: string
   npuSupport?: boolean
   largeMoe?: boolean
+  requiresPhison?: boolean
 }

@@ -69,7 +69,6 @@ export const useBackendServices = defineStore(
     // LlamaCPP startup parameters (persisted). null = use default from backend.
     const llamaCppParameters = ref<string | null>(null)
     const llamaCppBuildVariant = ref<'standard' | 'ssd-offload'>('standard')
-    const llamaCppOffloadDrive = ref<string | null>(null)
 
     // Default parameters fetched from backend via IPC
     const llamaCppDefaultParameters = ref<string>('')
@@ -225,7 +224,7 @@ export const useBackendServices = defineStore(
         applyServiceSnapshot(services)
       })
     }, 5000)
-    window.electronAPI.onServiceInfoUpdate((updatedInfo) => {
+    function upsertServiceInfo(updatedInfo: ApiServiceInformation): void {
       const idx = currentServiceInfo.value.findIndex(
         (s) => s.serviceName === updatedInfo.serviceName,
       )
@@ -238,6 +237,10 @@ export const useBackendServices = defineStore(
         currentServiceInfo.value = [...currentServiceInfo.value, updatedInfo]
       }
       applyInstalledVersionFromService(updatedInfo)
+    }
+
+    window.electronAPI.onServiceInfoUpdate((updatedInfo) => {
+      upsertServiceInfo(updatedInfo)
     })
 
     /**
@@ -466,7 +469,6 @@ export const useBackendServices = defineStore(
       if (serviceName === 'llamacpp-backend') {
         serviceSettings.llamaCppParameters = effectiveLlamaCppParameters.value
         serviceSettings.llamaCppBuildVariant = llamaCppBuildVariant.value
-        serviceSettings.llamaCppOffloadDrive = llamaCppOffloadDrive.value
       }
       await updateServiceSettings(serviceSettings)
       // Deliberately not awaited before `awaitFinalizationAndResetData` — progress
@@ -507,14 +509,13 @@ export const useBackendServices = defineStore(
 
     /** Installation UI toggles Phison without calling startService — main must see build variant for isSetUp. */
     watch(
-      [llamaCppBuildVariant, llamaCppOffloadDrive, llamaCppParameters],
+      [llamaCppBuildVariant, llamaCppParameters],
       async () => {
         try {
           await updateServiceSettings({
             serviceName: 'llamacpp-backend',
             llamaCppParameters: effectiveLlamaCppParameters.value,
             llamaCppBuildVariant: llamaCppBuildVariant.value,
-            llamaCppOffloadDrive: llamaCppOffloadDrive.value,
           })
         } catch (e) {
           console.warn('Failed to sync Llama.cpp settings to main process:', e)
@@ -566,7 +567,6 @@ export const useBackendServices = defineStore(
           serviceName: 'llamacpp-backend',
           llamaCppParameters: effectiveLlamaCppParameters.value,
           llamaCppBuildVariant: llamaCppBuildVariant.value,
-          llamaCppOffloadDrive: llamaCppOffloadDrive.value,
         })
       }
       if (serviceName === 'openvino-backend') {
@@ -629,6 +629,9 @@ export const useBackendServices = defineStore(
         if (!result.success) {
           throw new Error(result.error || 'Failed to ensure backend readiness')
         }
+        // The matching serviceInfoUpdate arrives a tick later. Fold the snapshot
+        // from this call in now so the next request sees whether MTP was armed.
+        if (result.service) upsertServiceInfo(result.service)
       } catch (error) {
         console.error(`Failed to ensure backend readiness for ${serviceName}:`, error)
         throw error
@@ -797,7 +800,6 @@ export const useBackendServices = defineStore(
       effectiveComfyUiParameters,
       llamaCppParameters,
       llamaCppBuildVariant,
-      llamaCppOffloadDrive,
       llamaCppDefaultParameters,
       effectiveLlamaCppParameters,
       openvinoKvCacheU4,
@@ -839,7 +841,6 @@ export const useBackendServices = defineStore(
         'comfyUiParameters',
         'llamaCppParameters',
         'llamaCppBuildVariant',
-        'llamaCppOffloadDrive',
         'openvinoKvCacheU4',
       ],
     },

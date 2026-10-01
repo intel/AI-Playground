@@ -392,14 +392,12 @@
                 title="Speak"
                 :disabled="
                   openAiCompatibleChat.processing ||
-                  (textToSpeech.preparingSpeech &&
-                    textToSpeech.speakingMessageId !== message.id)
+                  (textToSpeech.preparingSpeech && textToSpeech.speakingMessageId !== message.id)
                 "
                 :class="{
                   'opacity-50 cursor-not-allowed':
                     openAiCompatibleChat.processing ||
-                    (textToSpeech.preparingSpeech &&
-                      textToSpeech.speakingMessageId !== message.id),
+                    (textToSpeech.preparingSpeech && textToSpeech.speakingMessageId !== message.id),
                 }"
                 @click="toggleSpeak(message)"
               >
