@@ -40,10 +40,9 @@ The process described here has several goals:
 
 Please follow these steps to have your contribution considered by the maintainers:
 
-1. Always set base branch to [dev](https://github.com/intel/AI-Playground/tree/dev), do NOT make pull requests to the main branch without a strong reason.
-2. Follow all instructions in [the template](/.github/pull_request_template.md).
-3. After you submit your pull request, verify that all [status checks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks) are passing.
-4. [Sign your work](/CONTRIBUTING.md#sign-your-work).
+1. Follow all instructions in [the template](/.github/pull_request_template.md).
+2. After you submit your pull request, verify that all [status checks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks) are passing.
+3. [Sign your work](/CONTRIBUTING.md#sign-your-work).
 
 While the prerequisites above must be satifisfied prior to have your pull request reviewed, the reviewer(s) may ask you to complete additional design work, tests, or other changes before your pull request can be ultimately accepted.
 
