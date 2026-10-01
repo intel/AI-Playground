@@ -67,4 +67,18 @@ describe("browser 'eval'", () => {
     const circular = 'const a = {}; a.self = a; return a'
     expect((await evaluate(circular)).text).toContain('object')
   })
+
+  // A runtime SyntaxError still parsed as an expression. Falling back to
+  // statements would run the side effect a second time.
+  it('reports a runtime SyntaxError without running the script again', async () => {
+    const g = globalThis as { __evalHits?: number }
+    g.__evalHits = 0
+    try {
+      const script = "(globalThis.__evalHits = (globalThis.__evalHits || 0) + 1, JSON.parse('{'))"
+      await expect(evaluate(script)).rejects.toThrow(/JSON/)
+      expect(g.__evalHits).toBe(1)
+    } finally {
+      delete g.__evalHits
+    }
+  })
 })
