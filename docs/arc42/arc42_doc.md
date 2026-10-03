@@ -33,7 +33,7 @@ TBD
 |--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | GitHub                   | Github repositories hosting 3rd party extensions. Additional Extensions are cloned and set up on behalf of the user                                                                       |
 | AI Playground Repository | Github repositories of AI Playground. Additional workflows are released by intel and pushed to this repository. The application may update their workflow definitions by the intel source |
-| Model Repositories       | The models used for inference need to be downloaded from external sources, e.g. huggingface.com                                                                                           |
+| Model Repositories       | The models used for inference need to be downloaded from external sources, e.g. huggingface.co                                                                                            |
 
 ## Building Block View
 
