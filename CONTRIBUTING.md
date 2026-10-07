@@ -8,7 +8,7 @@ AI Playground has adopted a Code of Conduct that we expect project participants 
 
 ## How to Contribute
 
-There are many ways to contibute to this project, from writing tutorials or blog posts ([Show and tell in Discussion](https://github.com/intel/AI-Playground/discussions)), improving the documentation, submitting bug reports and feature requests, or writing code which can be incorporated into this project itself.
+There are many ways to contribute to this project, from writing tutorials or blog posts ([Show and tell in Discussion](https://github.com/intel/AI-Playground/discussions)), improving the documentation, submitting bug reports and feature requests, or writing code which can be incorporated into this project itself.
 
 ### Reporting Bugs
 
@@ -45,7 +45,7 @@ Please follow these steps to have your contribution considered by the maintainer
 3. After you submit your pull request, verify that all [status checks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks) are passing.
 4. [Sign your work](/CONTRIBUTING.md#sign-your-work).
 
-While the prerequisites above must be satifisfied prior to have your pull request reviewed, the reviewer(s) may ask you to complete additional design work, tests, or other changes before your pull request can be ultimately accepted.
+While the prerequisites above must be satisfied prior to have your pull request reviewed, the reviewer(s) may ask you to complete additional design work, tests, or other changes before your pull request can be ultimately accepted.
 
 ## Community
 
