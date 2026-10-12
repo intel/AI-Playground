@@ -322,7 +322,7 @@
               @click="handleCameraClick"
               title="Capture image from camera"
             >
-              <CameraIcon class="w-5 h-5" />
+              <AcerCameraIcon class="w-5 h-5" />
             </Button>
             <Button
               id="microphone-button"
@@ -466,7 +466,7 @@ import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
 import { useProductMode } from '@/assets/js/store/productMode'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { PlusIcon, PaperClipIcon, MusicalNoteIcon, XMarkIcon } from '@heroicons/vue/24/outline'
-import { CameraIcon } from '@heroicons/vue/24/solid'
+import AcerCameraIcon from '@/components/AcerCameraIcon.vue'
 import { Label } from '@/components/ui/label'
 import { useDropZone, useEventListener } from '@vueuse/core'
 import * as toast from '@/assets/js/toast'

@@ -219,6 +219,12 @@ import {
   buildScreenshotRegistry,
   buildScreenshotSendRegistry,
 } from './kernel/registries/screenshot'
+import { buildCameraCaptureRegistry } from './kernel/registries/cameraCapture'
+import { acerCameraDirectRunning } from './adapters/hardware/acerCameraDirect'
+import {
+  registerCameraCaptureShortcut,
+  unregisterCameraCaptureShortcut,
+} from './adapters/hardware/cameraCaptureShortcut'
 import {
   bootstrapAgentSessions,
   deleteAgentSessionRecord,
@@ -1124,6 +1130,10 @@ appShutdown.register({ name: 'demo rag documents', run: () => wipeDemoRagDocumen
 // After the agent, so the spans its extensions emit while shutting down are
 // still exported. No-op unless a developer opted into Laminar tracing.
 appShutdown.register({ name: 'laminar tracing', run: () => shutdownLaminarTracing() })
+appShutdown.register({
+  name: 'camera capture shortcut',
+  run: () => unregisterCameraCaptureShortcut(),
+})
 // Last line of defence against a window outliving the teardown. Their titles go
 // to the log first: if the app ever again refuses to close, this names the
 // window that held it open instead of leaving it to guesswork.
@@ -1786,6 +1796,16 @@ function initEventHandle() {
   }
   registerInvokeHandlers(buildScreenshotRegistry(screenshotDeps))
   registerSendHandlers(buildScreenshotSendRegistry(screenshotDeps))
+
+  registerInvokeHandlers(
+    buildCameraCaptureRegistry({
+      oemVendorOverride: () => settings.oemVendorOverride,
+      isDirectRunning: acerCameraDirectRunning,
+      logWarn: (message) => appLogger.warn(message, 'electron-backend'),
+      registerShortcut: registerCameraCaptureShortcut,
+      unregisterShortcut: unregisterCameraCaptureShortcut,
+    }),
+  )
 
   // MCP server IPC handlers
   const mcpDeps = {

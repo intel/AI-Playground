@@ -686,6 +686,36 @@ export const CHANNELS = {
     args: [] as const,
     result: null as unknown as { vendor: string; manufacturer: string; overridden: boolean },
   },
+  /**
+   * Whether an Acer Camera Direct process is running. False unless the OEM
+   * vendor override is Acer, and false off Windows.
+   */
+  'cameraCapture:isDirectRunning': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as const,
+    result: null as unknown as boolean,
+  },
+  /** Bind Alt+Shift+C to the open capture dialog. Returns whether the OS accepted it. */
+  'cameraCapture:registerShortcut': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as const,
+    result: null as unknown as boolean,
+  },
+  /** Release Alt+Shift+C. Safe when the shortcut was never registered. */
+  'cameraCapture:unregisterShortcut': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as const,
+    result: null as unknown as void,
+  },
+  /** Fired when Alt+Shift+C is pressed while the capture dialog holds the shortcut. */
+  'cameraCapture:shortcut': {
+    kind: 'push',
+    owner: 'main',
+    payload: null as unknown as null,
+  },
   /** Pull preset updates from the configured remote repository into the install. */
   updatePresetsFromIntelRepo: {
     kind: 'invoke',

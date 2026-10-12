@@ -176,6 +176,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLlamaCppDefaultParameters: () => invoke('getLlamaCppDefaultParameters'),
   detectPhisonSsd: () => invoke('detectPhisonSsd'),
   detectOem: () => invoke('detectOem'),
+  cameraCapture: {
+    isDirectRunning: () => invoke('cameraCapture:isDirectRunning'),
+    registerShortcut: () => invoke('cameraCapture:registerShortcut'),
+    unregisterShortcut: () => invoke('cameraCapture:unregisterShortcut'),
+    onShortcut: (callback: (payload: null) => void) => onPush('cameraCapture:shortcut', callback),
+  },
   onServiceSetUpProgress: (callback: (data: SetupProgress) => void) =>
     onRaw('serviceSetUpProgress', callback),
   onKernelEvent: (callback: (event: import('../src/types/kernelEvents').KernelEvent) => void) =>

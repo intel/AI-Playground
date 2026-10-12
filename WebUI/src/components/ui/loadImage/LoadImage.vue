@@ -63,7 +63,7 @@
         class="p-1 rounded hover:bg-muted"
         title="Capture from camera"
       >
-        <CameraIcon class="w-5 h-5 text-muted-foreground" />
+        <AcerCameraIcon class="w-5 h-5 text-muted-foreground" />
       </button>
     </div>
   </div>
@@ -75,7 +75,7 @@ import { computed } from 'vue'
 import { cn, isImageUrl, saveImageToMediaInput } from '@/lib/utils'
 import { useDropZone } from '@vueuse/core'
 import { useDialogStore } from '@/assets/js/store/dialogs'
-import { CameraIcon } from '@heroicons/vue/24/solid'
+import AcerCameraIcon from '@/components/AcerCameraIcon.vue'
 
 const props = defineProps<{
   imageUrlRef: WritableComputedRef<string>
