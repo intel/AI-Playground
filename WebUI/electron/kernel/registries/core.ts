@@ -1706,9 +1706,11 @@ export function buildCoreSendRegistry(deps: CoreSendDeps) {
       const imagePath = getAssetPathFromUrl(url, deps)
       if (!imagePath) return
 
-      // Open the image with the default system image viewer
       if (process.platform === 'win32') {
-        exec(`explorer.exe /select, "${imagePath}"`)
+        // `execFile`, not `exec`: the path is passed as an argument rather than
+        // spliced into a shell command line, so a media path containing a
+        // quote or an `&` opens the folder instead of running as a command.
+        execFile('explorer.exe', ['/select,', imagePath])
       } else {
         shell.showItemInFolder(imagePath)
       }
