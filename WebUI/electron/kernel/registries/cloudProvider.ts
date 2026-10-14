@@ -2,7 +2,7 @@ import fs from 'fs'
 import { safeStorage } from 'electron'
 import type { CloudProviderInvokeName, InvokeHandlerMap } from '../ipcRegistries'
 import { ipcFail } from '../typedIpc'
-import type { CloudProxy } from '../../adapters/cloudProxy'
+import { setAllowedUpstreams, type CloudProxy } from '../../adapters/cloudProxy'
 
 /**
  * The provider-key file helpers and Cloud Mode proxy lookup the four
@@ -58,6 +58,15 @@ export function buildCloudProviderRegistry(deps: CloudProviderDeps) {
     // request with X-Cloud-Upstream / X-Cloud-Provider (see cloudProxy.ts).
     'cloudProvider:getProxyUrl': async () => {
       return (await deps.getCloudProxy()).url
+    },
+
+    'cloudProvider:getAuthToken': async () => {
+      return (await deps.getCloudProxy()).authToken
+    },
+
+    'cloudProvider:setAllowedUpstreams': (_event, entries) => {
+      setAllowedUpstreams(entries)
+      return { success: true as const }
     },
   } satisfies InvokeHandlerMap<CloudProviderInvokeName>
 }

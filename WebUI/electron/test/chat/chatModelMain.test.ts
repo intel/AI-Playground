@@ -49,17 +49,20 @@ function wireDeps(overrides: Record<string, unknown> = {}): {
   llmApiBase: ReturnType<typeof vi.fn>
   ensureBackendReadiness: ReturnType<typeof vi.fn>
   homeAgentAuthToken: ReturnType<typeof vi.fn>
+  cloudProxyAuthToken: ReturnType<typeof vi.fn>
 } {
   const llmApiBase = vi.fn(() => 'http://127.0.0.1:39100')
   const ensureBackendReadiness = vi.fn(async () => {})
   const homeAgentAuthToken = vi.fn(() => 'token-1')
+  const cloudProxyAuthToken = vi.fn(() => 'cloud-token')
   setChatModelDeps({
     llmApiBase: llmApiBase as never,
     ensureBackendReadiness: ensureBackendReadiness as never,
     homeAgentAuthToken,
+    cloudProxyAuthToken,
     ...overrides,
   })
-  return { llmApiBase, ensureBackendReadiness, homeAgentAuthToken }
+  return { llmApiBase, ensureBackendReadiness, homeAgentAuthToken, cloudProxyAuthToken }
 }
 
 async function generate(model: ReturnType<typeof createMainChatModel>): Promise<unknown> {
@@ -243,5 +246,30 @@ describe('createMainChatModel', () => {
     expect(reasoning?.text).toContain('plan first')
     const text = result.content.find((part) => part.type === 'text')
     expect(text?.text).toBe('Hello')
+  })
+
+  it('attaches the cloud proxy loopback token', async () => {
+    const { cloudProxyAuthToken } = wireDeps()
+    const fetchMock = vi.fn(async () => jsonResponse(completionBody('hi'))) as FetchMock
+    vi.stubGlobal('fetch', fetchMock)
+    await generate(
+      createMainChatModel(
+        localConfig({
+          backend: 'cloud',
+          modelId: 'gpt-test',
+          readiness: undefined,
+          cloud: {
+            providerId: 'openai',
+            upstreamBaseUrl: 'https://api.openai.com',
+            authStyle: 'bearer',
+          },
+        }) as never,
+      ),
+    )
+    const headers = new Headers((fetchMock.mock.calls[0][1] as RequestInit).headers)
+    expect(cloudProxyAuthToken).toHaveBeenCalled()
+    expect(headers.get('X-AIPG-Auth')).toBe('cloud-token')
+    expect(headers.get('X-Cloud-Provider')).toBe('openai')
+    expect(headers.get('X-Cloud-Upstream')).toBe('https://api.openai.com')
   })
 })

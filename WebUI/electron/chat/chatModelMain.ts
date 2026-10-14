@@ -28,6 +28,8 @@ export type ChatModelDeps = {
   ensureBackendReadiness: (args: ChatReadinessArgs) => Promise<void>
   /** Fresh loopback token for the Home Agent proxy (regenerated per spawn). */
   homeAgentAuthToken: () => string
+  /** Per-launch token for the Cloud Mode proxy (empty until that proxy starts). */
+  cloudProxyAuthToken: () => string
 }
 
 let chatModelDeps: ChatModelDeps | null = null
@@ -122,6 +124,8 @@ export function createMainChatModel(config: ChatModelConfig): LanguageModel {
           }
           headers.set('X-Cloud-Provider', config.cloud.providerId)
           headers.set('X-Cloud-Auth-Style', config.cloud.authStyle)
+          const token = deps.cloudProxyAuthToken()
+          if (token) headers.set('X-AIPG-Auth', token)
           return await globalThis.fetch(requestUrl.toString(), { ...init, headers })
         }
         if (config.homeAgentUpstreamUrl) {

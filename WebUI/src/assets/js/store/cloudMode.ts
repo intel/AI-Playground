@@ -272,10 +272,23 @@ export const useCloudMode = defineStore(
     // All cloud networking flows through it, so upstream failures are logged in
     // the Node console instead of surfacing as opaque fetch errors in the browser.
     const proxyUrl = ref<string>('')
+    const proxyAuthToken = ref<string>('')
+
+    // Main holds the allowlist the proxy checks. Push it on every use: the
+    // URL cache must not skip a base that changed since the proxy started.
+    async function publishAllowedUpstreams(): Promise<void> {
+      const entries = providers.value.flatMap((provider) => {
+        const baseUrl = provider.baseUrl.trim()
+        return baseUrl ? [{ id: provider.id, baseUrl }] : []
+      })
+      await window.electronAPI.cloudProvider.setAllowedUpstreams(entries)
+    }
 
     async function ensureProxyUrl(): Promise<string> {
-      if (!proxyUrl.value) {
+      await publishAllowedUpstreams()
+      if (!proxyUrl.value || !proxyAuthToken.value) {
         proxyUrl.value = await window.electronAPI.cloudProvider.getProxyUrl()
+        proxyAuthToken.value = await window.electronAPI.cloudProvider.getAuthToken()
       }
       return proxyUrl.value
     }
@@ -379,6 +392,7 @@ export const useCloudMode = defineStore(
             'X-Cloud-Upstream': base,
             'X-Cloud-Provider': id,
             'X-Cloud-Auth-Style': provider.authStyle ?? 'bearer',
+            'X-AIPG-Auth': proxyAuthToken.value,
           },
         })
       } catch (e) {
@@ -510,8 +524,18 @@ export const useCloudMode = defineStore(
       isFeatureEnabled,
       (on) => {
         if (on) void initConfig()
+        else void window.electronAPI?.cloudProvider.setAllowedUpstreams([]).catch(() => undefined)
       },
       { immediate: true },
+    )
+
+    watch(
+      providers,
+      () => {
+        if (!isFeatureEnabled.value) return
+        void publishAllowedUpstreams().catch(() => undefined)
+      },
+      { deep: true },
     )
 
     return {

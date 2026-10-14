@@ -9,6 +9,7 @@ import { laminarConfig } from '../observability/laminar.ts'
 import { type InferenceTraceContext } from '../observability/laminarAttributes.ts'
 import type { AgentModeModelConfig } from '@/types/agentIpc'
 import { outputTokenBudget } from './piCompaction.ts'
+import { cloudProxyAuthToken } from '../adapters/cloudProxy.ts'
 
 export const LOCAL_PROVIDER = 'aipg-local'
 export const CLOUD_PROVIDER = 'aipg-cloud'
@@ -74,6 +75,7 @@ export async function registerModel(
   }
 
   const contextWindow = modelContextWindow(config)
+  const authToken = cloudProxyAuthToken()
   runtime.registerProvider(CLOUD_PROVIDER, {
     name: 'AI Playground cloud proxy',
     baseUrl: `${config.proxyBaseUrl}/v1`,
@@ -84,6 +86,7 @@ export async function registerModel(
       'X-Cloud-Upstream': config.upstreamBaseUrl,
       'X-Cloud-Provider': config.providerId,
       'X-Cloud-Auth-Style': config.authStyle,
+      ...(authToken ? { 'X-AIPG-Auth': authToken } : {}),
     },
     models: [
       {

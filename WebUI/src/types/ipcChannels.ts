@@ -1317,6 +1317,23 @@ export const CHANNELS = {
     args: [] as const,
     result: null as unknown as string,
   },
+  /** Per-launch `X-AIPG-Auth` token for the Cloud Mode proxy. */
+  'cloudProvider:getAuthToken': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as const,
+    result: null as unknown as string,
+  },
+  /**
+   * Replace the proxy's provider-id → base-URL allowlist. A request whose
+   * `X-Cloud-Upstream` does not match the registered base is rejected.
+   */
+  'cloudProvider:setAllowedUpstreams': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [readonly { id: string; baseUrl: string }[]],
+    result: null as unknown as IpcOk,
+  },
 
   // ── MCP registry and game library (batch 9b) ──
 

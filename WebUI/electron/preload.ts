@@ -441,6 +441,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getKey: (providerId: string) => invoke('cloudProvider:getKey', providerId),
     deleteKey: (providerId: string) => invoke('cloudProvider:deleteKey', providerId),
     getProxyUrl: () => invoke('cloudProvider:getProxyUrl'),
+    getAuthToken: () => invoke('cloudProvider:getAuthToken'),
+    setAllowedUpstreams: (entries: readonly { id: string; baseUrl: string }[]) =>
+      invoke('cloudProvider:setAllowedUpstreams', entries),
   },
   // The one whole-object exhaustiveness check: every member of this object must
   // match the manifest-derived ElectronApi exactly (path, args, result) — a

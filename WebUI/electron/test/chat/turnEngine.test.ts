@@ -287,6 +287,7 @@ beforeEach(() => {
     llmApiBase: () => 'http://127.0.0.1:39101',
     ensureBackendReadiness: vi.fn(),
     homeAgentAuthToken: () => 'token',
+    cloudProxyAuthToken: () => 'cloud-token',
   })
   vi.mocked(listMcpServers).mockReturnValue([])
   vi.mocked(getMcpServerStatus).mockReturnValue({ state: 'stopped' } as never)

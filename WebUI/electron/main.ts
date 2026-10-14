@@ -54,7 +54,7 @@ import {
 } from './adapters/backends/comfyUIBackendService'
 import { AiBackendService } from './adapters/backends/aiBackendService'
 import { HomeAgentBackendService } from './adapters/backends/homeAgentBackendService'
-import { startCloudProxy, type CloudProxy } from './adapters/cloudProxy'
+import { cloudProxyAuthToken, startCloudProxy, type CloudProxy } from './adapters/cloudProxy'
 import { Qwen3TtsBackendService } from './adapters/backends/qwen3TtsBackendService'
 import { WhisperBackendService } from './adapters/backends/whisperBackendService'
 import { LLAMACPP_DEFAULT_PARAMETERS } from './adapters/backends/llamaCppBackendService'
@@ -1332,6 +1332,7 @@ function wireChatEngine(): void {
         ? homeAgentSvc.getLoopbackAuthToken()
         : ''
     },
+    cloudProxyAuthToken,
   })
   // Reuses the main-side aipg-media reader the agent attachments already use;
   // the engine contract throws on failure (the ported customFetch behavior).
