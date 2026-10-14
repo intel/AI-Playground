@@ -1,6 +1,7 @@
 import { shell } from 'electron'
 import type { ComfyUiBackendService } from '../../adapters/backends/comfyUIBackendService'
 import type * as comfyuiTools from '../../adapters/backends/comfyuiTools'
+import { assertSafeCustomNodeRepoId } from '@/lib/customNodeRepoId'
 import type { ComfyuiInvokeName, InvokeHandlerMap } from '../ipcRegistries'
 import { ipcFail } from '../typedIpc'
 
@@ -69,6 +70,7 @@ export function buildComfyuiRegistry(deps: ComfyuiDeps) {
     },
 
     'comfyui:isCustomNodeInstalled': (_event, nodeRepoRef) => {
+      assertSafeCustomNodeRepoId(nodeRepoRef)
       const comfyService = deps.comfyService()
       if (!comfyService) {
         throw new Error('ComfyUI backend service not found')
@@ -77,6 +79,7 @@ export function buildComfyuiRegistry(deps: ComfyuiDeps) {
     },
 
     'comfyui:downloadCustomNode': async (_event, nodeRepoData) => {
+      assertSafeCustomNodeRepoId(nodeRepoData)
       const comfyService = deps.comfyService()
       if (!comfyService) {
         throw new Error('ComfyUI backend service not found')
@@ -93,6 +96,7 @@ export function buildComfyuiRegistry(deps: ComfyuiDeps) {
     },
 
     'comfyui:uninstallCustomNode': async (_event, nodeRepoData) => {
+      assertSafeCustomNodeRepoId(nodeRepoData)
       const comfyService = deps.comfyService()
       if (!comfyService) {
         throw new Error('ComfyUI backend service not found')

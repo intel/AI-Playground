@@ -38,6 +38,7 @@ import {
   modifySettingInWorkflow,
   workflowUsesOvmsImage,
 } from '@/lib/comfyWorkflow'
+import { parseCustomNodeSpec } from '@/lib/customNodeRepoId'
 import type { ComfyUIApiWorkflow, ComfyUiPreset } from '@/lib/presetSchemas'
 import type { ArtifactMissingModel } from '@/types/mediaRequests'
 import { ComfyMessageSchema, summarizeComfyExecutionError } from '@/assets/js/store/comfyUiMessages'
@@ -46,7 +47,6 @@ import {
   isCustomNodeInstalled,
   isPackageInstalled,
   installPypiPackage,
-  type ComfyUICustomNodeRepoId,
 } from '../adapters/backends/comfyuiTools'
 import {
   rewriteWorkflowForRun,
@@ -476,22 +476,12 @@ function startRun(payload: ArtifactRunPayload): Promise<ArtifactRunResult> {
 
 // ── The drive pass ───────────────────────────────────────────────────────────
 
-/** Port of the renderer's `extractCustomNodeInfo` (preset string → repo id). */
-function customNodeRepoId(workflowNodeInfoString: string): ComfyUICustomNodeRepoId {
-  const [repoInfoString, gitRef] = workflowNodeInfoString.replace(' ', '').split('@')
-  const [username, repoName] = repoInfoString.replace(' ', '').split('/')
-  if (!username || !repoName) {
-    throw new Error(`Could not extract comfyUI node description from ${workflowNodeInfoString}`)
-  }
-  return { username, repoName, gitRef }
-}
-
 async function installMissingRequirements(run: ActiveRun, preset: ComfyUiPreset): Promise<void> {
   const service = runnerDeps!.getComfyService()
   if (!service) throw new Error('ComfyUI backend service not found')
 
   const missingCustomNodes = (preset.requiredCustomNodes ?? []).filter(
-    (node) => !isCustomNodeInstalled(customNodeRepoId(node), service.serviceDir),
+    (node) => !isCustomNodeInstalled(parseCustomNodeSpec(node), service.serviceDir),
   )
   const missingPythonPackages: string[] = []
   for (const pkg of preset.requiredPythonPackages ?? []) {
@@ -509,7 +499,7 @@ async function installMissingRequirements(run: ActiveRun, preset: ComfyUiPreset)
       await installPypiPackage(pkg, service.getTorchBackendEnv())
     }
     for (const node of missingCustomNodes) {
-      const installed = await downloadCustomNode(customNodeRepoId(node), service.serviceDir, {
+      const installed = await downloadCustomNode(parseCustomNodeSpec(node), service.serviceDir, {
         extraEnv: service.getTorchBackendEnv(),
         skipExtraWheels: service.comfyUiVariantName !== 'xpu',
       })

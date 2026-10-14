@@ -6,6 +6,7 @@ import { useImageGenerationPresets } from './imageGenerationPresets'
 import { useI18N } from './i18n'
 import { useActivities } from './activities'
 import { useBackendServices } from '@/assets/js/store/backendServices.ts'
+import { parseCustomNodeSpec } from '@/lib/customNodeRepoId'
 import { getComfyAuthToken, invalidateComfyAuthToken } from '@/lib/loopbackAuth'
 
 /**
@@ -186,25 +187,11 @@ export const useComfyUiPresets = defineStore(
     function extractCustomNodeInfo(
       workflowNodeInfoString: string,
     ): ComfyUICustomNodesRequestParameters {
-      const repoInfoWithPotentialGitRefSplitted = workflowNodeInfoString.replace(' ', '').split('@')
-      if (
-        repoInfoWithPotentialGitRefSplitted.length > 2 ||
-        repoInfoWithPotentialGitRefSplitted.length < 1
-      ) {
-        console.error(`Could not extract comfyUI node description from ${workflowNodeInfoString}`)
-        throw new Error('Could not extract comfyUI node description from ${workflowNodeInfoString}')
-      }
-      const [repoInfoString, gitRef] = repoInfoWithPotentialGitRefSplitted
-      if (!gitRef) {
+      const id = parseCustomNodeSpec(workflowNodeInfoString)
+      if (!id.gitRef) {
         console.warn(`No gitRef provided in ${workflowNodeInfoString}.`)
       }
-      const repoInfoSplitted = repoInfoString.replace(' ', '').split('/')
-      if (repoInfoSplitted.length !== 2) {
-        console.error(`Could not extract comfyUI node description from ${workflowNodeInfoString}`)
-        throw new Error('Could not extract comfyUI node description from ${workflowNodeInfoString}')
-      }
-      const [username, repoName] = repoInfoSplitted
-      return { username: username, repoName: repoName, gitRef: gitRef }
+      return id
     }
 
     async function freeMemoryAndUnloadModels() {

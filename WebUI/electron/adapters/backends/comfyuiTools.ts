@@ -1,8 +1,7 @@
-import { exec } from 'node:child_process'
-import { promisify } from 'node:util'
 import path from 'node:path'
 import fs from 'fs'
 import { appLoggerInstance } from '../../observability/logger'
+import { spawnProcessAsync } from '../install/osProcessHelper'
 import {
   isPackageInstalled as uvIsPackageInstalled,
   installPypiPackage as uvInstallPackage,
@@ -10,13 +9,18 @@ import {
   installExtraWheels,
   aipgBaseDir,
 } from '../install/uvBasedBackends/uv'
+import {
+  assertSafeCustomNodeName,
+  assertSafeCustomNodeRepoId,
+  assertSafeGitRef,
+} from '@/lib/customNodeRepoId'
 import type { ComfyUICustomNodeRepoId } from '@/types/comfyuiIpc'
 
 // Compat re-export: the type moved to src/types/comfyuiIpc.ts (channel manifest);
 // main-side consumers keep importing it from here.
 export type { ComfyUICustomNodeRepoId }
 
-const execAsync = promisify(exec)
+const GITHUB_CLONE_URL = /^https:\/\/github\.com\/[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/
 
 // Backend name for ComfyUI
 const COMFYUI_BACKEND = 'ComfyUI'
@@ -55,6 +59,15 @@ export function getGitBinaryPath(): string {
   return 'git'
 }
 
+function logGit(line: string): void {
+  const text = line.trim()
+  if (text) appLoggerInstance.info(text, 'comfyui-tools')
+}
+
+async function runGit(args: string[], cwd?: string): Promise<string> {
+  return spawnProcessAsync(getGitBinaryPath(), args, logGit, undefined, cwd)
+}
+
 /**
  * Check if git is installed
  */
@@ -63,7 +76,7 @@ export async function isGitInstalled(): Promise<boolean> {
     return fs.existsSync(getGitBinaryPath())
   }
   try {
-    await execAsync('git --version')
+    await runGit(['--version'])
     return true
   } catch {
     return false
@@ -90,13 +103,23 @@ function removeExistingResource(targetPath: string): void {
 /**
  * Install a git repository
  */
+function assertGithubCloneUrl(gitRepoUrl: string): void {
+  if (!GITHUB_CLONE_URL.test(gitRepoUrl)) {
+    throw new Error('Invalid custom node git URL')
+  }
+  const segments = gitRepoUrl.slice('https://github.com/'.length).split('/')
+  if (segments.some((segment) => segment === '.' || segment === '..')) {
+    throw new Error('Invalid custom node git URL')
+  }
+}
+
 async function installGitRepo(gitRepoUrl: string, targetDir: string): Promise<void> {
+  assertGithubCloneUrl(gitRepoUrl)
   try {
     // Ensure targetDir is an absolute path
     const absoluteTargetDir = path.resolve(targetDir)
     removeExistingResource(absoluteTargetDir)
-    const gitPath = getGitBinaryPath()
-    await execAsync(`"${gitPath}" clone ${gitRepoUrl} "${absoluteTargetDir}"`)
+    await runGit(['clone', gitRepoUrl, absoluteTargetDir])
     appLoggerInstance.info(`Cloned ${gitRepoUrl} into ${absoluteTargetDir}`, 'comfyui-tools')
   } catch (error) {
     appLoggerInstance.error(
@@ -122,9 +145,9 @@ async function checkoutGitRef(repoDir: string, gitRef?: string): Promise<void> {
     return
   }
 
+  assertSafeGitRef(gitRef)
   try {
-    const gitPath = getGitBinaryPath()
-    await execAsync(`"${gitPath}" checkout ${gitRef}`, { cwd: absoluteRepoDir })
+    await runGit(['checkout', gitRef], absoluteRepoDir)
     appLoggerInstance.info(`Checked out ${gitRef} in ${absoluteRepoDir}`, 'comfyui-tools')
   } catch (error) {
     appLoggerInstance.warn(
@@ -143,8 +166,7 @@ export async function getGitRef(repoDir: string): Promise<string | undefined> {
   try {
     // Ensure repoDir is an absolute path
     const absoluteRepoDir = path.resolve(repoDir)
-    const gitPath = getGitBinaryPath()
-    const { stdout } = await execAsync(`"${gitPath}" rev-parse HEAD`, { cwd: absoluteRepoDir })
+    const stdout = await runGit(['rev-parse', 'HEAD'], absoluteRepoDir)
     return stdout.trim()
   } catch (error) {
     const absoluteRepoDir = path.resolve(repoDir)
@@ -228,6 +250,22 @@ export async function installPypiPackage(
   }
 }
 
+export function resolveCustomNodeDir(comfyUiRootPath: string, repoName: string): string {
+  assertSafeCustomNodeName(repoName, 'repository name')
+  const customNodesRoot = path.resolve(comfyUiRootPath, 'custom_nodes')
+  const nodeDir = path.resolve(customNodesRoot, repoName)
+  const relative = path.relative(customNodesRoot, nodeDir)
+  if (
+    relative === '' ||
+    relative === '..' ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    throw new Error('Custom node path escapes custom_nodes')
+  }
+  return nodeDir
+}
+
 /**
  * Check if a custom node is installed
  */
@@ -235,7 +273,8 @@ export function isCustomNodeInstalled(
   nodeRepoRef: ComfyUICustomNodeRepoId,
   comfyUiRootPath: string,
 ): boolean {
-  const expectedCustomNodePath = path.join(comfyUiRootPath, 'custom_nodes', nodeRepoRef.repoName)
+  assertSafeCustomNodeRepoId(nodeRepoRef)
+  const expectedCustomNodePath = resolveCustomNodeDir(comfyUiRootPath, nodeRepoRef.repoName)
   return fs.existsSync(expectedCustomNodePath)
 }
 
@@ -270,7 +309,8 @@ export async function downloadCustomNode(
   comfyUiRootPath: string,
   options?: ComfyUiInstallOptions,
 ): Promise<boolean> {
-  const expectedCustomNodePath = path.join(comfyUiRootPath, 'custom_nodes', nodeRepoData.repoName)
+  assertSafeCustomNodeRepoId(nodeRepoData)
+  const expectedCustomNodePath = resolveCustomNodeDir(comfyUiRootPath, nodeRepoData.repoName)
 
   if (isCustomNodeInstalled(nodeRepoData, comfyUiRootPath)) {
     appLoggerInstance.info(
@@ -327,7 +367,8 @@ export async function uninstallCustomNode(
   nodeRepoData: ComfyUICustomNodeRepoId,
   comfyUiRootPath: string,
 ): Promise<boolean> {
-  const customNodePath = path.join(comfyUiRootPath, 'custom_nodes', nodeRepoData.repoName)
+  assertSafeCustomNodeRepoId(nodeRepoData)
+  const customNodePath = resolveCustomNodeDir(comfyUiRootPath, nodeRepoData.repoName)
 
   if (!fs.existsSync(customNodePath)) {
     appLoggerInstance.warn(
