@@ -7,6 +7,12 @@ vi.mock('../../observability/logger.ts', () => ({
   appLoggerInstance: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
+vi.mock('electron', () => ({
+  app: { isPackaged: false, getPath: () => '/tmp' },
+  net: { fetch: vi.fn() },
+  BrowserWindow: class {},
+}))
+
 vi.mock('../../adapters/mcp/mcpManager', () => ({
   listMcpServers: vi.fn(),
   getMcpServerStatus: vi.fn(),
@@ -287,7 +293,7 @@ beforeEach(() => {
     llmApiBase: () => 'http://127.0.0.1:39101',
     ensureBackendReadiness: vi.fn(),
     homeAgentAuthToken: () => 'token',
-    cloudProxyAuthToken: () => 'cloud-token',
+    readCloudProviderKey: () => null,
   })
   vi.mocked(listMcpServers).mockReturnValue([])
   vi.mocked(getMcpServerStatus).mockReturnValue({ state: 'stopped' } as never)

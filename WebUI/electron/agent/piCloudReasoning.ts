@@ -8,10 +8,9 @@
 // the same model read correctly in Chat (the AI SDK extracts the tags there).
 //
 // Two things stood between us and the CLI's behaviour. We registered every cloud
-// model as `reasoning: false`, and Pi picks the request dialect from the model's
-// `baseUrl` — ours is always the loopback proxy, so `detectCompat` saw neither
-// z.ai nor OpenRouter and settled on plain `reasoning_effort`. Both are decided
-// here instead, from the upstream the proxy forwards to.
+// model as `reasoning: false`, and Pi's `detectCompat` only recognizes a few
+// hosts — a GLM resold by a gateway is not one of them. Both are decided here,
+// from the provider base.
 //
 // Only a model believed to reason gets any of this: the cloud catalog assumes a
 // silent provider is fully capable (`ASSUME_ALL_CAPABILITIES`), so keying off
@@ -48,7 +47,7 @@ export type CloudReasoningRegistration = {
 export type CloudReasoningInput = {
   /** Model id as the provider serves it. */
   model: string
-  /** The provider's own base URL — never the loopback proxy standing in for it. */
+  /** The provider's own base URL. */
   upstreamBaseUrl: string
   /** Whether the provider's `/v1/models` entry actually declared reasoning. */
   reasoningAdvertised?: boolean
@@ -90,8 +89,8 @@ function reasoningCompat(input: CloudReasoningInput): CloudReasoningCompat {
     return {
       thinkingFormat: 'deepseek',
       supportsStore: false,
-      // Pi infers this from a DeepSeek URL; behind the proxy it has to be stated,
-      // or replayed assistant messages come back rejected.
+      // Pi infers this from a DeepSeek URL. Stating it keeps a gateway host
+      // from replaying assistant messages without reasoning_content.
       requiresReasoningContentOnAssistantMessages: true,
     }
   }

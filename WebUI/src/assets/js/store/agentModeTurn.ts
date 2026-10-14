@@ -59,7 +59,6 @@ function readinessEmbeddingModel(
 
 type CloudForTurn = {
   activeProviderBaseUrl?: string | null
-  ensureProxyUrl: () => Promise<string>
   selectedProviderId: string
   activeProviderAuthStyle: string
   capabilitiesFor: (name: string) => { reasoningAdvertised: boolean }
@@ -110,7 +109,6 @@ export async function buildTurnConfig(options: {
         `${HYBRID_CLOUD_NAME} has no provider base URL configured. Set one up in its setup screen.`,
       )
     }
-    const proxyBaseUrl = await cloudMode.ensureProxyUrl()
     const model = textInference.activeModel ?? CLOUD_DEFAULT_MODEL
     return {
       sessionId: options.sessionId,
@@ -118,7 +116,6 @@ export async function buildTurnConfig(options: {
       modelConfig: {
         source: 'cloud',
         model,
-        proxyBaseUrl,
         upstreamBaseUrl,
         providerId: cloudMode.selectedProviderId,
         authStyle: cloudMode.activeProviderAuthStyle,

@@ -12,7 +12,7 @@ import {
 // body is drained (same lifetime as chatInferenceStreamsActive).
 //
 // Timings stay opt-in: Laminar's observer is layered on the same wrapper and
-// still ignores the cloud proxy forwarding a *chat* turn.
+// only records calls to the endpoint this session registered.
 
 const logger = appLoggerInstance
 const LOG_SOURCE = 'laminar'

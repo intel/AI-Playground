@@ -24,7 +24,6 @@ describe('AgentModeTurnConfigSchema', () => {
       modelConfig: {
         source: 'cloud',
         model: 'gpt-4o',
-        proxyBaseUrl: 'http://127.0.0.1:9',
         upstreamBaseUrl: 'https://api.example',
         providerId: 'openai',
         authStyle: 'bearer',

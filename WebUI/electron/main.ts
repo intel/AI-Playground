@@ -54,7 +54,7 @@ import {
 } from './adapters/backends/comfyUIBackendService'
 import { AiBackendService } from './adapters/backends/aiBackendService'
 import { HomeAgentBackendService } from './adapters/backends/homeAgentBackendService'
-import { cloudProxyAuthToken, startCloudProxy, type CloudProxy } from './adapters/cloudProxy'
+import { setCloudProviderKeyReader } from './adapters/cloudUpstream'
 import { Qwen3TtsBackendService } from './adapters/backends/qwen3TtsBackendService'
 import { WhisperBackendService } from './adapters/backends/whisperBackendService'
 import { LLAMACPP_DEFAULT_PARAMETERS } from './adapters/backends/llamaCppBackendService'
@@ -427,17 +427,12 @@ function isHomeAgentRunning(): boolean {
   return service?.get_info().status === 'running'
 }
 
-// Cloud Mode runs its networking in the main process via a loopback proxy (see
-// cloudProxy.ts), so the renderer never calls remote providers directly. The
-// proxy is started lazily on first use and torn down on quit.
-let cloudProxy: CloudProxy | null = null
-
 function cloudProviderKeyPath(providerId: string): string {
   return path.join(app.getPath('userData'), `cloud-provider-${providerId}.json`)
 }
 
-// Decrypt a provider's API key from safeStorage on disk. Runs in main only —
-// the plaintext key never crosses the IPC boundary into the renderer.
+// Decrypt a provider's API key from safeStorage. Chat, agent registration, and
+// the model list call the provider from main with this key.
 function readCloudProviderKey(providerId: string): string | null {
   try {
     const raw = fs.readFileSync(cloudProviderKeyPath(providerId), 'utf-8')
@@ -448,12 +443,7 @@ function readCloudProviderKey(providerId: string): string | null {
   }
 }
 
-async function getCloudProxy(): Promise<CloudProxy> {
-  if (!cloudProxy) {
-    cloudProxy = await startCloudProxy(readCloudProviderKey)
-  }
-  return cloudProxy
-}
+setCloudProviderKeyReader(readCloudProviderKey)
 const mediaDir = getMediaDir()
 fs.mkdirSync(mediaDir, { recursive: true })
 const mediaInputDir = path.join(mediaDir, 'input')
@@ -935,11 +925,6 @@ async function createWindow() {
       // authenticate to the ai-backend Flask service. Must be in the
       // preflight allow-list or the browser blocks the request.
       append('Access-Control-Allow-Headers', 'X-AIPG-Auth')
-      // Cloud Mode proxy routing headers (see cloudProxy.ts) — the renderer
-      // sends these to the loopback proxy, so they must clear preflight too.
-      append('Access-Control-Allow-Headers', 'X-Cloud-Upstream')
-      append('Access-Control-Allow-Headers', 'X-Cloud-Provider')
-      append('Access-Control-Allow-Headers', 'X-Cloud-Auth-Style')
       details.responseHeaders = Object.fromEntries([...headers.entries()].map(([k, v]) => [k, [v]]))
       callback(details)
     } else {
@@ -1136,7 +1121,6 @@ appShutdown.register({ name: 'demo media records', run: () => wipeDemoMediaRecor
 appShutdown.register({ name: 'demo preferences', run: () => wipeDemoPreferences() })
 appShutdown.register({ name: 'demo permission grants', run: () => wipeDemoPermissionGrants() })
 appShutdown.register({ name: 'demo rag documents', run: () => wipeDemoRagDocuments() })
-appShutdown.register({ name: 'cloud proxy', run: () => cloudProxy?.close() })
 // After the agent, so the spans its extensions emit while shutting down are
 // still exported. No-op unless a developer opted into Laminar tracing.
 appShutdown.register({ name: 'laminar tracing', run: () => shutdownLaminarTracing() })
@@ -1332,7 +1316,7 @@ function wireChatEngine(): void {
         ? homeAgentSvc.getLoopbackAuthToken()
         : ''
     },
-    cloudProxyAuthToken,
+    readCloudProviderKey,
   })
   // Reuses the main-side aipg-media reader the agent attachments already use;
   // the engine contract throws on failure (the ported customFetch behavior).
@@ -1569,9 +1553,7 @@ function initEventHandle() {
   })
 
   // ── Cloud Mode provider API keys ────────────────────────────────────────
-  registerInvokeHandlers(
-    buildCloudProviderRegistry({ cloudProviderKeyPath, readCloudProviderKey, getCloudProxy }),
-  )
+  registerInvokeHandlers(buildCloudProviderRegistry({ cloudProviderKeyPath, readCloudProviderKey }))
 
   // The renderer reports whether it has tracked work in flight; an input to
   // the main-owned close policy (see createWindow's 'close' handler).

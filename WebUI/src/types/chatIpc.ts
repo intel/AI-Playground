@@ -46,7 +46,7 @@ export const ChatModelConfigSchema = z.object({
   baseUrl: z.string().optional(),
   /** Cloud "default" placeholder: omit `model` from the request body. */
   omitModelInBody: z.boolean().optional(),
-  /** Cloud provider routing, consumed by the main-process loopback proxy. */
+  /** Cloud provider the turn calls. Main fetches this base and attaches the stored key. */
   cloud: z
     .object({
       providerId: z.string(),

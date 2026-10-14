@@ -1,5 +1,6 @@
 import type { AgentModeModelConfig } from '@/types/agentIpc'
 import type { ChatModelConfig } from '@/types/chatIpc'
+import { openAiApiBase } from '@/lib/inferenceApiBase'
 
 /** Agent turn model config → the nested specialist's ChatModelConfig. */
 export function chatModelFromAgentConfig(config: AgentModeModelConfig): ChatModelConfig {
@@ -7,7 +8,7 @@ export function chatModelFromAgentConfig(config: AgentModeModelConfig): ChatMode
     return {
       backend: 'cloud',
       modelId: config.model,
-      baseUrl: config.proxyBaseUrl,
+      baseUrl: openAiApiBase(config.upstreamBaseUrl),
       cloud: {
         providerId: config.providerId,
         upstreamBaseUrl: config.upstreamBaseUrl,

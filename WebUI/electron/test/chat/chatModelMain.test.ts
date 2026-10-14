@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LanguageModelV4 } from '@ai-sdk/provider'
+import { net } from 'electron'
+
+vi.mock('electron', () => ({
+  net: { fetch: vi.fn() },
+}))
 
 vi.mock('../../observability/logger.ts', () => ({
   appLoggerInstance: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -49,20 +54,20 @@ function wireDeps(overrides: Record<string, unknown> = {}): {
   llmApiBase: ReturnType<typeof vi.fn>
   ensureBackendReadiness: ReturnType<typeof vi.fn>
   homeAgentAuthToken: ReturnType<typeof vi.fn>
-  cloudProxyAuthToken: ReturnType<typeof vi.fn>
+  readCloudProviderKey: ReturnType<typeof vi.fn>
 } {
   const llmApiBase = vi.fn(() => 'http://127.0.0.1:39100')
   const ensureBackendReadiness = vi.fn(async () => {})
   const homeAgentAuthToken = vi.fn(() => 'token-1')
-  const cloudProxyAuthToken = vi.fn(() => 'cloud-token')
+  const readCloudProviderKey = vi.fn(() => 'sk-secret')
   setChatModelDeps({
     llmApiBase: llmApiBase as never,
     ensureBackendReadiness: ensureBackendReadiness as never,
     homeAgentAuthToken,
-    cloudProxyAuthToken,
+    readCloudProviderKey,
     ...overrides,
   })
-  return { llmApiBase, ensureBackendReadiness, homeAgentAuthToken, cloudProxyAuthToken }
+  return { llmApiBase, ensureBackendReadiness, homeAgentAuthToken, readCloudProviderKey }
 }
 
 async function generate(model: ReturnType<typeof createMainChatModel>): Promise<unknown> {
@@ -75,6 +80,7 @@ describe('createMainChatModel', () => {
   beforeEach(() => {
     vi.unstubAllGlobals()
     resetChatModelDepsForTest()
+    vi.mocked(net.fetch).mockReset()
   })
 
   it('encodes local model ids with --- but not cloud ones', async () => {
@@ -224,17 +230,20 @@ describe('createMainChatModel', () => {
 
   it('extracts cloud <think> reasoning into a reasoning part', async () => {
     wireDeps()
-    const fetchMock = vi.fn(async () =>
+    vi.mocked(net.fetch).mockResolvedValue(
       jsonResponse(completionBody('<think>plan first</think>Hello')),
-    ) as FetchMock
-    vi.stubGlobal('fetch', fetchMock)
+    )
     const model = createMainChatModel(
       localConfig({
         backend: 'cloud',
         modelId: 'gpt-test',
         extractReasoning: true,
         readiness: undefined,
-        cloud: { providerId: 'openai', authStyle: 'bearer' },
+        cloud: {
+          providerId: 'openai',
+          upstreamBaseUrl: 'https://api.openai.com',
+          authStyle: 'bearer',
+        },
       }) as never,
     )
     const result = (await generate(model)) as {
@@ -248,10 +257,9 @@ describe('createMainChatModel', () => {
     expect(text?.text).toBe('Hello')
   })
 
-  it('attaches the cloud proxy loopback token', async () => {
-    const { cloudProxyAuthToken } = wireDeps()
-    const fetchMock = vi.fn(async () => jsonResponse(completionBody('hi'))) as FetchMock
-    vi.stubGlobal('fetch', fetchMock)
+  it('fetches the provider directly with the stored key', async () => {
+    const { readCloudProviderKey } = wireDeps()
+    vi.mocked(net.fetch).mockResolvedValue(jsonResponse(completionBody('hi')))
     await generate(
       createMainChatModel(
         localConfig({
@@ -266,10 +274,15 @@ describe('createMainChatModel', () => {
         }) as never,
       ),
     )
-    const headers = new Headers((fetchMock.mock.calls[0][1] as RequestInit).headers)
-    expect(cloudProxyAuthToken).toHaveBeenCalled()
-    expect(headers.get('X-AIPG-Auth')).toBe('cloud-token')
-    expect(headers.get('X-Cloud-Provider')).toBe('openai')
-    expect(headers.get('X-Cloud-Upstream')).toBe('https://api.openai.com')
+    expect(readCloudProviderKey).toHaveBeenCalledWith('openai')
+    const [target, init] = vi.mocked(net.fetch).mock.calls[0]
+    expect(String(target)).toBe('https://api.openai.com/v1/chat/completions')
+    const headers = new Headers(init?.headers)
+    expect(headers.get('authorization')).toBe('Bearer sk-secret')
+    expect(headers.get('X-AIPG-Auth')).toBeNull()
+    expect(headers.get('X-Cloud-Provider')).toBeNull()
+    expect(headers.get('X-Cloud-Upstream')).toBeNull()
+    expect(headers.get('X-Cloud-Auth-Style')).toBeNull()
+    expect(init?.redirect).toBe('error')
   })
 })

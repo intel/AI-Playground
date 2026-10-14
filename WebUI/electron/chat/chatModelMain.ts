@@ -1,6 +1,7 @@
 import { extractReasoningMiddleware, wrapLanguageModel, type LanguageModel } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { appLoggerInstance } from '../observability/logger'
+import { fetchCloudUpstream } from '../adapters/cloudUpstream'
 import { openAiApiBase } from '@/lib/inferenceApiBase'
 import type { ChatModelConfig } from '@/types/chatIpc'
 
@@ -28,8 +29,8 @@ export type ChatModelDeps = {
   ensureBackendReadiness: (args: ChatReadinessArgs) => Promise<void>
   /** Fresh loopback token for the Home Agent proxy (regenerated per spawn). */
   homeAgentAuthToken: () => string
-  /** Per-launch token for the Cloud Mode proxy (empty until that proxy starts). */
-  cloudProxyAuthToken: () => string
+  /** Decrypt one provider's stored API key. The plaintext stays in main. */
+  readCloudProviderKey: (providerId: string) => string | null
 }
 
 let chatModelDeps: ChatModelDeps | null = null
@@ -74,6 +75,8 @@ export function createMainChatModel(config: ChatModelConfig): LanguageModel {
       const live = deps.llmApiBase(config.backend)
       return live ? openAiApiBase(live) : undefined
     }
+    const upstream = config.cloud?.upstreamBaseUrl
+    if (upstream) return openAiApiBase(upstream)
     return config.baseUrl ? openAiApiBase(config.baseUrl) : undefined
   }
 
@@ -118,15 +121,14 @@ export function createMainChatModel(config: ChatModelConfig): LanguageModel {
           requestUrl.pathname = `${basePath}/${endpoint}`
         }
         if (config.backend === 'cloud' && config.cloud) {
-          const headers = new Headers(init?.headers)
-          if (config.cloud.upstreamBaseUrl) {
-            headers.set('X-Cloud-Upstream', config.cloud.upstreamBaseUrl)
-          }
-          headers.set('X-Cloud-Provider', config.cloud.providerId)
-          headers.set('X-Cloud-Auth-Style', config.cloud.authStyle)
-          const token = deps.cloudProxyAuthToken()
-          if (token) headers.set('X-AIPG-Auth', token)
-          return await globalThis.fetch(requestUrl.toString(), { ...init, headers })
+          return await fetchCloudUpstream({
+            providerId: config.cloud.providerId,
+            baseUrl: config.cloud.upstreamBaseUrl ?? '',
+            authStyle: config.cloud.authStyle,
+            url: requestUrl.toString(),
+            init,
+            getKey: deps.readCloudProviderKey,
+          })
         }
         if (config.homeAgentUpstreamUrl) {
           const build = (t: string): RequestInit => {

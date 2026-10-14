@@ -29,9 +29,8 @@ import {
 //
 // Model routing: both sources are registered as Pi providers at runtime.
 // 'local' points at the local llamacpp/openvino OpenAI-compatible endpoint;
-// 'cloud' points at the app's loopback cloud proxy (cloudProxy.ts) with
-// X-Cloud-* routing headers, so the real API key is injected in the main
-// process and never reaches Pi.
+// 'cloud' points at the provider's own OpenAI-compatible base. The API key is
+// read in main at registration and stays off the renderer turn payload.
 //
 // Implementation is split across sibling modules: session pointer + Pi dirs
 // (piSessionStore), model registration (piModelRuntime), live session pointer

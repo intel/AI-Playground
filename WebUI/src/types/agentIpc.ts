@@ -18,7 +18,6 @@ const LocalModelConfigSchema = z.object({
 const CloudModelConfigSchema = z.object({
   source: z.literal('cloud'),
   model: z.string().min(1),
-  proxyBaseUrl: z.string().min(1),
   upstreamBaseUrl: z.string().min(1),
   providerId: z.string().min(1),
   authStyle: z.string().min(1),

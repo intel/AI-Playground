@@ -74,8 +74,8 @@ afterAll(async () => {
 
 /**
  * One turn against the fake server, registered the way `registerModel` registers
- * a cloud model: our own provider id and the loopback proxy's URL, with the
- * reasoning decision taken from the upstream the proxy forwards to.
+ * a cloud model: our own provider id, with the reasoning decision taken from
+ * the upstream URL.
  */
 async function runCloudTurn(config: {
   model: string
@@ -88,7 +88,7 @@ async function runCloudTurn(config: {
     modelsPath: null,
   })
   runtime.registerProvider('aipg-cloud', {
-    name: 'AI Playground cloud proxy',
+    name: 'AI Playground cloud',
     baseUrl,
     api: 'openai-completions',
     apiKey: 'unused',

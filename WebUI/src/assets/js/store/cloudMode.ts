@@ -1,6 +1,6 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { demoAwareStorage } from '../demoAwareStorage'
-import { createAppError, extractMessage } from '../errors/appError'
+import { createAppError } from '../errors/appError'
 import { HYBRID_CLOUD_NAME } from '@/lib/cloudModeName'
 
 /**
@@ -12,7 +12,7 @@ import { HYBRID_CLOUD_NAME } from '@/lib/cloudModeName'
 /**
  * How a provider expects its API key to be attached. The OpenAI-compatible
  * request/response shape is identical across these — only the auth header
- * differs, so the proxy (cloudProxy.ts) branches on this alone.
+ * differs, so main (cloudUpstream.ts) branches on this alone.
  *  - `bearer`:    `Authorization: Bearer <key>` — OpenAI and virtually every
  *                 OpenAI-compatible endpoint (OpenRouter, Groq, Together,
  *                 Mistral, DeepSeek, xAI, and Anthropic's / Google's compat
@@ -262,36 +262,11 @@ export const useCloudMode = defineStore(
       return id ? apiKeyCache[id] : undefined
     })
 
-    // Auth scheme for the selected provider; the chat path sends this to the
-    // proxy so the key is attached with the right header (see cloudProxy.ts).
+    // Auth scheme for the selected provider. Main attaches the stored key with
+    // this header when it calls the provider.
     const activeProviderAuthStyle = computed<CloudAuthStyle>(
       () => selectedProvider.value?.authStyle ?? 'bearer',
     )
-
-    // Loopback base URL of the main-process Cloud proxy (see cloudProxy.ts).
-    // All cloud networking flows through it, so upstream failures are logged in
-    // the Node console instead of surfacing as opaque fetch errors in the browser.
-    const proxyUrl = ref<string>('')
-    const proxyAuthToken = ref<string>('')
-
-    // Main holds the allowlist the proxy checks. Push it on every use: the
-    // URL cache must not skip a base that changed since the proxy started.
-    async function publishAllowedUpstreams(): Promise<void> {
-      const entries = providers.value.flatMap((provider) => {
-        const baseUrl = provider.baseUrl.trim()
-        return baseUrl ? [{ id: provider.id, baseUrl }] : []
-      })
-      await window.electronAPI.cloudProvider.setAllowedUpstreams(entries)
-    }
-
-    async function ensureProxyUrl(): Promise<string> {
-      await publishAllowedUpstreams()
-      if (!proxyUrl.value || !proxyAuthToken.value) {
-        proxyUrl.value = await window.electronAPI.cloudProvider.getProxyUrl()
-        proxyAuthToken.value = await window.electronAPI.cloudProvider.getAuthToken()
-      }
-      return proxyUrl.value
-    }
 
     function selectProvider(id: string) {
       selectedProviderId.value = id
@@ -368,11 +343,9 @@ export const useCloudMode = defineStore(
     }
 
     /**
-     * Fetch the provider's model ids via the main-process proxy
-     * (`GET {proxy}/v1/models`, routed to the provider's `{baseUrl}/v1/models`)
-     * and store them on the provider. The proxy attaches the API key and logs
-     * upstream failures in the Node console; here we only surface a concise
-     * message. Returns the list on success.
+     * Fetch the provider's model ids from main (`GET {base}/v1/models`).
+     * Main attaches the API key and logs upstream failures; here we only
+     * surface a concise message. Returns the list on success.
      */
     async function fetchModels(id: string): Promise<string[]> {
       const provider = providers.value.find((p) => p.id === id)
@@ -380,66 +353,46 @@ export const useCloudMode = defineStore(
       const base = provider.baseUrl.trim().replace(/\/+$/, '').replace(/\/v1$/, '')
       if (!base) throw new Error('Base URL is required')
 
-      const proxy = await ensureProxyUrl()
-      const url = `${proxy}/v1/models`
-
-      let response: Response
-      try {
-        // Only routing headers — the key stays in main and is attached there,
-        // using the provider's auth scheme.
-        response = await fetch(url, {
-          headers: {
-            'X-Cloud-Upstream': base,
-            'X-Cloud-Provider': id,
-            'X-Cloud-Auth-Style': provider.authStyle ?? 'bearer',
-            'X-AIPG-Auth': proxyAuthToken.value,
-          },
-        })
-      } catch (e) {
+      const result = await window.electronAPI.cloudProvider.listModels(
+        id,
+        base,
+        provider.authStyle ?? 'bearer',
+      )
+      if (!result.success) {
+        if (typeof result.status === 'number') {
+          const snippet = (result.body ?? '').trim().slice(0, 300)
+          throw createAppError({
+            category: 'inference',
+            code: 'cloud/fetch-models-http-error',
+            surface: 'inline',
+            userMessage:
+              `Failed to fetch models: HTTP ${result.status}` + (snippet ? ` — ${snippet}` : ''),
+            technicalMessage: `GET ${base}/v1/models -> ${result.status}: ${result.body ?? ''}`,
+            context: { providerId: id, upstream: base, status: result.status },
+          })
+        }
+        if (result.body !== undefined) {
+          throw createAppError({
+            category: 'inference',
+            code: 'cloud/fetch-models-bad-json',
+            surface: 'inline',
+            userMessage:
+              'Provider response was not valid JSON (expected an OpenAI /v1/models list).',
+            technicalMessage: `GET ${base}/v1/models returned unparseable JSON: ${result.error}`,
+            context: { providerId: id, upstream: base },
+          })
+        }
         throw createAppError({
           category: 'inference',
           code: 'cloud/fetch-models-unreachable',
           surface: 'inline',
-          userMessage: `Could not reach the ${HYBRID_CLOUD_NAME} proxy. Try restarting the app.`,
-          technicalMessage: `GET ${url} threw: ${extractMessage(e)}`,
+          userMessage: `Could not reach the ${HYBRID_CLOUD_NAME} provider. Check the base URL and try again.`,
+          technicalMessage: `GET ${base}/v1/models failed: ${result.error}`,
           context: { providerId: id, upstream: base },
-          cause: e,
         })
       }
 
-      if (!response.ok) {
-        // The proxy relays the provider's status/body and has already logged the
-        // full detail to the Node console; surface a concise message here.
-        const body = await response.text().catch(() => '')
-        const snippet = body.trim().slice(0, 300)
-        throw createAppError({
-          category: 'inference',
-          code: 'cloud/fetch-models-http-error',
-          surface: 'inline',
-          userMessage:
-            `Failed to fetch models: HTTP ${response.status} ${response.statusText}` +
-            (snippet ? ` — ${snippet}` : ''),
-          technicalMessage: `GET ${url} (upstream ${base}) -> ${response.status}: ${body}`,
-          context: { providerId: id, upstream: base, status: response.status },
-        })
-      }
-
-      let json: { data?: Array<Record<string, unknown>> }
-      try {
-        json = (await response.json()) as { data?: Array<Record<string, unknown>> }
-      } catch (e) {
-        throw createAppError({
-          category: 'inference',
-          code: 'cloud/fetch-models-bad-json',
-          surface: 'inline',
-          userMessage: 'Provider response was not valid JSON (expected an OpenAI /v1/models list).',
-          technicalMessage: `GET ${url} returned unparseable JSON: ${extractMessage(e)}`,
-          context: { providerId: id, upstream: base },
-          cause: e,
-        })
-      }
-
-      const data = json.data ?? []
+      const data = result.data
       const ids = data.map((m) => String(m.id ?? '')).filter(Boolean)
 
       // Also derive per-model capabilities and context window, so capability-gated
@@ -475,9 +428,9 @@ export const useCloudMode = defineStore(
 
     /**
      * Refresh the selected provider's model list, overwriting it only if the
-     * request succeeds. Failures are swallowed here (the main-process proxy logs
-     * the detail in the Node console) so a background refresh never disrupts the
-     * UI or clobbers a previously-fetched list. No-op without a base URL.
+     * request succeeds. Failures are swallowed here (main logs the detail) so a
+     * background refresh never disrupts the UI or clobbers a previously-fetched
+     * list. No-op without a base URL.
      */
     async function refreshSelectedProviderModels(): Promise<void> {
       const id = selectedProviderId.value
@@ -486,21 +439,17 @@ export const useCloudMode = defineStore(
       try {
         await fetchModels(id) // overwrites provider.models on success
       } catch {
-        /* keep the existing list; the proxy already logged the reason */
+        /* keep the existing list; main already logged the reason */
       }
     }
 
     async function toggleFeature(enabled: boolean) {
       isFeatureEnabled.value = enabled
-      // Warm up the proxy so the chat backend URL is ready before first use.
-      if (enabled) ensureProxyUrl().catch(() => undefined)
     }
 
-    /** Warm the proxy and pull the decrypted keys into the session cache. */
+    /** Pull the decrypted keys into the session cache. */
     async function initConfig() {
       if (!isFeatureEnabled.value) return
-      ensureProxyUrl().catch(() => undefined)
-      // Re-load each provider's key from safeStorage into the session cache.
       await Promise.all(providers.value.map((p) => loadApiKey(p.id).catch(() => null)))
     }
 
@@ -519,23 +468,13 @@ export const useCloudMode = defineStore(
     )
 
     // Enablement rehydrates from persisted store state, which lands after this
-    // setup function has run — so the warm-up hangs off a watch, not a call.
+    // setup function has run — so the key load hangs off a watch, not a call.
     watch(
       isFeatureEnabled,
       (on) => {
         if (on) void initConfig()
-        else void window.electronAPI?.cloudProvider.setAllowedUpstreams([]).catch(() => undefined)
       },
       { immediate: true },
-    )
-
-    watch(
-      providers,
-      () => {
-        if (!isFeatureEnabled.value) return
-        void publishAllowedUpstreams().catch(() => undefined)
-      },
-      { deep: true },
     )
 
     return {
@@ -546,8 +485,6 @@ export const useCloudMode = defineStore(
       activeProviderBaseUrl,
       activeProviderApiKey,
       activeProviderAuthStyle,
-      proxyUrl,
-      ensureProxyUrl,
       selectProvider,
       addProvider,
       updateProvider,

@@ -81,7 +81,6 @@ describe('buildTurnConfig readiness (step 15)', () => {
       planningThinkingOnly: false,
       textInference: localInference() as never,
       cloudMode: {
-        ensureProxyUrl: async () => 'http://proxy',
         selectedProviderId: 'openai',
         activeProviderAuthStyle: 'bearer',
         capabilitiesFor: () => ({ reasoningAdvertised: false }),
@@ -106,7 +105,6 @@ describe('buildTurnConfig readiness (step 15)', () => {
       planningThinkingOnly: false,
       textInference: localInference({ activeModel: null }) as never,
       cloudMode: {
-        ensureProxyUrl: async () => 'http://proxy',
         selectedProviderId: 'openai',
         activeProviderAuthStyle: 'bearer',
         capabilitiesFor: () => ({ reasoningAdvertised: false }),
@@ -131,7 +129,6 @@ describe('buildTurnConfig readiness (step 15)', () => {
       }) as never,
       cloudMode: {
         activeProviderBaseUrl: 'https://api.openai.com',
-        ensureProxyUrl: async () => 'http://127.0.0.1:9/v1',
         selectedProviderId: 'openai',
         activeProviderAuthStyle: 'bearer',
         capabilitiesFor: () => ({ reasoningAdvertised: false }),
@@ -156,7 +153,6 @@ describe('buildTurnConfig readiness (step 15)', () => {
         llmEmbeddingModels: [{ name: 'bge-small', type: 'llamaCPP', downloaded: true }],
       }) as never,
       cloudMode: {
-        ensureProxyUrl: async () => 'http://proxy',
         selectedProviderId: 'openai',
         activeProviderAuthStyle: 'bearer',
         capabilitiesFor: () => ({ reasoningAdvertised: false }),
@@ -180,7 +176,6 @@ describe('buildTurnConfig readiness (step 15)', () => {
         llmEmbeddingModels: [{ name: 'bge-small', type: 'llamaCPP', downloaded: false }],
       }) as never,
       cloudMode: {
-        ensureProxyUrl: async () => 'http://proxy',
         selectedProviderId: 'openai',
         activeProviderAuthStyle: 'bearer',
         capabilitiesFor: () => ({ reasoningAdvertised: false }),
@@ -204,7 +199,6 @@ describe('buildTurnConfig readiness (step 15)', () => {
         llmEmbeddingModels: [{ name: 'bge-small', type: 'llamaCPP', downloaded: true }],
       }) as never,
       cloudMode: {
-        ensureProxyUrl: async () => 'http://proxy',
         selectedProviderId: 'openai',
         activeProviderAuthStyle: 'bearer',
         capabilitiesFor: () => ({ reasoningAdvertised: false }),

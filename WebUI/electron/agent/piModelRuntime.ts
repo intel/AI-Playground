@@ -9,7 +9,8 @@ import { laminarConfig } from '../observability/laminar.ts'
 import { type InferenceTraceContext } from '../observability/laminarAttributes.ts'
 import type { AgentModeModelConfig } from '@/types/agentIpc'
 import { outputTokenBudget } from './piCompaction.ts'
-import { cloudProxyAuthToken } from '../adapters/cloudProxy.ts'
+import { cloudProviderKey } from '../adapters/cloudUpstream.ts'
+import { openAiApiBase } from '@/lib/inferenceApiBase'
 
 export const LOCAL_PROVIDER = 'aipg-local'
 export const CLOUD_PROVIDER = 'aipg-cloud'
@@ -75,19 +76,20 @@ export async function registerModel(
   }
 
   const contextWindow = modelContextWindow(config)
-  const authToken = cloudProxyAuthToken()
+  const apiBase = openAiApiBase(config.upstreamBaseUrl)
+  const key = cloudProviderKey(config.providerId)
+  const authStyle = config.authStyle.trim() || 'bearer'
+  const apiKey = authStyle === 'bearer' && key ? key : 'unused'
+  const headers: Record<string, string> = {}
+  if (key && authStyle === 'x-api-key') headers['x-api-key'] = key
+  if (key && authStyle === 'api-key') headers['api-key'] = key
   runtime.registerProvider(CLOUD_PROVIDER, {
-    name: 'AI Playground cloud proxy',
-    baseUrl: `${config.proxyBaseUrl}/v1`,
+    name: 'AI Playground cloud',
+    baseUrl: apiBase,
     api: 'openai-completions',
-    apiKey: 'unused',
-    authHeader: false,
-    headers: {
-      'X-Cloud-Upstream': config.upstreamBaseUrl,
-      'X-Cloud-Provider': config.providerId,
-      'X-Cloud-Auth-Style': config.authStyle,
-      ...(authToken ? { 'X-AIPG-Auth': authToken } : {}),
-    },
+    apiKey,
+    authHeader: apiKey !== 'unused',
+    ...(Object.keys(headers).length > 0 ? { headers } : {}),
     models: [
       {
         id: config.model,
@@ -96,9 +98,8 @@ export async function registerModel(
         contextWindow,
         maxTokens: outputTokenBudget(contextWindow, 'cloud'),
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-        // Whether this turn asks the provider to split its thinking off, and in
-        // whose dialect. Pi would read both off the model's `baseUrl`, which is
-        // our loopback proxy for every provider alike.
+        // Thinking dialect, from the provider base. Pi's detectCompat only
+        // recognizes a few hosts, and a resold GLM is not one of them.
         ...cloudReasoningRegistration({
           model: config.model,
           upstreamBaseUrl: config.upstreamBaseUrl,
@@ -107,8 +108,8 @@ export async function registerModel(
       },
     ],
   })
-  await runtime.setRuntimeApiKey(CLOUD_PROVIDER, 'unused')
-  observeModelCallsWhenTracing(() => `${config.proxyBaseUrl}/v1`)
+  await runtime.setRuntimeApiKey(CLOUD_PROVIDER, apiKey)
+  observeModelCallsWhenTracing(() => apiBase)
   return { provider: CLOUD_PROVIDER, modelId: config.model }
 }
 

@@ -868,7 +868,6 @@ describe('turn streaming', () => {
       const modelConfig = {
         source: 'cloud' as const,
         model: 'gpt-4o',
-        proxyBaseUrl: 'http://127.0.0.1:45000',
         upstreamBaseUrl: 'https://api.example.com/v1',
         providerId: 'example',
         authStyle: 'bearer',
@@ -968,8 +967,7 @@ describe('turn streaming', () => {
 
   // Pi only reports thinking as thinking when the provider split it off into
   // `reasoning_content`, and only asks for that split for a model registered as
-  // reasoning. It would decide both from the model's `baseUrl`, which is our
-  // loopback proxy whoever the provider is (piCloudReasoning.ts).
+  // reasoning. The dialect comes from the provider base (piCloudReasoning.ts).
   describe('cloud reasoning', () => {
     async function registeredModel(
       config: AgentModeTurnConfig,
@@ -987,7 +985,6 @@ describe('turn streaming', () => {
     const cloudConfig = (overrides: Record<string, unknown>) => ({
       source: 'cloud' as const,
       model: 'zai-org/GLM-5.3-Flash',
-      proxyBaseUrl: 'http://127.0.0.1:45000',
       upstreamBaseUrl: 'https://gateway.example.com/v1',
       providerId: 'example',
       authStyle: 'bearer',
@@ -1111,7 +1108,6 @@ describe('turn streaming', () => {
           modelConfig: {
             source: 'cloud',
             model: 'gpt-test',
-            proxyBaseUrl: 'http://127.0.0.1:9/v1',
             upstreamBaseUrl: 'https://api.openai.com',
             providerId: 'openai',
             authStyle: 'bearer',

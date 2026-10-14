@@ -2,25 +2,23 @@ import fs from 'fs'
 import { safeStorage } from 'electron'
 import type { CloudProviderInvokeName, InvokeHandlerMap } from '../ipcRegistries'
 import { ipcFail } from '../typedIpc'
-import { setAllowedUpstreams, type CloudProxy } from '../../adapters/cloudProxy'
+import { fetchCloudUpstream } from '../../adapters/cloudUpstream'
 
 /**
- * The provider-key file helpers and Cloud Mode proxy lookup the four
- * cloudProvider handlers close over. All three stay in main.ts: the lazy
- * proxy singleton is also torn down by main's shutdown registration.
+ * The provider-key file helpers the cloudProvider handlers close over.
+ * Decryption stays in main.ts; this registry only calls it.
  */
 export type CloudProviderDeps = {
   cloudProviderKeyPath: (providerId: string) => string
   readCloudProviderKey: (providerId: string) => string | null
-  getCloudProxy: () => Promise<CloudProxy>
 }
 
 export function buildCloudProviderRegistry(deps: CloudProviderDeps) {
   // Cloud Mode provider API keys: encrypted at rest via safeStorage and never
   // persisted in the renderer. Each provider's key lives in its own file keyed
   // by provider id, mirroring the Home Agent channel-secret layout.
-  // Reading/decryption happens in main only (readCloudProviderKey); the proxy
-  // attaches the bearer token so the plaintext key never reaches the renderer.
+  // Reading/decryption happens in main only (readCloudProviderKey). Chat, agent
+  // turns, and the model list attach that key when they call the provider.
   return {
     'cloudProvider:saveKey': (_event, providerId, key) => {
       try {
@@ -53,20 +51,38 @@ export function buildCloudProviderRegistry(deps: CloudProviderDeps) {
       return { success: true as const }
     },
 
-    // Loopback URL of the Cloud Mode proxy. The renderer points its
-    // OpenAI-compatible client and model-list fetch at this URL and tags each
-    // request with X-Cloud-Upstream / X-Cloud-Provider (see cloudProxy.ts).
-    'cloudProvider:getProxyUrl': async () => {
-      return (await deps.getCloudProxy()).url
-    },
-
-    'cloudProvider:getAuthToken': async () => {
-      return (await deps.getCloudProxy()).authToken
-    },
-
-    'cloudProvider:setAllowedUpstreams': (_event, entries) => {
-      setAllowedUpstreams(entries)
-      return { success: true as const }
+    'cloudProvider:listModels': async (_event, providerId, baseUrl, authStyle) => {
+      try {
+        const response = await fetchCloudUpstream({
+          providerId,
+          baseUrl,
+          authStyle,
+          url: '/v1/models',
+          getKey: deps.readCloudProviderKey,
+        })
+        const body = await response.text()
+        if (!response.ok) {
+          return {
+            success: false as const,
+            error: `HTTP ${response.status}`,
+            status: response.status,
+            body,
+          }
+        }
+        let parsed: unknown
+        try {
+          parsed = JSON.parse(body)
+        } catch {
+          return { success: false as const, error: 'invalid json', body }
+        }
+        const data = (parsed as { data?: unknown }).data
+        if (!Array.isArray(data)) {
+          return { success: false as const, error: 'invalid json', body }
+        }
+        return { success: true as const, data: data as Record<string, unknown>[] }
+      } catch (e) {
+        return { success: false as const, error: e instanceof Error ? e.message : String(e) }
+      }
     },
   } satisfies InvokeHandlerMap<CloudProviderInvokeName>
 }

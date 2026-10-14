@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { cloudReasoningRegistration } from '../../agent/piCloudReasoning.ts'
 
 // Whether a cloud agent turn asks its provider to split thinking off, and in
-// whose dialect. Both used to be decided by Pi from the model's `baseUrl` —
-// which is the loopback proxy for every provider — so a GLM's chain of thought
-// arrived inline as `<think>` text instead of as reasoning.
+// whose dialect. Both used to be decided by Pi from the model's `baseUrl`,
+// which did not identify the provider, so a GLM's chain of thought arrived
+// inline as `<think>` text instead of as reasoning.
 
 const zai = 'https://api.z.ai/api/paas/v4'
 

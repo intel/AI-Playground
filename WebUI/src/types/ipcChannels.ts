@@ -88,6 +88,10 @@ export type IpcDataResult<T> = { success: true; data: T } | IpcFail
 /** Success carries named fields beyond `success` itself (e.g. `{ url: string }`, `{ filepath: string }`). */
 export type IpcOkWith<Fields> = ({ success: true } & Fields) | IpcFail
 export type IpcStatusError = { status: 'error'; error: string }
+/** `GET /v1/models` from main. A failure keeps the provider status and body. */
+export type CloudModelListResult =
+  | { success: true; data: Record<string, unknown>[] }
+  | { success: false; error: string; status?: number; body?: string }
 
 // Structural mirrors of the Electron dialog option/result shapes the rows below
 // carry — stated literally so this file never imports from the 'electron' package.
@@ -1310,29 +1314,15 @@ export const CHANNELS = {
     args: [] as unknown as readonly [string],
     result: null as unknown as IpcOk,
   },
-  /** Loopback URL of the Cloud Mode proxy the renderer points its client at. */
-  'cloudProvider:getProxyUrl': {
-    kind: 'invoke',
-    owner: 'main',
-    args: [] as const,
-    result: null as unknown as string,
-  },
-  /** Per-launch `X-AIPG-Auth` token for the Cloud Mode proxy. */
-  'cloudProvider:getAuthToken': {
-    kind: 'invoke',
-    owner: 'main',
-    args: [] as const,
-    result: null as unknown as string,
-  },
   /**
-   * Replace the proxy's provider-id → base-URL allowlist. A request whose
-   * `X-Cloud-Upstream` does not match the registered base is rejected.
+   * `GET {base}/v1/models` from main. The stored key is attached there.
+   * A failed fetch keeps the provider status and body for the setup page.
    */
-  'cloudProvider:setAllowedUpstreams': {
+  'cloudProvider:listModels': {
     kind: 'invoke',
     owner: 'main',
-    args: [] as unknown as readonly [readonly { id: string; baseUrl: string }[]],
-    result: null as unknown as IpcOk,
+    args: [] as unknown as readonly [string, string, string],
+    result: null as unknown as CloudModelListResult,
   },
 
   // ── MCP registry and game library (batch 9b) ──

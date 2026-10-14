@@ -18,7 +18,6 @@ import { buildHomeAgentInferenceSnapshot } from '@/lib/homeAgentInferenceSnapsho
 import type { ChatTurnRequest } from '@/types/chatIpc'
 import { withResponseLanguageAtStart } from '@/lib/responseLanguage'
 import { useTextInference } from './textInference'
-import { useCloudMode } from './cloudMode'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from './conversations'
 import { sanitizeBulkyToolOutputs } from '@/lib/toolMessageSanitize'
 import { restoreMissingHistory } from '@/lib/threadHistoryMerge'
@@ -108,7 +107,6 @@ export const useOpenAiCompatibleChat = defineStore(
   'openAiCompatibleChat',
   () => {
     const textInference = useTextInference()
-    const cloudMode = useCloudMode()
     const conversations = useConversations()
     const errors = useErrors()
     const activities = useActivities()
@@ -990,11 +988,8 @@ export const useOpenAiCompatibleChat = defineStore(
         }
 
         // 3. Download consent stays renderer-side. LLM load and RAG retrieval
-        //    run in main after submit (step 9). Cloud still needs the proxy URL.
+        //    run in main after submit (step 9).
         try {
-          if (textInference.backend === 'cloud') {
-            await cloudMode.ensureProxyUrl()
-          }
           await textInference.checkModelAvailability({
             needsVision: turnCarriesImage(targetKey, options),
           })
@@ -1126,9 +1121,6 @@ export const useOpenAiCompatibleChat = defineStore(
       }
 
       try {
-        if (textInference.backend === 'cloud') {
-          await cloudMode.ensureProxyUrl()
-        }
         await textInference.checkModelAvailability({ needsVision: turnCarriesImage(targetKey) })
       } catch (error) {
         // Cancelling a required model download aborts the regenerate quietly.

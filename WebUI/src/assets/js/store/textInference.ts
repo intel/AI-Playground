@@ -991,10 +991,10 @@ export const useTextInference = defineStore(
       syncRagSelectionForActiveKey()
     }
 
-    // Raw URL of the selected local inference backend, without any of the
-    // loopback proxies `currentBackendUrl` prefers. Callers that cannot attach
-    // the proxies' headers (X-AIPG-Auth / X-Upstream-Url for Home Agent,
-    // X-Cloud-* for Cloud Mode) must dial the backend through this.
+    // Raw URL of the selected local inference backend. When Home Agent is
+    // active, `currentBackendUrl` is that agent's loopback proxy instead
+    // (X-AIPG-Auth / X-Upstream-Url); callers that cannot attach those headers
+    // dial the backend through this.
     const localBackendUrl = computed(
       () =>
         backendServices.info.find((item) => item.serviceName === backendToService[backend.value])
@@ -1002,11 +1002,8 @@ export const useTextInference = defineStore(
     )
 
     const currentBackendUrl = computed(() => {
-      // Cloud Mode talks to the main-process loopback proxy (see cloudProxy.ts),
-      // which forwards to the selected remote provider. Networking + error logging
-      // happen in Node, not the renderer.
       if (backend.value === 'cloud') {
-        return cloudMode.proxyUrl || undefined
+        return cloudMode.activeProviderBaseUrl
       }
       if (homeAgent.isHomeAgentActive && homeAgent.homeAgentBaseUrl) {
         return homeAgent.homeAgentBaseUrl
@@ -1458,11 +1455,6 @@ export const useTextInference = defineStore(
     }
 
     async function ensureReadyForInference(options?: { remember?: boolean }) {
-      // Cloud Mode has no local backend to prepare, but the loopback proxy URL
-      // must be resolved before the first request (it backs currentBackendUrl).
-      if (backend.value === 'cloud') {
-        await cloudMode.ensureProxyUrl()
-      }
       await checkModelAvailability()
       await prepareBackendIfNeeded(options)
     }

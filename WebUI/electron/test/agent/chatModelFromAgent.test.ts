@@ -21,12 +21,11 @@ describe('chatModelFromAgentConfig', () => {
     })
   })
 
-  it('maps a cloud agent model onto the proxy ChatModelConfig', () => {
+  it('maps a cloud agent model onto the provider ChatModelConfig', () => {
     expect(
       chatModelFromAgentConfig({
         source: 'cloud',
         model: 'gpt-4o',
-        proxyBaseUrl: 'http://127.0.0.1:9/v1',
         upstreamBaseUrl: 'https://api.example.com/v1',
         providerId: 'openai',
         authStyle: 'bearer',
@@ -35,7 +34,7 @@ describe('chatModelFromAgentConfig', () => {
     ).toEqual({
       backend: 'cloud',
       modelId: 'gpt-4o',
-      baseUrl: 'http://127.0.0.1:9/v1',
+      baseUrl: 'https://api.example.com/v1',
       cloud: {
         providerId: 'openai',
         upstreamBaseUrl: 'https://api.example.com/v1',
