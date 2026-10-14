@@ -37,10 +37,16 @@ async function loadAipgRoot(opts: {
     app: { isPackaged: opts.isPackaged, getVersion: () => '0.0.0-test' },
   }))
   vi.doMock('../../kernel/installConfig.ts', () => ({
-    readInstallConfig: () =>
-      opts.mode
-        ? { modelFolderMode: opts.mode, sharedResourcesDir: opts.sharedResourcesDir }
-        : null,
+    readInstallConfig: () => {
+      if (!opts.mode) return null
+      const sharedResourcesDir =
+        opts.sharedResourcesDir !== undefined
+          ? opts.sharedResourcesDir
+          : opts.mode === 'shared'
+            ? path.join(tmpPublic, 'AI Playground')
+            : undefined
+      return { modelFolderMode: opts.mode, sharedResourcesDir }
+    },
   }))
   return import('../../kernel/aipgRoot.ts')
 }
@@ -131,5 +137,34 @@ describe('packagedResourcesRoot', () => {
     // The `resources` leaf is always appended so model_config's relative
     // `./resources/models` paths (anchored to path.dirname(root)) still resolve.
     expect(mod.packagedResourcesRoot()).toBe(path.join(customBase, 'resources'))
+  })
+
+  it('does not fall back to %PUBLIC% when shared mode has no resources dir', async () => {
+    const mod = await loadAipgRoot({
+      isPackaged: true,
+      mode: 'shared',
+      platform: 'win32',
+      sharedResourcesDir: '',
+    })
+
+    expect(mod.packagedResourcesRoot()).toBe(
+      path.join(tmpLocalAppData, 'ai-playground', 'resources'),
+    )
+  })
+
+  it('replaces a pre-seeded uv.exe when the seed marker matches', async () => {
+    fs.writeFileSync(path.join(tmpResources, 'uv.exe'), 'from-bundle')
+    fs.writeFileSync(path.join(tmpResources, 'notes.txt'), 'shipped-note')
+    const sharedRoot = path.join(tmpPublic, 'AI Playground', 'resources')
+    fs.mkdirSync(sharedRoot, { recursive: true })
+    fs.writeFileSync(path.join(sharedRoot, '.aipg-seed-version'), '0.0.0-test')
+    fs.writeFileSync(path.join(sharedRoot, 'uv.exe'), 'trojan')
+    fs.writeFileSync(path.join(sharedRoot, 'planted.txt'), 'leave-me')
+    const mod = await loadAipgRoot({ isPackaged: true, mode: 'shared', platform: 'win32' })
+
+    expect(mod.packagedResourcesRoot()).toBe(sharedRoot)
+    expect(fs.readFileSync(path.join(sharedRoot, 'uv.exe'), 'utf-8')).toBe('from-bundle')
+    expect(fs.readFileSync(path.join(sharedRoot, 'planted.txt'), 'utf-8')).toBe('leave-me')
+    expect(fs.existsSync(path.join(sharedRoot, 'notes.txt'))).toBe(false)
   })
 })

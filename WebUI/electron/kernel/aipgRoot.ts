@@ -24,21 +24,15 @@ import { grantUsersModifySync } from './sharedAcl.ts'
  * Runtime data created later (venvs, models, `python-interpreter/`, …) is never
  * part of the bundle, so it is preserved across reseeds.
  *
- * **Shared all-users install** (`install-config.json` = `"shared"`): the
- * resources root instead points at the machine-wide
- * `%PUBLIC%/AI Playground/resources` (under `C:\Users\Public`). Public's
- * default ACL lets every account create files, but files one account creates
- * are not writable by the others. The installer grants inheritable Modify to
- * BUILTIN\Users. Shared installs copy uv packages into that tree so new files
- * inherit the grant. The heavy artifacts are
- * provisioned there once (by whichever user launches first) and maintained by
- * everyone else. Each user's *mutable* config (settings, logs, model_config,
- * mcp, embeddingCache, ComfyUI scratch) is kept private via
- * `writableConfigRoot()` so users do not clobber each other. See `userConfig.ts`.
+ * **Shared all-users install** (HKLM `modelFolderMode` = `shared`): the resources
+ * root points at `<sharedResourcesDir>/resources`. The installer grants
+ * inheritable Modify to BUILTIN\Users, and shared installs copy uv packages into
+ * that tree so new files inherit the grant. The heavy artifacts are provisioned
+ * there once and maintained by every account. Each user's *mutable* config
+ * (settings, logs, model_config, mcp, embeddingCache, ComfyUI scratch) is kept
+ * private via `writableConfigRoot()` so users do not clobber each other. See
+ * `userConfig.ts`.
  */
-
-/** `%PUBLIC%` (`C:\Users\Public`, or a sensible fallback) — machine-wide. */
-const publicDir = (): string => process.env.PUBLIC?.trim() || 'C:\\Users\\Public'
 
 /**
  * Whether this is a Windows all-users install configured to share the heavy
@@ -57,20 +51,6 @@ export function isSharedAllUsersInstall(): boolean {
 }
 
 /**
- * Machine-wide shared resources root. The base directory defaults to
- * `%PUBLIC%/AI Playground` but the admin can point it elsewhere (e.g. a
- * roomier drive) via the installer's folder picker — see `installConfig.ts`.
- * The `resources` leaf is always appended so relative model paths in
- * `model_config.json` (`./resources/models/...`), anchored to `path.dirname(root)`,
- * resolve to `<base>/resources/models`, exactly mirroring the per-user layout.
- */
-const sharedInstallRoot = (): string => {
-  const base =
-    readInstallConfig()?.sharedResourcesDir?.trim() || path.join(publicDir(), 'AI Playground')
-  return path.join(base, 'resources')
-}
-
-/**
  * Per-user writable root. No spaces in the path — Python venvs dislike them.
  * `%LOCALAPPDATA%/ai-playground/resources` on Windows,
  * `$XDG_DATA_HOME/ai-playground/resources` (or `~/.local/share/...`) elsewhere.
@@ -83,6 +63,20 @@ const writableUserRoot = (): string => {
   }
   const dataHome = process.env.XDG_DATA_HOME?.trim() || path.join(os.homedir(), '.local', 'share')
   return path.join(dataHome, 'ai-playground', 'resources')
+}
+
+/**
+ * Machine-wide shared resources root. The base directory is the validated
+ * admin-chosen path from HKLM (`installConfig.ts`). The `resources` leaf is
+ * always appended so relative model paths in `model_config.json`
+ * (`./resources/models/...`), anchored to `path.dirname(root)`, resolve to
+ * `<base>/resources/models`, exactly mirroring the per-user layout. Without a
+ * validated base this falls back to the per-user writable root.
+ */
+const sharedInstallRoot = (): string => {
+  const base = readInstallConfig()?.sharedResourcesDir?.trim()
+  if (!base) return writableUserRoot()
+  return path.join(base, 'resources')
 }
 
 /**
@@ -114,6 +108,20 @@ const EXECUTABLE_RESOURCE_FILES = ['uv.exe', 'uvw.exe', 'uvx.exe', '7zr.exe']
 
 let seeded = false
 
+function copyBundledExecutables(root: string, bundle: string): void {
+  for (const name of EXECUTABLE_RESOURCE_FILES) {
+    const source = path.join(bundle, name)
+    const target = path.join(root, name)
+    try {
+      if (!fs.existsSync(source)) continue
+      fs.copyFileSync(source, target)
+      fs.chmodSync(target, 0o755)
+    } catch {
+      // best effort — a locked file is replaced on the next launch
+    }
+  }
+}
+
 function seedWritableRoot(root: string): void {
   const bundle = process.resourcesPath
   const markerPath = path.join(root, '.aipg-seed-version')
@@ -125,7 +133,12 @@ function seedWritableRoot(root: string): void {
   } catch {
     alreadySeeded = false
   }
-  if (alreadySeeded) return
+  // The marker lives in the writable tree, so a matching version must not skip
+  // the shipped binaries: those are the files the backends spawn.
+  if (alreadySeeded) {
+    copyBundledExecutables(root, bundle)
+    return
+  }
 
   fs.mkdirSync(root, { recursive: true })
   // Grant before the copy so new files inherit Modify. Runtime environments must
@@ -152,16 +165,9 @@ function seedWritableRoot(root: string): void {
   })
   if (sharedModeActive()) grantUsersModifySync(root)
 
-  // cpSync does not reliably preserve the executable bit across filesystems,
-  // so restore it for the bundled binaries the backends spawn.
-  for (const name of EXECUTABLE_RESOURCE_FILES) {
-    const file = path.join(root, name)
-    try {
-      if (fs.existsSync(file)) fs.chmodSync(file, 0o755)
-    } catch {
-      // best effort
-    }
-  }
+  // cpSync does not reliably preserve the executable bit, and a file already in
+  // the tree must not win over the copy shipped in the install directory.
+  copyBundledExecutables(root, bundle)
 
   fs.writeFileSync(markerPath, currentVersion, 'utf-8')
 }
