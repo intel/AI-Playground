@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, session } from 'electron'
 import { appLoggerInstance } from '../observability/logger'
 import { typedSend } from '../kernel/typedIpc'
 
@@ -114,7 +114,22 @@ function normalizeUrl(url: string): string {
   return parsed.toString()
 }
 
+// Chat text and RAG can steer this hidden window, and Electron grants a session
+// that has no handler, including media, which the main window allows for the mic.
+function lockDownBrowserSession(): void {
+  const ses = session.fromPartition(PARTITION)
+  ses.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false)
+  })
+  ses.setPermissionCheckHandler(() => false)
+  ses.setDevicePermissionHandler(() => false)
+  ses.setDisplayMediaRequestHandler((_request, callback) => {
+    callback({})
+  })
+}
+
 function ensureWindow(): BrowserWindow {
+  lockDownBrowserSession()
   if (browserWin && !browserWin.isDestroyed()) return browserWin
 
   browserWin = new BrowserWindow({
