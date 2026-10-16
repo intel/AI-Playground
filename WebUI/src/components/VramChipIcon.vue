@@ -12,6 +12,10 @@ const PINS =
   'M9.5 2.75v2.25M14.5 2.75v2.25M9.5 19v2.25M14.5 19v2.25M2.75 9.5H5M2.75 14.5H5M19 9.5h2.25M19 14.5h2.25'
 const BODY = 'M7 5h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z'
 
+// Green while the model fits, gold when the gauge is full. The frame stays the text color.
+const EASY_BAR = '#439921'
+const TIGHT_BAR = '#e1ad30'
+
 // Several icons share one document, so each cutout needs its own mask id.
 const maskId = `vram-chip-${useId()}`
 </script>
@@ -50,7 +54,7 @@ const maskId = `vram-chip-${useId()}`
         width="2.2"
         height="8"
         rx="0.5"
-        fill="currentColor"
+        :fill="bars === 3 ? TIGHT_BAR : EASY_BAR"
         stroke="none"
       />
     </template>
