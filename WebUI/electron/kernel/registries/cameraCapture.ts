@@ -1,9 +1,9 @@
 import type { WebContents } from 'electron'
 import type { CameraCaptureInvokeName, InvokeHandlerMap } from '../ipcRegistries'
-import { isAcerVendorOverride } from '@/lib/acerVendorOverride'
 
 export type CameraCaptureDeps = {
-  oemVendorOverride: () => string | null | undefined
+  /** Firmware Acer or the developer override. `detectOem` is the one decision. */
+  isAcerMachine: () => Promise<boolean>
   isDirectRunning: () => Promise<boolean>
   logWarn: (message: string) => void
   registerShortcut: (sender: WebContents) => boolean
@@ -13,7 +13,7 @@ export type CameraCaptureDeps = {
 export function buildCameraCaptureRegistry(deps: CameraCaptureDeps) {
   return {
     'cameraCapture:isDirectRunning': async (_event) => {
-      if (!isAcerVendorOverride(deps.oemVendorOverride())) return false
+      if (!(await deps.isAcerMachine())) return false
       try {
         return await deps.isDirectRunning()
       } catch (error) {

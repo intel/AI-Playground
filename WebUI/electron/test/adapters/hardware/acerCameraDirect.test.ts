@@ -5,24 +5,7 @@ import {
   queryAcerCameraDirectRunning,
   tasklistOutputIndicatesProcess,
 } from '../../../adapters/hardware/acerCameraDirect'
-import { isAcerVendorOverride } from '@/lib/acerVendorOverride'
 import { buildCameraCaptureRegistry } from '../../../kernel/registries/cameraCapture'
-
-describe('isAcerVendorOverride', () => {
-  it('accepts the Developer dropdown value and the Acer label', () => {
-    expect(isAcerVendorOverride('acer')).toBe(true)
-    expect(isAcerVendorOverride('Acer')).toBe(true)
-    expect(isAcerVendorOverride('  ACER  ')).toBe(true)
-  })
-
-  it('rejects firmware-style absence and every other vendor', () => {
-    expect(isAcerVendorOverride(null)).toBe(false)
-    expect(isAcerVendorOverride(undefined)).toBe(false)
-    expect(isAcerVendorOverride('')).toBe(false)
-    expect(isAcerVendorOverride('unknown')).toBe(false)
-    expect(isAcerVendorOverride('asus')).toBe(false)
-  })
-})
 
 describe('tasklistOutputIndicatesProcess', () => {
   it('matches a running process line', () => {
@@ -96,9 +79,9 @@ describe('createCachedAcerCameraDirectProbe', () => {
 })
 
 describe('buildCameraCaptureRegistry', () => {
-  function registryFor(override: string | null, running: boolean | Error) {
+  function registryFor(acer: boolean, running: boolean | Error) {
     return buildCameraCaptureRegistry({
-      oemVendorOverride: () => override,
+      isAcerMachine: async () => acer,
       isDirectRunning: () =>
         running instanceof Error ? Promise.reject(running) : Promise.resolve(running),
       logWarn: () => {},
@@ -107,21 +90,19 @@ describe('buildCameraCaptureRegistry', () => {
     })
   }
 
-  it('reports Camera Direct only when the OEM override is Acer', async () => {
-    const ask = (override: string | null, running: boolean) =>
-      registryFor(override, running)['cameraCapture:isDirectRunning'](undefined as never)
+  it('reports Camera Direct on an Acer machine, firmware or override', async () => {
+    const ask = (acer: boolean, running: boolean) =>
+      registryFor(acer, running)['cameraCapture:isDirectRunning'](undefined as never)
 
-    await expect(ask('Acer', true)).resolves.toBe(true)
-    await expect(ask('acer', true)).resolves.toBe(true)
-    await expect(ask('acer', false)).resolves.toBe(false)
-    await expect(ask(null, true)).resolves.toBe(false)
-    await expect(ask('unknown', true)).resolves.toBe(false)
+    await expect(ask(true, true)).resolves.toBe(true)
+    await expect(ask(true, false)).resolves.toBe(false)
+    await expect(ask(false, true)).resolves.toBe(false)
   })
 
-  it('does not call the probe unless the override is Acer', async () => {
+  it('does not call the probe unless the machine is Acer', async () => {
     const isDirectRunning = vi.fn(async () => true)
     const registry = buildCameraCaptureRegistry({
-      oemVendorOverride: () => null,
+      isAcerMachine: async () => false,
       isDirectRunning,
       logWarn: () => {},
       registerShortcut: () => true,
@@ -132,7 +113,7 @@ describe('buildCameraCaptureRegistry', () => {
   })
 
   it('returns false when the probe throws', async () => {
-    const registry = registryFor('acer', new Error('tasklist'))
+    const registry = registryFor(true, new Error('tasklist'))
     await expect(registry['cameraCapture:isDirectRunning'](undefined as never)).resolves.toBe(false)
   })
 })

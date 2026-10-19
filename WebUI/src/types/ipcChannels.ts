@@ -687,8 +687,8 @@ export const CHANNELS = {
     result: null as unknown as { vendor: string; manufacturer: string; overridden: boolean },
   },
   /**
-   * Whether an Acer Camera Direct process is running. False unless the OEM
-   * vendor override is Acer, and false off Windows.
+   * Whether an Acer Camera Direct process is running. False unless this machine
+   * is Acer (firmware or the OEM vendor override), and false off Windows.
    */
   'cameraCapture:isDirectRunning': {
     kind: 'invoke',

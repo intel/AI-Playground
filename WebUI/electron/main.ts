@@ -1799,7 +1799,8 @@ function initEventHandle() {
 
   registerInvokeHandlers(
     buildCameraCaptureRegistry({
-      oemVendorOverride: () => settings.oemVendorOverride,
+      isAcerMachine: async () =>
+        (await detectOem(settings.oemVendorOverride)).vendor === 'acer',
       isDirectRunning: acerCameraDirectRunning,
       logWarn: (message) => appLogger.warn(message, 'electron-backend'),
       registerShortcut: registerCameraCaptureShortcut,

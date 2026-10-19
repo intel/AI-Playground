@@ -1,18 +1,17 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { ref } from 'vue'
-import { useDebugSettings } from '@/assets/js/store/debugSettings'
-import { isAcerVendorOverride } from '@/lib/acerVendorOverride'
+import { useOemBranding } from '@/assets/js/store/oemBranding'
 
 const POLL_MS = 3000
 
 export const useAcerPhoneWebcam = defineStore('acerPhoneWebcam', () => {
-  const debugSettings = useDebugSettings()
+  const oemBranding = useOemBranding()
   const directActive = ref(false)
   let subscribers = 0
   let pollTimer: ReturnType<typeof setInterval> | null = null
 
   async function refresh() {
-    if (!isAcerVendorOverride(debugSettings.oemVendorOverride)) {
+    if (!oemBranding.isAcer) {
       directActive.value = false
       return
     }
@@ -21,7 +20,9 @@ export const useAcerPhoneWebcam = defineStore('acerPhoneWebcam', () => {
 
   async function startPollingIfNeeded() {
     if (pollTimer) return
-    if (!isAcerVendorOverride(debugSettings.oemVendorOverride)) return
+    await oemBranding.initialize()
+    if (subscribers === 0 || pollTimer) return
+    if (!oemBranding.isAcer) return
     const platform = await window.electronAPI.getPlatform()
     if (platform !== 'win32') return
     await refresh()
