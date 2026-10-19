@@ -46,6 +46,63 @@ const execAsync = promisify(exec)
 // by default and depends on this cache).
 export const LLAMACPP_DEFAULT_PARAMETERS =
   '--gpu-layers 999 --log-prefix --jinja --no-mmap -fa on --cache-ram 16384'
+
+/**
+ * llama-server does not list the CPU, so the app offers it itself. Selecting it
+ * is what lets a user route inference to the CPU.
+ */
+export const LLAMACPP_CPU_DEVICE_ID = 'cpu'
+const LLAMACPP_CPU_DEVICE = { id: LLAMACPP_CPU_DEVICE_ID, name: 'CPU' }
+
+type DeviceRef = Pick<InferenceDevice, 'id' | 'name'>
+
+function isCpuDevice(device: DeviceRef | undefined): boolean {
+  if (!device) return false
+  return device.id.toLowerCase() === LLAMACPP_CPU_DEVICE_ID || device.name.toUpperCase() === 'CPU'
+}
+
+/** Add the CPU to a detected list, or make a build's own CPU entry use our stable id. */
+export function withCpuDevice(devices: DeviceRef[]): DeviceRef[] {
+  const cpu = devices.find(isCpuDevice)
+  if (cpu) {
+    return cpu.id === LLAMACPP_CPU_DEVICE_ID
+      ? devices
+      : devices.map((device) =>
+          device === cpu ? { ...device, id: LLAMACPP_CPU_DEVICE_ID } : device,
+        )
+  }
+  if (devices.length === 0) {
+    return [{ id: '0', name: 'Auto select device' }, LLAMACPP_CPU_DEVICE]
+  }
+  return [...devices, LLAMACPP_CPU_DEVICE]
+}
+
+// `--n-gpu-layers` is llama.cpp's old spelling of `-ngl` / `--gpu-layers`.
+const GPU_LAYER_FLAGS = new Set(['--gpu-layers', '-ngl', '--n-gpu-layers'])
+
+/**
+ * Pin llama-server to the CPU when the CPU device is selected. Existing offload
+ * flags are replaced, not shadowed, so the result does not depend on how a
+ * duplicate flag is parsed.
+ */
+export function withCpuDeviceParameters(
+  parameters: string[],
+  device: DeviceRef | undefined,
+): string[] {
+  if (!isCpuDevice(device)) return parameters
+  const out: string[] = []
+  for (let i = 0; i < parameters.length; i++) {
+    const arg = parameters[i]
+    if (GPU_LAYER_FLAGS.has(arg)) {
+      i++
+      continue
+    }
+    if (arg.includes('=') && GPU_LAYER_FLAGS.has(arg.split('=')[0])) continue
+    out.push(arg)
+  }
+  return [...out, '--gpu-layers', '0']
+}
+
 const platformExtension = process.platform === 'win32' ? 'zip' : 'tar.gz'
 
 // How much of a model server's console output is kept for the error message it
@@ -262,6 +319,9 @@ export class LlamaCppBackendService implements ApiService {
   private currentContextSize: number | null = null
   /** The model's own `llamaCppArgs` the running LLM server was launched with. */
   private currentModelArgs: string | null = null
+  /** The device the running servers were launched with; a device change relaunches them. */
+  private currentLlmDeviceId: string | null = null
+  private currentEmbeddingDeviceId: string | null = null
   /**
    * The full command line the running LLM server was launched with. Flags are
    * baked into the process, so this is the only place the effective sampling /
@@ -366,6 +426,15 @@ export class LlamaCppBackendService implements ApiService {
       })
   }
 
+  /** The embedding server bakes its device into the launch command too. */
+  private embeddingServerNeedsRestart(embeddingModelName: string): boolean {
+    return (
+      this.currentEmbeddingModel !== embeddingModelName ||
+      this.selectedDeviceId() !== this.currentEmbeddingDeviceId ||
+      !this.llamaEmbeddingProcess?.isReady
+    )
+  }
+
   async ensureBackendReadiness(
     llmModelName: string,
     embeddingModelName?: string,
@@ -391,6 +460,8 @@ export class LlamaCppBackendService implements ApiService {
         // Model flags are baked into the command line, so a catalog update that
         // changes them only takes effect on a relaunch.
         (modelArgs ?? '') !== (this.currentModelArgs ?? '') ||
+        // The device is an env var / launch flag too, so it cannot change in place.
+        this.selectedDeviceId() !== this.currentLlmDeviceId ||
         !llmServerResponsive
 
       if (needsLlmRestart) {
@@ -403,8 +474,7 @@ export class LlamaCppBackendService implements ApiService {
 
       // Handle embedding model if provided
       if (embeddingModelName) {
-        const needsEmbeddingRestart =
-          this.currentEmbeddingModel !== embeddingModelName || !this.llamaEmbeddingProcess?.isReady
+        const needsEmbeddingRestart = this.embeddingServerNeedsRestart(embeddingModelName)
 
         if (needsEmbeddingRestart) {
           await this.stopLlamaEmbeddingServer()
@@ -440,8 +510,7 @@ export class LlamaCppBackendService implements ApiService {
    * local server. Mirrors the embedding branch of ensureBackendReadiness.
    */
   async ensureEmbeddingServerReady(embeddingModelName: string): Promise<void> {
-    const needsEmbeddingRestart =
-      this.currentEmbeddingModel !== embeddingModelName || !this.llamaEmbeddingProcess?.isReady
+    const needsEmbeddingRestart = this.embeddingServerNeedsRestart(embeddingModelName)
 
     if (needsEmbeddingRestart) {
       await this.stopLlamaEmbeddingServer()
@@ -531,7 +600,11 @@ export class LlamaCppBackendService implements ApiService {
       // Check if llama-server.exe exists
       if (!filesystem.existsSync(this.getActiveLlamaCppExePath())) {
         this.appLogger.warn('llama-server.exe not found, using default device', this.name)
-        this.devices = [{ id: '0', name: 'Auto select device', selected: true }]
+        this.devices = withSelectedDevice(
+          withCpuDevice([]).map((d) => ({ ...d, selected: false })),
+          this.settings.lastSelectedDevicePerBackend[this.name],
+          (ds) => ds[0],
+        )
         return
       }
 
@@ -596,19 +669,17 @@ export class LlamaCppBackendService implements ApiService {
         }
       }
 
-      this.appLogger.info(
-        `detected devices: ${JSON.stringify(availableDevices, null, 2)}`,
-        this.name,
-      )
+      const deviceChoices = withCpuDevice(availableDevices)
+      this.appLogger.info(`detected devices: ${JSON.stringify(deviceChoices, null, 2)}`, this.name)
 
       // When the build exposes no GPU backend (e.g. the CPU-only ubuntu-x64
       // build, or a Vulkan build without a usable ICD/driver), --list-devices
-      // returns nothing. Fall back to a single auto device so the UI selector
-      // always has a valid value (otherwise it renders with value=undefined).
-      // On first run (no persisted choice) auto-select the best available device
-      // — dedicated GPU > integrated GPU > NPU > CPU — and persist it as the
-      // user's selection. Falls back to the first device when detection is
-      // inconclusive, preserving the previous default.
+      // returns nothing. `withCpuDevice` keeps a valid entry for that case so
+      // the UI selector never renders with value=undefined. On first run (no
+      // persisted choice) auto-select the best available device — dedicated GPU
+      // > integrated GPU > NPU > CPU — and persist it as the user's selection.
+      // Falls back to the first device when detection is inconclusive,
+      // preserving the previous default.
       const bestId = await resolveDefaultDevice(
         availableDevices,
         this.settings.lastSelectedDevicePerBackend,
@@ -616,18 +687,19 @@ export class LlamaCppBackendService implements ApiService {
         this.settings.preferredDevice,
         this.settings.lastSelectedDeviceUuidPerBackend,
       )
-      this.devices =
-        availableDevices.length > 0
-          ? withSelectedDevice(
-              availableDevices.map((d) => ({ ...d, selected: false })),
-              this.settings.lastSelectedDevicePerBackend[this.name],
-              (ds) => ds.find((d) => d.id === bestId) ?? ds[0],
-              this.settings.lastSelectedDeviceUuidPerBackend[this.name],
-            )
-          : [{ id: '0', name: 'Auto select device', selected: true }]
+      this.devices = withSelectedDevice(
+        deviceChoices.map((d) => ({ ...d, selected: false })),
+        this.settings.lastSelectedDevicePerBackend[this.name],
+        (ds) => ds.find((d) => d.id === bestId) ?? ds[0],
+        this.settings.lastSelectedDeviceUuidPerBackend[this.name],
+      )
     } catch (error) {
       this.appLogger.error(`Failed to detect devices: ${error}`, this.name)
-      this.devices = [{ id: '0', name: 'Auto select device', selected: true }]
+      this.devices = withSelectedDevice(
+        withCpuDevice([]).map((d) => ({ ...d, selected: false })),
+        this.settings.lastSelectedDevicePerBackend[this.name],
+        (ds) => ds[0],
+      )
     }
     this.updateStatus()
   }
@@ -1334,11 +1406,23 @@ export class LlamaCppBackendService implements ApiService {
     return 'stopped'
   }
 
+  private selectedDevice(): InferenceDevice | undefined {
+    return this.devices.find((d) => d.selected)
+  }
+
+  private selectedDeviceId(): string | undefined {
+    return this.selectedDevice()?.id
+  }
+
   /** Env only for on-demand llama-server processes (LLM / embedding). Phison build uses GGML_VK_DISABLE_F16. */
   private llamaModelServerEnv(): NodeJS.ProcessEnv {
     return {
       ...process.env,
-      ...vulkanDeviceSelectorEnv(this.devices.find((d) => d.selected)?.id),
+      // The CPU is not a Vulkan device; naming it would only make the build
+      // refuse the selector. `--gpu-layers 0` is what keeps it off the GPU.
+      ...(isCpuDevice(this.selectedDevice())
+        ? {}
+        : vulkanDeviceSelectorEnv(this.selectedDeviceId())),
       ...llamaCppPhison.getModelServerEnvAdditions(this.llamaCppBuildVariant),
     }
   }
@@ -1420,12 +1504,15 @@ export class LlamaCppBackendService implements ApiService {
       // to the Phison build without it. Appending it here makes the LLM server
       // as robust to that as the embedding server already was; a `--config-file`
       // the user did type still wins, since withConfigFileArg rewrites in place.
-      const userParameters = llamaCppPhison.isSsdOffloadVariant(this.llamaCppBuildVariant)
-        ? llamaCppPhison.withConfigFileArg(
-            sanitizedParameters,
-            this.getRelativeSsdOffloadConfigPath(),
-          )
-        : sanitizedParameters
+      const userParameters = withCpuDeviceParameters(
+        llamaCppPhison.isSsdOffloadVariant(this.llamaCppBuildVariant)
+          ? llamaCppPhison.withConfigFileArg(
+              sanitizedParameters,
+              this.getRelativeSsdOffloadConfigPath(),
+            )
+          : sanitizedParameters,
+        this.selectedDevice(),
+      )
       // Flags the model itself asks for (models.json `llamaCppArgs`), e.g.
       // speculative decoding off a model's own MTP head. Sanitized like the
       // user's, because the catalog can be refreshed from a remote repo. They
@@ -1551,6 +1638,7 @@ export class LlamaCppBackendService implements ApiService {
           this.currentLlmModel = null
           this.currentContextSize = null
           this.currentModelArgs = null
+          this.currentLlmDeviceId = null
         }
       })
 
@@ -1566,6 +1654,7 @@ export class LlamaCppBackendService implements ApiService {
       this.currentLlmModel = modelRepoId
       this.currentContextSize = ctxSize
       this.currentModelArgs = modelArgs ?? null
+      this.currentLlmDeviceId = this.selectedDeviceId() ?? null
       this.currentLlmServerArgs = args
 
       this.appLogger.info(`LLM server ready for model: ${modelRepoId}`, this.name)
@@ -1600,12 +1689,15 @@ export class LlamaCppBackendService implements ApiService {
       // embedding server's own config: it needs none of the SSD/VRAM offload
       // budget the LLM config reserves, and reserving it here takes it from
       // the LLM server for the lifetime of the embedding process.
-      const userParameters = isSsdOffload
-        ? llamaCppPhison.withConfigFileArg(
-            sanitizedParameters,
-            this.getRelativeSsdOffloadEmbeddingConfigPath(),
-          )
-        : sanitizedParameters
+      const userParameters = withCpuDeviceParameters(
+        isSsdOffload
+          ? llamaCppPhison.withConfigFileArg(
+              sanitizedParameters,
+              this.getRelativeSsdOffloadEmbeddingConfigPath(),
+            )
+          : sanitizedParameters,
+        this.selectedDevice(),
+      )
       const args = [
         '--embedding',
         '--model',
@@ -1672,6 +1764,7 @@ export class LlamaCppBackendService implements ApiService {
         if (this.llamaEmbeddingProcess === llamaProcess) {
           this.llamaEmbeddingProcess = null
           this.currentEmbeddingModel = null
+          this.currentEmbeddingDeviceId = null
         }
       })
 
@@ -1684,6 +1777,7 @@ export class LlamaCppBackendService implements ApiService {
 
       this.llamaEmbeddingProcess = llamaProcess
       this.currentEmbeddingModel = modelRepoId
+      this.currentEmbeddingDeviceId = this.selectedDeviceId() ?? null
 
       this.appLogger.info(`Embedding server ready for model: ${modelRepoId}`, this.name)
       return llamaProcess
@@ -1709,6 +1803,7 @@ export class LlamaCppBackendService implements ApiService {
       this.currentLlmModel = null
       this.currentContextSize = null
       this.currentModelArgs = null
+      this.currentLlmDeviceId = null
     }
   }
 
@@ -1726,6 +1821,7 @@ export class LlamaCppBackendService implements ApiService {
 
       this.llamaEmbeddingProcess = null
       this.currentEmbeddingModel = null
+      this.currentEmbeddingDeviceId = null
     }
   }
 
