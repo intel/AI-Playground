@@ -1587,6 +1587,11 @@ function initEventHandle() {
     app.isPackaged
       ? writableConfigFile('model_config.json')
       : path.join(externalRes, 'model_config.dev.json'),
+    // The shipped copy is the source for directories a user's older config
+    // predates (e.g. a model type added in an update).
+    app.isPackaged
+      ? path.join(packagedResourcesRoot(), 'model_config.json')
+      : path.join(externalRes, 'model_config.dev.defaults.json'),
   )
 
   const coreDeps: CoreDeps = {

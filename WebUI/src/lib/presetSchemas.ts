@@ -167,6 +167,9 @@ export const ComfyUiPresetSchema = BasePresetFieldsSchema.extend({
   comfyUiApiWorkflow: ComfyUIApiWorkflowSchema,
   requiredCustomNodes: z.array(z.string()).optional(),
   requiredPythonPackages: z.array(z.string()).optional(),
+  // Extra ComfyUI launch flags this workflow needs (e.g. an attention mode a
+  // model requires). They are added to the backend command line for this run only.
+  requiredComfyUiParameters: z.array(z.string()).optional(),
   // ComfyUI-specific settings can be ComfyInput
   settings: z.array(z.union([ComfyInputSchema, SettingSchema])).default([]),
   // Resolution configuration for aspect ratio and megapixel options

@@ -229,6 +229,7 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   private environmentMismatchError: ErrorDetails | null = null
 
   private comfyUiParametersString: string = COMFYUI_DEFAULT_PARAMETERS
+  private presetParameters: string[] = []
   private comfyUiVariant: ComfyUiVariant = 'xpu'
   private variantMismatchToastSent = false
 
@@ -650,6 +651,20 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
   }
 
   isSetUp = false
+
+  /**
+   * Launch flags a preset requires (e.g. `--use-quad-cross-attention`). A
+   * running backend is stopped so the next start picks them up; without this a
+   * workflow that needs a different attention path inherits the previous run's.
+   */
+  async setPresetParameters(parameters: string[]): Promise<void> {
+    const next = parameters.map((parameter) => parameter.trim()).filter(Boolean)
+    if (next.join('\0') === this.presetParameters.join('\0')) return
+    this.presetParameters = next
+    if (this.currentStatus === 'running' || this.currentStatus === 'starting') {
+      await this.stop()
+    }
+  }
 
   async updateSettings(settings: ServiceSettings): Promise<void> {
     if (settings.version) {
@@ -1208,6 +1223,8 @@ export class ComfyUiBackendService extends LongLivedPythonApiService {
     text_encoders
     clip
   clip_vision: clip_vision
+  geometry_estimation: geometry_estimation
+  background_removal: background_removal
   style_models: style_models
   embeddings: embeddings
   diffusers: diffusers
@@ -1977,6 +1994,14 @@ except Exception as e:
     let userParameters = sanitizeUserComfyUiParameters(this.comfyUiParametersString, (msg) =>
       this.appLogger.warn(msg, this.name, true),
     )
+    if (this.presetParameters.length > 0) {
+      userParameters = [
+        ...userParameters,
+        ...sanitizeUserComfyUiParameters(this.presetParameters.join(' '), (msg) =>
+          this.appLogger.warn(msg, this.name, true),
+        ),
+      ]
+    }
 
     // The CPU variant must run with --cpu, but ComfyUI's argparse puts --cpu in a
     // mutually-exclusive group with the VRAM-mode flags (--lowvram/--gpu-only/…).
