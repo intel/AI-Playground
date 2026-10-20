@@ -86,6 +86,7 @@ let statusListeners: ((status: string) => void)[]
 let consentRequests: number
 let consentApproved: boolean
 let missingModels: ArtifactMissingModel[]
+const setPresetParameters = vi.fn(async (_parameters: string[]) => {})
 
 function deps(overrides: Partial<Parameters<typeof setArtifactRunnerDeps>[0]> = {}) {
   return {
@@ -106,6 +107,7 @@ function deps(overrides: Partial<Parameters<typeof setArtifactRunnerDeps>[0]> = 
         serviceDir: '/comfy',
         getTorchBackendEnv: () => ({}),
         comfyUiVariantName: 'cpu',
+        setPresetParameters,
       }) as unknown as RunnerComfyService,
     onServiceStatusChange: (cb: (status: string) => void) => {
       statusListeners.push(cb)
@@ -211,6 +213,7 @@ describe('artifact runner', () => {
     consentApproved = true
     missingModels = []
     socketHandlers = null
+    setPresetParameters.mockClear()
     saveMediaItems.mockClear()
     vi.mocked(getComfySocket).mockImplementation(
       (
@@ -285,6 +288,37 @@ describe('artifact runner', () => {
     const savedItems = saveMediaItems.mock.calls[0]?.[0] as unknown as MediaItem[]
     expect(savedItems).toHaveLength(2)
     expect(savedItems[0]).toMatchObject({ state: 'done' })
+  })
+
+  it('applies the preset launch flags before starting the backend', async () => {
+    setArtifactRunnerDeps(deps())
+    const request = payload()
+    request.preset = {
+      ...preset(),
+      requiredComfyUiParameters: ['--use-quad-cross-attention'],
+    } as ComfyUiPreset
+    const run = submitArtifactRun({ ...request, items: itemsFor(request) })
+
+    await vi.waitFor(() => expect(submittedPrompts).toHaveLength(2))
+    expect(setPresetParameters).toHaveBeenCalledWith(['--use-quad-cross-attention'])
+
+    socketHandlers!.onJson({ type: 'execution_start' })
+    socketHandlers!.onJson({
+      type: 'executed',
+      data: {
+        node: '2',
+        output: { images: [{ filename: 'a.png', subfolder: '', type: 'output' }] },
+      },
+    })
+    socketHandlers!.onJson({
+      type: 'executed',
+      data: {
+        node: '2',
+        output: { images: [{ filename: 'b.png', subfolder: '', type: 'output' }] },
+      },
+    })
+    const result = await run
+    expect(result.state).toBe('completed')
   })
 
   it('fail-fast refuses while a run is active, queued submissions wait', async () => {

@@ -142,6 +142,7 @@ export type RunnerComfyService = {
   serviceDir: string
   getTorchBackendEnv(): Record<string, string>
   comfyUiVariantName: string
+  setPresetParameters(parameters: string[]): Promise<void>
 }
 
 export type ArtifactRunnerDeps = {
@@ -479,6 +480,7 @@ function startRun(payload: ArtifactRunPayload): Promise<ArtifactRunResult> {
 async function installMissingRequirements(run: ActiveRun, preset: ComfyUiPreset): Promise<void> {
   const service = runnerDeps!.getComfyService()
   if (!service) throw new Error('ComfyUI backend service not found')
+  await service.setPresetParameters(preset.requiredComfyUiParameters ?? [])
 
   const missingCustomNodes = (preset.requiredCustomNodes ?? []).filter(
     (node) => !isCustomNodeInstalled(parseCustomNodeSpec(node), service.serviceDir),

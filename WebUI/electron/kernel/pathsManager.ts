@@ -62,8 +62,16 @@ export class PathsManager {
    */
   private readonly defaultsPath: string
 
-  constructor(configPath: string) {
+  /**
+   * The config shipped with this app version, used to add model directories
+   * introduced after a user's config was first seeded (a per-user copy is only
+   * written once, so an update would otherwise leave new path keys absent).
+   */
+  private shippedDefaultsPath: string | undefined
+
+  constructor(configPath: string, shippedDefaultsPath?: string) {
     this.configPath = configPath
+    this.shippedDefaultsPath = shippedDefaultsPath
     this.defaultsPath = configPath.replace(/\.json$/, '.defaults.json')
     this.loadConfig()
     this.snapshotDefaults()
@@ -77,7 +85,43 @@ export class PathsManager {
     // Keep the file's own indentation so editing one directory doesn't reformat
     // every line of it.
     this.indent = text.match(/\n(\s+)"/)?.[1]?.length ?? 4
-    this.initModelPaths(raw)
+    const added = this.mergeShippedDefaults()
+    this.initModelPaths(this.rawModelPaths)
+    if (added) this.persistRawModelPaths()
+  }
+
+  /** Add directories this app version knows about but the loaded config does not. */
+  private mergeShippedDefaults(): boolean {
+    if (!this.shippedDefaultsPath || !fs.existsSync(this.shippedDefaultsPath)) return false
+    try {
+      const shipped = JSON.parse(fs.readFileSync(this.shippedDefaultsPath, 'utf-8')) as Record<
+        string,
+        string
+      >
+      let added = false
+      for (const [key, value] of Object.entries(shipped)) {
+        if (key in this.rawModelPaths) continue
+        this.rawModelPaths[key] = value
+        added = true
+      }
+      return added
+    } catch (error) {
+      console.warn(`Could not read shipped model defaults from ${this.shippedDefaultsPath}`, error)
+      return false
+    }
+  }
+
+  private persistRawModelPaths(): void {
+    try {
+      fs.writeFileSync(
+        this.configPath,
+        `${JSON.stringify(this.rawModelPaths, null, this.indent)}\n`,
+      )
+    } catch (error) {
+      // A read-only install cannot persist the migration; the merged paths are
+      // still usable for this session.
+      console.warn(`Could not write migrated model paths to ${this.configPath}`, error)
+    }
   }
 
   /** Write the defaults snapshot once, from the config as first seen. */

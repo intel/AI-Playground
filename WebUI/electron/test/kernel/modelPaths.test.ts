@@ -79,6 +79,33 @@ describe('PathsManager.updateModelPaths', () => {
   })
 })
 
+describe('PathsManager shipped defaults', () => {
+  it('adds directories a newer app version ships and persists them', () => {
+    const shippedPath = path.join(root, 'shipped_model_config.json')
+    const clipVision = path.join(root, 'models', 'ComfyUI', 'clip_vision')
+    fs.writeFileSync(shippedPath, JSON.stringify({ ...defaultConfig(), clip_vision: clipVision }))
+
+    const manager = new PathsManager(configPath, shippedPath)
+
+    expect(manager.modelPaths.clip_vision).toBe(clipVision)
+    expect(readConfig().clip_vision).toBe(clipVision)
+  })
+
+  it('keeps a directory the user already configured', () => {
+    const configured = path.join(root, 'my-clip-vision')
+    fs.writeFileSync(configPath, JSON.stringify({ ...defaultConfig(), clip_vision: configured }))
+    const shippedPath = path.join(root, 'shipped_model_config.json')
+    fs.writeFileSync(
+      shippedPath,
+      JSON.stringify({ ...defaultConfig(), clip_vision: path.join(root, 'shipped-clip-vision') }),
+    )
+
+    const manager = new PathsManager(configPath, shippedPath)
+
+    expect(manager.modelPaths.clip_vision).toBe(configured)
+  })
+})
+
 describe('PathsManager default model paths', () => {
   it('snapshots the directories it first loaded', () => {
     new PathsManager(configPath)
