@@ -3,7 +3,10 @@ import { readFileSync } from 'fs'
 import path from 'path'
 import z from 'zod'
 import {
+  normalizeNumAssistantTokens,
   OVMS_MTP_ASSISTANT_TOKENS,
+  OVMS_MTP_ASSISTANT_TOKENS_MAX,
+  OVMS_MTP_ASSISTANT_TOKENS_MIN,
   OVMS_MTP_DRAFT_PATH,
   claimOvmsMtpStaleNotice,
   ovmsMtpLaunchArgs,
@@ -86,13 +89,33 @@ describe('ovmsMtpLaunchArgs', () => {
 })
 
 describe('ovmsMtpRequestFields', () => {
-  it('asks for 2 drafted tokens only when that launch armed MTP', () => {
+  it('asks for 2 drafted tokens only for a model that supports MTP', () => {
     expect(ovmsMtpRequestFields(true)).toEqual({
       num_assistant_tokens: OVMS_MTP_ASSISTANT_TOKENS,
     })
     expect(OVMS_MTP_ASSISTANT_TOKENS).toBe(2)
     expect(ovmsMtpRequestFields(false)).toEqual({})
     expect(ovmsMtpRequestFields(true).num_assistant_tokens).not.toBe(5)
+  })
+
+  it('sends the draft length the user chose', () => {
+    expect(ovmsMtpRequestFields(true, 4)).toEqual({ num_assistant_tokens: 4 })
+    expect(ovmsMtpRequestFields(false, 4)).toEqual({})
+  })
+})
+
+describe('normalizeNumAssistantTokens', () => {
+  it('defaults a missing or non-numeric value to 2', () => {
+    expect(normalizeNumAssistantTokens(undefined)).toBe(OVMS_MTP_ASSISTANT_TOKENS)
+    expect(normalizeNumAssistantTokens(null)).toBe(OVMS_MTP_ASSISTANT_TOKENS)
+    expect(normalizeNumAssistantTokens('4')).toBe(OVMS_MTP_ASSISTANT_TOKENS)
+    expect(normalizeNumAssistantTokens(Number.NaN)).toBe(OVMS_MTP_ASSISTANT_TOKENS)
+  })
+
+  it('rounds and bounds a persisted value to the settable range', () => {
+    expect(normalizeNumAssistantTokens(4.6)).toBe(5)
+    expect(normalizeNumAssistantTokens(0)).toBe(OVMS_MTP_ASSISTANT_TOKENS_MIN)
+    expect(normalizeNumAssistantTokens(1000)).toBe(OVMS_MTP_ASSISTANT_TOKENS_MAX)
   })
 })
 

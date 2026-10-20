@@ -18,6 +18,7 @@ import type { ExtensionFactory } from '@earendil-works/pi-coding-agent'
 
 export function createSamplingExtension(
   getSampling: () => Record<string, unknown> | undefined,
+  getMtpArmed?: () => boolean,
 ): ExtensionFactory {
   return (pi) => {
     pi.on('before_provider_request', (event) => {
@@ -25,7 +26,13 @@ export function createSamplingExtension(
       if (!sampling || typeof event.payload !== 'object' || event.payload === null) return
       // Pi owns the shape of the request (model, messages, tools, stream); this
       // only adds the sampling fields on top.
-      return { ...(event.payload as Record<string, unknown>), ...sampling }
+      const body = { ...(event.payload as Record<string, unknown>), ...sampling }
+      // A stale snapshot starts OVMS without the draft graph; asking for drafted
+      // tokens then fails the request, so drop them until the launch is armed.
+      if (body.num_assistant_tokens !== undefined && getMtpArmed && !getMtpArmed()) {
+        delete body.num_assistant_tokens
+      }
+      return body
     })
   }
 }

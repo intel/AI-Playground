@@ -2,6 +2,7 @@ import { extractReasoningMiddleware, wrapLanguageModel, type LanguageModel } fro
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { appLoggerInstance } from '../observability/logger'
 import { fetchCloudUpstream } from '../adapters/cloudUpstream'
+import { llmServerMtpArmed } from '../adapters/llmServerSnapshot'
 import { openAiApiBase } from '@/lib/inferenceApiBase'
 import type { ChatModelConfig } from '@/types/chatIpc'
 
@@ -95,6 +96,14 @@ export function createMainChatModel(config: ChatModelConfig): LanguageModel {
       }
       if (config.samplingRequestBody) {
         body = { ...body, ...config.samplingRequestBody }
+      }
+      if (
+        config.backend === 'openVINO' &&
+        body.num_assistant_tokens !== undefined &&
+        !llmServerMtpArmed('openVINO')
+      ) {
+        body = { ...body }
+        delete body.num_assistant_tokens
       }
       const kwargs = {
         ...(body.chat_template_kwargs as Record<string, unknown> | undefined),

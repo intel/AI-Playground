@@ -14,6 +14,7 @@ import { createAgentToolAccess } from './piToolOperations.ts'
 import { buildWorkspaceInstructions, ensureWorkspaceRuntime } from './piWorkspaceRuntime.ts'
 import { createSamplingExtension } from './piSampling.ts'
 import { laminarPiExtensionPath } from '../observability/laminar.ts'
+import { llmServerMtpArmed } from '../adapters/llmServerSnapshot.ts'
 import { withLiveEndpoint } from './piLocalEndpoint.ts'
 import {
   clearAgentRunIdentity,
@@ -253,7 +254,12 @@ async function createSession(config: AgentModeTurnConfig): Promise<ActiveSession
       ...capabilities.extensionFactories,
       // Pi's agent path ignores `Model.samplingParams`, so the turn's sampling
       // is merged into each request here instead (piSampling.ts).
-      createSamplingExtension(() => samplingParams),
+      createSamplingExtension(
+        () => samplingParams,
+        config.modelConfig.source === 'local' && config.modelConfig.backend === 'openVINO'
+          ? () => llmServerMtpArmed('openVINO')
+          : undefined,
+      ),
     ],
     // Laminar's own Pi extension traces the run (one trace per agent run, LLM
     // and tool spans). Nothing when no developer opted into tracing, and never

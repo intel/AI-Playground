@@ -182,3 +182,27 @@ describe('sampling on a local agent turn', () => {
     expect(requests[1].chat_template_kwargs).toEqual({ enable_thinking: false })
   }, 30000)
 })
+
+describe('MTP sampling guard', () => {
+  type Handler = (event: { payload: Recorded }) => Recorded | undefined
+
+  async function applySampling(mtpArmed: boolean): Promise<Recorded> {
+    const { createSamplingExtension } = await import('../../agent/piSampling.ts')
+    let handler: Handler | undefined
+    const factory = createSamplingExtension(
+      () => ({ num_assistant_tokens: 4 }),
+      () => mtpArmed,
+    )
+    factory({
+      on: (name: string, fn: Handler) => {
+        if (name === 'before_provider_request') handler = fn
+      },
+    } as never)
+    return handler!({ payload: { model: 'test-model', messages: [] } })!
+  }
+
+  it('keeps the draft length only while the OVMS launch is armed', async () => {
+    expect((await applySampling(true)).num_assistant_tokens).toBe(4)
+    expect((await applySampling(false)).num_assistant_tokens).toBeUndefined()
+  })
+})

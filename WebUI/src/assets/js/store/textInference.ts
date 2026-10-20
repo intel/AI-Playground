@@ -27,7 +27,12 @@ import {
   toRequestBody,
 } from '@/lib/samplingDefaults'
 import { notify, requestDownload } from '@/assets/js/permissions/permissions'
-import { claimOvmsMtpStaleNotice, ovmsMtpRequestFields } from '@/lib/ovmsMtp'
+import {
+  claimOvmsMtpStaleNotice,
+  normalizeNumAssistantTokens,
+  OVMS_MTP_ASSISTANT_TOKENS,
+  ovmsMtpRequestFields,
+} from '@/lib/ovmsMtp'
 import { usePresets, type ChatPreset } from './presets'
 import { useDeveloperSettings } from './developerSettings'
 import { useHomeAgent } from './homeAgent'
@@ -572,6 +577,8 @@ export const useTextInference = defineStore(
     // whose template honors `enable_thinking` (see modelSupportsThinkingToggle);
     // the value is injected as chat_template_kwargs.enable_thinking at inference.
     const thinkingEnabled = ref(true)
+    // MTP draft length (`num_assistant_tokens`) for OpenVINO models that ship the graph.
+    const numAssistantTokens = ref(OVMS_MTP_ASSISTANT_TOKENS)
 
     // Per-built-in-tool enablement overrides (by tool name). Most built-in tools
     // default on; opt-in/privacy-sensitive tools (captureScreenshot) default off.
@@ -792,6 +799,13 @@ export const useTextInference = defineStore(
       llmModels.value.filter((m) => m.type === backend.value).find((m) => m.active),
     )
 
+    const modelSupportsMtp = computed(
+      () =>
+        backend.value === 'openVINO' &&
+        !runningOnOpenvinoNpu.value &&
+        activeLlmModel.value?.enableMtp === true,
+    )
+
     // Whether the next turn reasons. The toggle only speaks for models whose
     // template honors it; for the rest the model's own nature decides.
     const thinkingActive = computed(() =>
@@ -811,10 +825,9 @@ export const useTextInference = defineStore(
       if (backend.value === 'cloud') return {}
       const body = toRequestBody(recommendedSampling.value, backend.value)
       if (backend.value !== 'openVINO') return body
-      const mtpArmed =
-        backendServices.info.find((service) => service.serviceName === 'openvino-backend')
-          ?.ovmsMtpArmed === true
-      return { ...body, ...ovmsMtpRequestFields(mtpArmed) }
+      // Main drops this when the launch did not arm MTP, so the first turn after
+      // a model load still carries the user's value.
+      return { ...body, ...ovmsMtpRequestFields(modelSupportsMtp.value, numAssistantTokens.value) }
     })
 
     // A model that recommends an effort is one whose template reads it.
@@ -1733,6 +1746,8 @@ export const useTextInference = defineStore(
       // models that support the toggle via modelSupportsThinkingToggle).
       thinkingEnabled.value = (savedSettings.thinkingEnabled as boolean | undefined) ?? true
 
+      numAssistantTokens.value = normalizeNumAssistantTokens(savedSettings.numAssistantTokens)
+
       // Load retrieval mode. Persisted choice wins, else the preset's declared
       // default (aiDAPTIV™ ships `phisonKm`), else standard. Clamp to standard
       // when the preset doesn't advertise KM support — the toggle is what
@@ -1941,6 +1956,7 @@ export const useTextInference = defineStore(
         builtinToolPresetEnablement,
         builtinToolDefaultPresets,
         thinkingEnabled,
+        numAssistantTokens,
         ragMode,
         stashedStandardContextSize,
       ],
@@ -1978,6 +1994,7 @@ export const useTextInference = defineStore(
           builtinToolPresetEnablement: { ...builtinToolPresetEnablement.value },
           builtinToolDefaultPresets: { ...builtinToolDefaultPresets.value },
           thinkingEnabled: thinkingEnabled.value,
+          numAssistantTokens: numAssistantTokens.value,
           ragMode: ragMode.value,
           // Persisted so switching back to standard RAG still restores the pre-KM
           // value after an app restart (see stashedStandardContextSize declaration).
@@ -2211,6 +2228,10 @@ export const useTextInference = defineStore(
       // Thinking toggle support
       thinkingEnabled,
       modelSupportsThinkingToggle,
+
+      // MTP draft length (OpenVINO speculative decoding)
+      numAssistantTokens,
+      modelSupportsMtp,
 
       // Per-model recommended inference settings (models.json inferenceDefaults)
       thinkingActive,
