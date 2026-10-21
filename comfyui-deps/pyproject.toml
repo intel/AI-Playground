@@ -6,7 +6,9 @@ version = "0.17.0"
 requires-python = "==3.12.*"
 dependencies = [
   "addict",
-  "aiohttp>=3.13.5",
+  # aiohttp 3.14.4: clears GHSA-2g87-pp6c-29x5, GHSA-5wr8-gcqf-gqf3 (CVE-2026-111064)
+  # and GHSA-494j-54xm-rwp3 (CVE-2026-111063).
+  "aiohttp>=3.14.4",
   # multidict 6.9.1: clears CVE-2026-104874. Transitive via aiohttp.
   "multidict>=6.9.1",
   "albumentations>=1.4.16",
