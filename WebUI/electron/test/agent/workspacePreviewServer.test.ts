@@ -122,25 +122,17 @@ describe('workspace instructions', () => {
     unsandboxed: false,
   }
 
-  it('names the JavaScript interpreter the sandbox actually ships', () => {
-    // `js` is not a command in the emulated shell; inventing one costs the
-    // model a turn on "command not found".
-    expect(buildWorkspaceInstructions(options)).toContain('js-exec')
+  it('tells the model the emulated shell has no script interpreter', () => {
+    const instructions = buildWorkspaceInstructions(options)
+
+    expect(instructions).toContain('no script interpreter (no python3, node or js-exec)')
+    expect(instructions).not.toContain('js-exec -c')
   })
 
-  it('offers python3 where the emulated shell can run it', () => {
-    const instructions = buildWorkspaceInstructions({ ...options, emulatedPython: true })
+  it('still offers the real interpreters in host-shell mode', () => {
+    const instructions = buildWorkspaceInstructions({ ...options, unsandboxed: true })
 
     expect(instructions).toContain('python3')
-    // just-bash 3.4.2 runs a multi-line `python3 -c` correctly, so the heredoc
-    // workaround it used to demand is no longer worth a line of the prompt.
-    expect(instructions).not.toContain('heredoc')
-    expect(instructions).not.toContain('There is no python3 in this shell')
-  })
-
-  it('does not offer python3 where every invocation would fail', () => {
-    const instructions = buildWorkspaceInstructions({ ...options, emulatedPython: false })
-
-    expect(instructions).toContain('There is no python3 in this shell')
+    expect(instructions).not.toContain('no script interpreter')
   })
 })
