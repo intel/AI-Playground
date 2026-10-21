@@ -8,10 +8,10 @@ import type * as JustBash from 'just-bash'
 //  - Pi is ESM-only and its package exports declare no `require` condition, so
 //    `require()` cannot resolve it at all (the app died at load with
 //    ERR_PACKAGE_PATH_NOT_EXPORTED).
-//  - just-bash does ship a CJS build, but its bundled python/JavaScript
-//    interpreters locate their runtime assets relative to `import.meta.url`,
-//    which the CJS build has no value for — every `python3`/`node` call in the
-//    sandbox failed with "Invalid URL".
+//  - just-bash does ship a CJS build, but its workers (python, js-exec,
+//    sqlite3) locate their runtime assets relative to `import.meta.url`, which
+//    the CJS build has no value for — such calls in the sandbox failed with
+//    "Invalid URL".
 //
 // A dynamic `import()` fixes both: Rollup keeps it verbatim for externalized
 // packages in CJS output, so Node resolves the ESM entry point relative to the

@@ -24,9 +24,10 @@ import type { AgentSkill } from './piCustomTools.ts'
 //
 //  - sandboxed (default): every operation is served by a just-bash sandbox
 //    whose virtual filesystem mounts ONLY the user-selected workspace folder
-//    (real files, read-write) at `/workspace`. The emulated shell has python3
-//    and js-exec enabled but no host process ever spawns, so nothing outside
-//    the workspace is reachable — by construction, not by path checking.
+//    (real files, read-write) at `/workspace`. The emulated shell has no
+//    script interpreters (python3, js-exec) and no host process ever spawns,
+//    so nothing outside the workspace is reachable — by construction, not by
+//    path checking.
 //
 //  - host shell (opt-in per workspace, see the agentMode store): Pi's own local
 //    operations run against the real filesystem and a real shell, so `node`,
@@ -530,11 +531,6 @@ function createSandboxAccess(
     fs: vfs,
     cwd: SANDBOX_WORKDIR,
     env: { HOME: SANDBOX_HOME, PWD: SANDBOX_WORKDIR },
-    // Interpreters the model can actually use for scripting inside the sandbox.
-    // There is deliberately no network and no node/npm here — that is what
-    // host-shell mode is for.
-    python: true,
-    javascript: true,
     // just-bash's secondary hardening layer patches Module._load while a script
     // runs; the Electron main bundle is CJS with externalized dependencies, so
     // lazy require() calls inside the execution context (ReadWriteFs reaching
