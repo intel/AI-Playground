@@ -107,8 +107,9 @@ dependencies = [
   "typer",
   "typing-extensions",
   "ultralytics>=8.3.233",
-  # uv 0.12.18: clears CVE-2026-104843.
-  "uv>=0.12.18",
+  # uv 0.13.4: clears GHSA-hq85-5cpj-mr62 (bundled CA store trusts a compromised emSign
+  # root); 0.12.18 cleared CVE-2026-104843.
+  "uv>=0.13.4",
   "yacs",
   "yapf",
   "yarl>=1.18.0",
