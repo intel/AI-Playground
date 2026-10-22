@@ -763,6 +763,13 @@ export const useOpenAiCompatibleChat = defineStore(
       // model was never sent. No-op unless a developer opted into tracing.
       noteChatTraceContext(chatTraceContext())
 
+      // Cap on tool calls per turn (Settings → Chat, default 10). A step can
+      // carry several tool calls, so the 20-step stopWhen alone does not bound
+      // searches; this ends the turn once the model has made maxToolCalls calls
+      // and onEnd turns that into a visible notice instead of a silent stall.
+      const maxToolCallsPerTurn = Math.max(1, Math.floor(Number(textInference.maxToolCalls) || 10))
+      let toolCallCapHit = false
+
       const result = await streamText({
         model: model.value,
         messages,
@@ -777,7 +784,17 @@ export const useOpenAiCompatibleChat = defineStore(
         ...(hasTools
           ? {
               tools: availableTools,
-              stopWhen: isStepCount(20),
+              stopWhen: [
+                isStepCount(20),
+                ({ steps }) => {
+                  const total = steps.reduce((n, step) => n + step.toolCalls.length, 0)
+                  if (total >= maxToolCallsPerTurn) {
+                    toolCallCapHit = true
+                    return true
+                  }
+                  return false
+                },
+              ],
               toolsContext,
               // Repair a comfy image tool call whose `workflow` the model omitted
               // or set to an unknown value: coerce it to that tool's default
@@ -959,6 +976,28 @@ export const useOpenAiCompatibleChat = defineStore(
             )
           }
           clearInferenceActivity()
+          // If the tool-call cap ended the turn, say so plainly in the thread:
+          // otherwise the chat just goes quiet after the last tool result and
+          // the stop looks like a stall.
+          if (toolCallCapHit) {
+            const key = requestConversationKey ?? conversations.activeKey
+            const chat = getOrCreateChat(key)
+            chat.messages.push({
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              parts: [
+                {
+                  type: 'text',
+                  text:
+                    `Stopped after ${maxToolCallsPerTurn} tool calls (the per-turn limit). ` +
+                    'The model kept calling tools instead of answering. ' +
+                    'You can raise the limit in Settings → Chat → Max tool calls per turn.',
+                },
+              ],
+              metadata: { model: textInference.activeModel, timestamp: Date.now() },
+            } as unknown as AipgUiMessage)
+            conversations.updateConversation(chat.messages, key)
+          }
           if (result.usage) {
             usage = result.usage
           } else if (usageFromRawChunk) {

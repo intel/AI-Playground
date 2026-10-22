@@ -242,6 +242,22 @@
         <template v-if="showTools">
           <SettingsBuiltinTools />
           <SettingsMcp />
+          <SettingsRow label="Max tool calls per turn" label-for="chat-max-tool-calls">
+            <div class="flex flex-col gap-1">
+              <input
+                id="chat-max-tool-calls"
+                type="number"
+                v-model.number="textInference.maxToolCalls"
+                min="1"
+                max="100"
+                step="1"
+                class="rounded-sm text-foreground text-center h-[30px] w-20 leading-[30px] p-0 bg-transparent border border-border"
+              />
+              <span class="text-xs text-muted-foreground">
+                Ends the turn with a notice once the model has made this many tool calls.
+              </span>
+            </div>
+          </SettingsRow>
         </template>
 
         <!-- System Prompt - only shown in advanced mode. Top-aligned: the textarea
