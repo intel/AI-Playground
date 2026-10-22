@@ -15,6 +15,9 @@ dependencies = [
   "alembic",
   "av>=16.0.0",
   "blake3",
+  # certifi 2026.10.19: clears GHSA-6q48-6c7w-9gw2 (emSign roots with compromised
+  # intermediate CA keys). Transitive via requests / huggingface-hub.
+  "certifi>=2026.10.19",
   "chardet",
   "color-matcher",
   "comfy-aimdo==0.4.15",

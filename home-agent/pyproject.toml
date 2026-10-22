@@ -11,6 +11,9 @@ dependencies = [
   # urllib3 2.8.0: clears GHSA-vxq7-64xx-v4gw, GHSA-8988-9cw3-xx77 and
   # GHSA-gh4c-6fx4-qh6g. Transitive via Requests (urllib3<3).
   "urllib3>=2.8.0",
+  # certifi 2026.10.19: clears GHSA-6q48-6c7w-9gw2 (emSign roots with compromised
+  # intermediate CA keys). Transitive via Requests.
+  "certifi>=2026.10.19",
   "python-telegram-bot",
   "slack-bolt",
   # aiohttp 3.14.4: clears GHSA-2g87-pp6c-29x5, GHSA-5wr8-gcqf-gqf3 (CVE-2026-111064)
