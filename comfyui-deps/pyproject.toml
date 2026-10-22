@@ -15,6 +15,9 @@ dependencies = [
   "alembic",
   "av>=16.0.0",
   "blake3",
+  # certifi 2026.10.19: clears GHSA-6q48-6c7w-9gw2 (emSign roots with compromised
+  # intermediate CA keys). Transitive via requests / huggingface-hub.
+  "certifi>=2026.10.19",
   "chardet",
   "color-matcher",
   "comfy-aimdo==0.4.15",
@@ -52,7 +55,9 @@ dependencies = [
   "onnx>=1.14.0",
   "onnxruntime",
   "opencv-python>=4.7.0.72",
-  "Pillow>=12.3.0",
+  # Pillow 13.0.0: clears GHSA-8g5g-8vmr-9782 (CVE-2026-112403, heap overflow in
+  # ImagingJpegDecode) and the other 27 advisories against 12.3.0.
+  "Pillow>=13.0.0",
   "protobuf>=6.33.5",
   "psutil",
   "pydantic-settings~=2.0",
@@ -102,8 +107,9 @@ dependencies = [
   "typer",
   "typing-extensions",
   "ultralytics>=8.3.233",
-  # uv 0.12.18: clears CVE-2026-104843.
-  "uv>=0.12.18",
+  # uv 0.13.4: clears GHSA-hq85-5cpj-mr62 (bundled CA store trusts a compromised emSign
+  # root); 0.12.18 cleared CVE-2026-104843.
+  "uv>=0.13.4",
   "yacs",
   "yapf",
   "yarl>=1.18.0",
