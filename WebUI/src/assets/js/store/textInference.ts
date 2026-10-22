@@ -678,6 +678,11 @@ export const useTextInference = defineStore(
     }
 
     const maxTokens = ref<number>(1024)
+    const DEFAULT_MAX_TOOL_CALLS = 10
+    // Hard cap on tool calls per chat turn: stops a model stuck in a
+    // tool-calling loop (e.g. endless web searches) and surfaces a notice
+    // instead of stalling. User-configurable in Settings → Chat.
+    const maxToolCalls = ref<number>(DEFAULT_MAX_TOOL_CALLS)
     // The size actually allocated: `requestedContextSize` bounded by the active model's
     // ceiling (and the KM floor, where that applies).
     const contextSize = ref<number>(8192)
@@ -1863,6 +1868,11 @@ export const useTextInference = defineStore(
         maxTokens.value = preset.maxNewTokens
       }
 
+      // Load max tool calls per turn
+      if (savedSettings.maxToolCalls !== undefined) {
+        maxToolCalls.value = savedSettings.maxToolCalls as number
+      }
+
       // Load context size. `requestedContextSize` is the one that survives a model
       // ceiling, so prefer it when restoring; settings saved before it existed only
       // carry the bounded `contextSize`, which is the best intent they can offer.
@@ -2194,6 +2204,7 @@ export const useTextInference = defineStore(
           selectedDeviceId: getCurrentDeviceId(),
           selectedDeviceUuid: getCurrentDeviceUuid(),
           maxTokens: maxTokens.value,
+          maxToolCalls: maxToolCalls.value,
           contextSize: contextSize.value,
           requestedContextSize: requestedContextSize.value,
           contextSizeEdited: contextSizeEdited.value,
@@ -2369,6 +2380,7 @@ export const useTextInference = defineStore(
       setDefaultWorkflow,
       screenshotWindow,
       maxTokens,
+      maxToolCalls,
       contextSize,
       // Returned so the persist `pick` list can see it — Pinia only persists what setup() returns.
       requestedContextSize,
