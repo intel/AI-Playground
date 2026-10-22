@@ -583,10 +583,10 @@ function groupToggle(
     enabled,
     disabled,
     tooltip: disabled
-      ? 'Installation in progress'
+      ? languages.SETUP_WIZARD_INSTALLATION_IN_PROGRESS || 'Installation in progress'
       : enabled
-        ? 'Toggle off to disable every optional component in this group'
-        : 'Toggle on to enable every optional component in this group',
+        ? languages.SETUP_WIZARD_GROUP_TOGGLE_OFF || 'Toggle off to disable every optional component in this group'
+        : languages.SETUP_WIZARD_GROUP_TOGGLE_ON || 'Toggle on to enable every optional component in this group',
   }
 }
 
