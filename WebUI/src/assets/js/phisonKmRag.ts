@@ -23,16 +23,7 @@ import type { useBackendServices } from './store/backendServices'
  */
 export const PHISON_KM_CONTEXT_FLOOR = 16384
 
-/**
- * Shared RAG prefix used as the invariant front of every Phison KM system prompt.
- * Both warmup and actual inference must start with this exact string so the KV
- * cache prefix can be reused across presets and queries.
- * The preset's own systemPrompt is appended AFTER the document context block
- * (Approach A), keeping tool instructions / persona intact while preserving
- * the shared prefix for KV cache reuse.
- */
-export const PHISON_KM_RAG_PREFIX =
-  '/no_think You are a helpful AI assistant. Use the provided document context to answer questions accurately. If the context does not contain relevant information, say so.'
+export { PHISON_KM_RAG_PREFIX } from '@/types/phisonKmRag'
 
 /**
  * Only the two preset flags this module actually reads — deliberately narrower

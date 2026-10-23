@@ -150,11 +150,11 @@ export const useHistorySessions = defineStore('historySessions', () => {
   )
 
   /**
-   * The mode the list filters by: the one the user picked, not the live one. A
-   * `media` tool call borrows an image-gen mode mid-turn, and an open panel must
-   * not swap lists under the user's hands.
+   * The mode the list filters by. Background mode borrowing is gone (media
+   * runs no longer switch modes, step 7), so the live mode is the user's
+   * context — an open panel can't be swapped under their hands.
    */
-  const currentMode = computed<ModeType>(() => promptStore.userSelectedMode)
+  const currentMode = computed<ModeType>(() => promptStore.currentMode)
 
   /**
    * Home Agent is a mode in all but name: sitting on a remote thread makes the

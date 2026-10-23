@@ -77,6 +77,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import type { ArcadeCatalogEntry } from '@/types/agentIpc'
 import { useAgentMode } from '@/assets/js/store/agentMode'
 import { useErrors } from '@/assets/js/store/errors'
 import { useI18N } from '@/assets/js/store/i18n'

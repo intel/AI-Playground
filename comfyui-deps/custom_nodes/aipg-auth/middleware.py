@@ -30,7 +30,7 @@ _SESSIONS: set[str] = set()
 
 # Endpoints reachable without auth:
 # - /queue is used by AI Playground's service registry as a health check
-#   (see WebUI/electron/subprocesses/comfyUIBackendService.ts healthEndpointUrl).
+#   (see WebUI/electron/adapters/backends/comfyUIBackendService.ts healthEndpointUrl).
 # - /aipg/launch is the token-handoff route below.
 # - / and /index.html are deliberately NOT exempt; an unauthenticated browser
 #   visit redirects to /aipg/login (a friendly "open this from AI Playground"

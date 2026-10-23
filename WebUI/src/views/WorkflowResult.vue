@@ -105,6 +105,10 @@
             "
             :step-text="imageGeneration.stepText"
           />
+          <ImageGenerationProgress
+            v-else
+            :step-text="imageGeneration.stepText || i18nState.COM_GENERATING"
+          />
         </div>
         <div
           v-show="
@@ -307,7 +311,8 @@ watch(
 async function generateImage(prompt: string) {
   try {
     imageGeneration.prompt = prompt
-    await imageGeneration.ensureModelsAreAvailable()
+    // Readiness (model download dialog included) is the runner's — a cancelled
+    // download throws from generate() and lands in this same catch.
     await imageGeneration.generate(props.mode)
   } catch (error) {
     // Reset state on any error (including download cancellation). A user cancel

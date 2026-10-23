@@ -1,66 +1,93 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { ref } from 'vue'
 import type { MediaItem } from '@/assets/js/store/imageGenerationPresets'
+import type { ArtifactRunEvent } from '@/lib/artifactRunProjection'
 
-// The run store mirrors the (global) generation state onto the step that is
-// currently running, so these tests stub the two stores it reads from and drive
-// them by hand. Only the reducer behaviour matters here: per-step attribution of
-// produced media, and that a run can never be left spinning.
+// The run store takes a step's live status and media from the artifact runs that
+// step owns, so these tests drive the real artifactRuns projection with
+// owner-stamped kernel events — exactly what main sends.
 
-const generatedImages = ref<MediaItem[]>([])
-const imageGenActivity = ref<{ label: string; progress?: number } | null>(null)
-
-vi.mock('@/assets/js/store/imageGenerationPresets', () => ({
-  useImageGenerationPresets: () => ({
-    get generatedImages() {
-      return generatedImages.value
+const kernelListeners: Array<(event: unknown) => void> = []
+vi.stubGlobal('window', {
+  electronAPI: {
+    onKernelEvent: (cb: (event: unknown) => void) => {
+      kernelListeners.push(cb)
+      return () => {
+        const index = kernelListeners.indexOf(cb)
+        if (index >= 0) kernelListeners.splice(index, 1)
+      }
     },
-  }),
-}))
+    getKernelSnapshot: async () => ({
+      scope: { kind: 'global' },
+      sequence: 0,
+      state: {
+        services: [],
+        activeTurn: null,
+        activeArtifactRun: null,
+        chatTurns: [],
+        activities: [],
+        inferenceProfile: null,
+      },
+    }),
+  },
+})
 
-vi.mock('@/assets/js/store/activities', () => ({
-  useActivities: () => ({
-    get imageGenActivity() {
-      return imageGenActivity.value
-    },
+vi.mock('@/assets/js/store/i18n', () => ({
+  useI18N: () => ({
+    state: { COM_GENERATING: 'Generating', COM_GENERATION_QUEUED: 'Queued' },
   }),
 }))
 
 const { useMediaAgentRuns } = await import('@/assets/js/store/mediaAgentRuns')
 
-function image(id: string): MediaItem {
+function image(id: string, state: MediaItem['state'] = 'done'): MediaItem {
   return {
     id,
     type: 'image',
-    state: 'done',
+    state,
     mode: 'imageGen',
     settings: {},
     imageUrl: `aipg-media://${id}.png`,
   } as MediaItem
 }
 
-/** The store mirrors inside a watcher, so let Vue flush it. */
-async function flush() {
-  await new Promise((resolve) => setTimeout(resolve, 0))
+let seq = 0
+async function send(...events: ArtifactRunEvent[]) {
+  await vi.waitFor(() => expect(kernelListeners.length).toBeGreaterThan(0))
+  for (const event of events) {
+    seq += 1
+    for (const listener of kernelListeners) {
+      listener({ ...event, seq, scope: { kind: 'run', runId: event.runId } })
+    }
+  }
 }
+
+const inner = (toolCallId: string) => ({
+  kind: 'tool' as const,
+  toolCallId,
+  parentToolCallId: 'call-1',
+})
 
 describe('mediaAgentRuns', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    generatedImages.value = []
-    imageGenActivity.value = null
+    kernelListeners.length = 0
   })
 
-  it('attributes only media produced after a step started to that step', async () => {
+  it('attributes media to the step whose tool call owns the run', async () => {
     const runs = useMediaAgentRuns()
-    // A previous conversation already left an image in the shared store.
-    generatedImages.value = [image('old')]
-
     runs.beginRun('call-1', 'a castle, then a 3D model')
     runs.beginStep('call-1', { toolCallId: 't1', toolName: 'comfyUI', label: 'Starting…' })
-    generatedImages.value = [image('old'), image('new')]
-    await flush()
+    await send(
+      // Another chat's run is generating at the same time.
+      {
+        type: 'artifact-item',
+        runId: 'other',
+        owner: { kind: 'tool', toolCallId: 'elsewhere' },
+        item: image('other'),
+      },
+      { type: 'artifact-item', runId: 'run-1', owner: inner('t1'), item: image('new') },
+    )
 
     expect(runs.run('call-1')?.steps[0].media.map((item) => item.id)).toEqual(['new'])
   })
@@ -69,8 +96,13 @@ describe('mediaAgentRuns', () => {
     const runs = useMediaAgentRuns()
     runs.beginRun('call-1', 'a castle')
     runs.beginStep('call-1', { toolCallId: 't1', toolName: 'comfyUI', label: 'Starting…' })
-    imageGenActivity.value = { label: 'Generating 5/20', progress: 0.25 }
-    await flush()
+    await send({
+      type: 'artifact-phase',
+      runId: 'run-1',
+      owner: inner('t1'),
+      phase: 'running',
+      progress: { current: 5, max: 20 },
+    })
 
     expect(runs.run('call-1')?.steps[0]).toMatchObject({
       label: 'Generating 5/20',
@@ -80,10 +112,24 @@ describe('mediaAgentRuns', () => {
     runs.endStep('call-1', { toolCallId: 't1', media: [image('done')] })
     expect(runs.run('call-1')?.steps[0]).toMatchObject({ state: 'done', progress: undefined })
 
-    // A settled step must not keep absorbing global progress updates.
-    imageGenActivity.value = { label: 'Generating 19/20', progress: 0.95 }
-    await flush()
-    expect(runs.run('call-1')?.steps[0].label).toBe('Generating 5/20')
+    // A settled step must not keep absorbing progress updates.
+    await send({
+      type: 'artifact-phase',
+      runId: 'run-1',
+      owner: inner('t1'),
+      phase: 'running',
+      progress: { current: 19, max: 20 },
+    })
+    expect(runs.run('call-1')?.steps[0].label).toBe('Starting…')
+  })
+
+  it('shows a waiting step as queued rather than as preparing', async () => {
+    const runs = useMediaAgentRuns()
+    runs.beginRun('call-1', 'a castle')
+    runs.beginStep('call-1', { toolCallId: 't1', toolName: 'comfyUI', label: 'Starting…' })
+    await send({ type: 'artifact-phase', runId: 'run-1', owner: inner('t1'), phase: 'queued' })
+
+    expect(runs.activeStepLabel('call-1')).toBe('Queued')
   })
 
   it('marks a step failed when the tool reports an error', () => {

@@ -1,9 +1,14 @@
-import { defineStore } from 'pinia'
+import { defineStore, acceptHMRUpdate } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import z from 'zod'
-import { demoAwareStorage } from '../demoAwareStorage'
+import { isDemoModeActive } from '../demoAwareStorage'
 import { invalidateBackendAuthToken } from '@/lib/loopbackAuth'
 import { isOnDemandBackend } from '@/lib/onDemandBackends'
+import {
+  makeFileBackedPreference,
+  type FileBackedPreferencesApi,
+} from '@/lib/fileBackedPreferences'
+import { connectKernelEventStream } from '@/assets/js/projection/kernelProjection'
 
 export const allBackendServiceNames = [
   'ai-backend',
@@ -32,820 +37,908 @@ type BackendVersionState = Record<
   }
 >
 
-export const useBackendServices = defineStore(
-  'backendServices',
-  () => {
-    const currentServiceInfo = ref<ApiServiceInformation[]>([])
-    const serviceListeners = new Map(
-      allBackendServiceNames.map((b) => [b, new BackendServiceSetupProgressListener(b)]),
-    )
-    const lastSelectedDeviceIdPerBackend = ref<Record<BackendServiceName, string | null>>({
-      'ai-backend': null,
-      'home-agent-backend': null,
-      'qwen3-tts-backend': null,
-      'whisper-backend': null,
-      'comfyui-backend': null,
-      'llamacpp-backend': null,
-      'openvino-backend': null,
-    })
+export const useBackendServices = defineStore('backendServices', () => {
+  const currentServiceInfo = ref<ApiServiceInformation[]>([])
+  const serviceListeners = new Map(
+    allBackendServiceNames.map((b) => [b, new BackendServiceSetupProgressListener(b)]),
+  )
+  const lastSelectedDeviceIdPerBackend = ref<Record<BackendServiceName, string | null>>({
+    'ai-backend': null,
+    'home-agent-backend': null,
+    'qwen3-tts-backend': null,
+    'whisper-backend': null,
+    'comfyui-backend': null,
+    'llamacpp-backend': null,
+    'openvino-backend': null,
+  })
 
-    // User's version overrides (persisted)
-    const versionOverrides = ref<Partial<Record<BackendServiceName, BackendVersion>>>({})
+  // User's version overrides (persisted)
+  const versionOverrides = ref<Partial<Record<BackendServiceName, BackendVersion>>>({})
 
-    // ComfyUI startup parameters (persisted). null = use default from backend.
-    const comfyUiParameters = ref<string | null>(null)
+  // ComfyUI startup parameters (persisted). null = use default from backend.
+  const comfyUiParameters = ref<string | null>(null)
 
-    // Default parameters fetched from backend via IPC
-    const comfyUiDefaultParameters = ref<string>('')
-    window.electronAPI.getComfyUiDefaultParameters().then((v) => {
-      comfyUiDefaultParameters.value = v
-    })
+  // Default parameters fetched from backend via IPC
+  const comfyUiDefaultParameters = ref<string>('')
+  window.electronAPI.getComfyUiDefaultParameters().then((v) => {
+    comfyUiDefaultParameters.value = v
+  })
 
-    // Effective parameters: user override or default
-    const effectiveComfyUiParameters = computed(
-      () => comfyUiParameters.value ?? comfyUiDefaultParameters.value,
-    )
+  // Effective parameters: user override or default
+  const effectiveComfyUiParameters = computed(
+    () => comfyUiParameters.value ?? comfyUiDefaultParameters.value,
+  )
 
-    // LlamaCPP startup parameters (persisted). null = use default from backend.
-    const llamaCppParameters = ref<string | null>(null)
-    const llamaCppBuildVariant = ref<'standard' | 'ssd-offload'>('standard')
+  // LlamaCPP startup parameters (persisted). null = use default from backend.
+  const llamaCppParameters = ref<string | null>(null)
+  const llamaCppBuildVariant = ref<'standard' | 'ssd-offload'>('standard')
+  const llamaCppOffloadDrive = ref<string | null>(null)
 
-    // Default parameters fetched from backend via IPC
-    const llamaCppDefaultParameters = ref<string>('')
-    window.electronAPI.getLlamaCppDefaultParameters().then((v) => {
-      llamaCppDefaultParameters.value = v
-    })
+  // Default parameters fetched from backend via IPC
+  const llamaCppDefaultParameters = ref<string>('')
+  window.electronAPI.getLlamaCppDefaultParameters().then((v) => {
+    llamaCppDefaultParameters.value = v
+  })
 
-    // OpenVINO INT4 KV cache precision (experimental, persisted). When true the
-    // OVMS LLM server is launched with `--kv_cache_precision u4` to lower memory
-    // consumption, especially for long contexts.
-    const openvinoKvCacheU4 = ref(false)
+  // OpenVINO INT4 KV cache precision (experimental, persisted). When true the
+  // OVMS LLM server is launched with `--kv_cache_precision u4` to lower memory
+  // consumption, especially for long contexts.
+  const openvinoKvCacheU4 = ref(false)
 
-    // OVMS --kv_cache_precision value derived from the toggle. '' = OVMS default.
-    const effectiveOvmsKvCachePrecision = computed(() => (openvinoKvCacheU4.value ? 'u4' : ''))
+  // OVMS --kv_cache_precision value derived from the toggle. '' = OVMS default.
+  const effectiveOvmsKvCachePrecision = computed(() => (openvinoKvCacheU4.value ? 'u4' : ''))
 
-    /** Windows: Phison aiDAPTIV-capable SSD (EVFZ firmware prefix). */
-    const phisonSsdDetected = ref(false)
+  /** Windows: Phison aiDAPTIV-capable SSD (EVFZ firmware prefix). */
+  const phisonSsdDetected = ref(false)
 
-    async function refreshPhisonSsdDetection(): Promise<void> {
-      try {
-        const r = await window.electronAPI.detectPhisonSsd()
-        phisonSsdDetected.value = r.detected
-      } catch {
-        phisonSsdDetected.value = false
-      }
-      // Persisted Pinia state can still be ssd-offload from another machine/session.
-      if (!phisonSsdDetected.value && llamaCppBuildVariant.value === 'ssd-offload') {
-        llamaCppBuildVariant.value = 'standard'
-      }
+  async function refreshPhisonSsdDetection(): Promise<void> {
+    try {
+      const r = await window.electronAPI.detectPhisonSsd()
+      phisonSsdDetected.value = r.detected
+    } catch {
+      phisonSsdDetected.value = false
+    }
+    // Persisted Pinia state can still be ssd-offload from another machine/session.
+    if (!phisonSsdDetected.value && llamaCppBuildVariant.value === 'ssd-offload') {
+      llamaCppBuildVariant.value = 'standard'
+    }
+  }
+
+  refreshPhisonSsdDetection().catch(() => {
+    phisonSsdDetected.value = false
+  })
+
+  // Effective parameters: user override or default
+  const effectiveLlamaCppParameters = computed(() => {
+    if (llamaCppParameters.value !== null) {
+      return llamaCppParameters.value
     }
 
-    refreshPhisonSsdDetection().catch(() => {
-      phisonSsdDetected.value = false
-    })
+    if (llamaCppBuildVariant.value === 'ssd-offload') {
+      const configPath =
+        currentServiceInfo.value.find((service) => service.serviceName === 'llamacpp-backend')
+          ?.llamaCppSsdOffloadConfigPath ?? ''
+      const rel =
+        configPath ||
+        (typeof navigator !== 'undefined' && /windows/i.test(navigator.userAgent)
+          ? '..\\aidaptiv_config.json'
+          : '../aidaptiv_config.json')
+      return `--config-file ${rel}`
+    }
 
-    // Effective parameters: user override or default
-    const effectiveLlamaCppParameters = computed(() => {
-      if (llamaCppParameters.value !== null) {
-        return llamaCppParameters.value
+    return llamaCppDefaultParameters.value
+  })
+
+  // Full version state (not persisted - computed from live data + overrides)
+  const versionState = ref<BackendVersionState>({
+    'ai-backend': {},
+    'home-agent-backend': {},
+    'qwen3-tts-backend': {},
+    'whisper-backend': {},
+    'comfyui-backend': {},
+    'llamacpp-backend': {},
+    'openvino-backend': {},
+  })
+
+  function applyInstalledVersionFromService(service: ApiServiceInformation): void {
+    const serviceName = service.serviceName as BackendServiceName
+    if (serviceName === 'llamacpp-backend') {
+      const u = service as ApiServiceInformation & {
+        llamaCppStandardInstalledVersion?: { version: string; releaseTag?: string }
+        llamaCppPhisonInstalledVersion?: { version: string; releaseTag?: string }
       }
-
-      if (llamaCppBuildVariant.value === 'ssd-offload') {
-        const configPath =
-          currentServiceInfo.value.find((service) => service.serviceName === 'llamacpp-backend')
-            ?.llamaCppSsdOffloadConfigPath ?? ''
-        const rel =
-          configPath ||
-          (typeof navigator !== 'undefined' && /windows/i.test(navigator.userAgent)
-            ? '..\\aidaptiv_config.json'
-            : '../aidaptiv_config.json')
-        return `--config-file ${rel}`
-      }
-
-      return llamaCppDefaultParameters.value
-    })
-
-    // Full version state (not persisted - computed from live data + overrides)
-    const versionState = ref<BackendVersionState>({
-      'ai-backend': {},
-      'home-agent-backend': {},
-      'qwen3-tts-backend': {},
-      'whisper-backend': {},
-      'comfyui-backend': {},
-      'llamacpp-backend': {},
-      'openvino-backend': {},
-    })
-
-    function applyInstalledVersionFromService(service: ApiServiceInformation): void {
-      const serviceName = service.serviceName as BackendServiceName
-      if (serviceName === 'llamacpp-backend') {
-        const u = service as ApiServiceInformation & {
-          llamaCppStandardInstalledVersion?: { version: string; releaseTag?: string }
-          llamaCppPhisonInstalledVersion?: { version: string; releaseTag?: string }
-        }
-        const hasDual =
-          'llamaCppStandardInstalledVersion' in u || 'llamaCppPhisonInstalledVersion' in u
-        if (hasDual) {
-          versionState.value[serviceName].installed =
-            llamaCppBuildVariant.value === 'ssd-offload'
-              ? u.llamaCppPhisonInstalledVersion
-              : u.llamaCppStandardInstalledVersion
-        } else if (service.installedVersion) {
-          versionState.value[serviceName].installed = service.installedVersion
-        } else if (!service.isSetUp) {
-          versionState.value[serviceName].installed = undefined
-        }
-        return
-      }
-      if (service.installedVersion) {
+      const hasDual =
+        'llamaCppStandardInstalledVersion' in u || 'llamaCppPhisonInstalledVersion' in u
+      if (hasDual) {
+        versionState.value[serviceName].installed =
+          llamaCppBuildVariant.value === 'ssd-offload'
+            ? u.llamaCppPhisonInstalledVersion
+            : u.llamaCppStandardInstalledVersion
+      } else if (service.installedVersion) {
         versionState.value[serviceName].installed = service.installedVersion
       } else if (!service.isSetUp) {
         versionState.value[serviceName].installed = undefined
       }
+      return
     }
+    if (service.installedVersion) {
+      versionState.value[serviceName].installed = service.installedVersion
+    } else if (!service.isSetUp) {
+      versionState.value[serviceName].installed = undefined
+    }
+  }
 
-    // Sync persisted overrides into versionState on init
+  // Re-apply the persisted version overrides onto the gear-menu state. This
+  // used to run at store setup, where Pinia's persist plugin had not
+  // hydrated yet — dead in practice; init() runs it on real data.
+  function syncVersionOverridesIntoState(): void {
     allBackendServiceNames.forEach((serviceName) => {
       if (versionOverrides.value[serviceName]) {
         versionState.value[serviceName].uiOverride = versionOverrides.value[serviceName]
       }
     })
+  }
 
-    // Watch for changes to uiOverride and sync to persisted overrides
-    watch(
-      () => allBackendServiceNames.map((b) => versionState.value[b].uiOverride),
-      () => {
-        allBackendServiceNames.forEach((serviceName) => {
-          const override = versionState.value[serviceName].uiOverride
-          if (override) {
-            versionOverrides.value[serviceName] = override
-          } else {
-            delete versionOverrides.value[serviceName]
-          }
-        })
-      },
-      { deep: true },
-    )
-
-    allBackendServiceNames.forEach((serviceName) => {
-      window.electronAPI.resolveBackendVersion(serviceName).then((version) => {
-        versionState.value[serviceName].target = version
-      })
-    })
-    function applyServiceSnapshot(services: ApiServiceInformation[]): void {
-      // getServices returns [] until the registry exists. A late empty snapshot
-      // must not wipe services that already arrived via serviceInfoUpdate.
-      if (services.length === 0 && currentServiceInfo.value.length > 0) {
-        return
+  // Machine-level launch config lives in settings.json (step 8, §6.1),
+  // reached through the preferences helper's hydrate/write-through
+  // machinery via an adapter over the settings channels. settings.json
+  // always answers with a default-born section, so the one-shot legacy
+  // upload has to run even though the section is present.
+  let lastReadDeviceMap: Record<BackendServiceName, string | null> | null = null
+  const launchSettingsApi: FileBackedPreferencesApi = {
+    read: async () => {
+      const s = await window.electronAPI.getBackendLaunchSettings()
+      // Main's map only holds keys the user picked; absent = no selection.
+      const devices = Object.fromEntries(
+        allBackendServiceNames.map((name) => [name, s.lastSelectedDevicePerBackend[name] ?? null]),
+      ) as Record<BackendServiceName, string | null>
+      lastReadDeviceMap = devices
+      return {
+        success: true as const,
+        sections: { backendServices: { ...s, lastSelectedDeviceIdPerBackend: devices } },
       }
-      currentServiceInfo.value = services
-      for (const service of services) {
-        applyInstalledVersionFromService(service)
-      }
-    }
-
-    window.electronAPI
-      .getServices()
-      .catch(async (_reason: unknown) => {
-        console.warn('initial service call failed - retrying')
-        await new Promise<void>((resolve) => {
-          setTimeout(async () => {
-            resolve()
-          }, 1000)
-        })
-        return window.electronAPI.getServices()
-      })
-      .then((services) => {
-        applyServiceSnapshot(services)
-      })
-    setTimeout(() => {
-      window.electronAPI.getServices().then((services) => {
-        console.log('getServices', services)
-        applyServiceSnapshot(services)
-      })
-    }, 5000)
-    function upsertServiceInfo(updatedInfo: ApiServiceInformation): void {
-      const idx = currentServiceInfo.value.findIndex(
-        (s) => s.serviceName === updatedInfo.serviceName,
-      )
-      if (idx >= 0) {
-        const next = [...currentServiceInfo.value]
-        next[idx] = updatedInfo
-        currentServiceInfo.value = next
-      } else {
-        // Initial getServices can return [] if IPC ran before the registry existed — upsert so pushes still populate.
-        currentServiceInfo.value = [...currentServiceInfo.value, updatedInfo]
-      }
-      applyInstalledVersionFromService(updatedInfo)
-    }
-
-    window.electronAPI.onServiceInfoUpdate((updatedInfo) => {
-      upsertServiceInfo(updatedInfo)
-    })
-
-    /**
-     * Fold an authoritative status straight into the cached service info.
-     *
-     * `startService` / `stopService` resolve with the status the transition ended
-     * in, but the matching `serviceInfoUpdate` push arrives a tick later. Without
-     * this, code that awaits a start and then reads `info` still sees the
-     * pre-start status: that is how the on-demand speech sidecars failed on their
-     * first turn — the Whisper sidecar was up and healthy, but `info` still said
-     * 'starting', so resolving its endpoint returned null and transcription
-     * reported "Speech To Text is not available".
-     */
-    function applyStatus(serviceName: BackendServiceName, status: BackendStatus): BackendStatus {
-      const idx = currentServiceInfo.value.findIndex((s) => s.serviceName === serviceName)
-      if (idx >= 0 && currentServiceInfo.value[idx].status !== status) {
-        const next = [...currentServiceInfo.value]
-        next[idx] = { ...next[idx], status }
-        currentServiceInfo.value = next
-      }
-      return status
-    }
-
-    watch(llamaCppBuildVariant, () => {
-      const svc = currentServiceInfo.value.find((s) => s.serviceName === 'llamacpp-backend')
-      if (svc) applyInstalledVersionFromService(svc)
-    })
-
-    const latestSetupProgress = ref(new Map<BackendServiceName, SetupProgress>())
-
-    window.electronAPI.onServiceSetUpProgress(async (data) => {
-      const associatedListener = serviceListeners.get(data.serviceName)
-      if (!associatedListener) {
-        console.warn(`received unexpected setup update for service ${data.serviceName}`)
-        return
-      }
-      associatedListener.addData(data)
-
-      if (data.status === 'executing') {
-        latestSetupProgress.value.set(data.serviceName, data)
-        latestSetupProgress.value = new Map(latestSetupProgress.value)
-      } else {
-        latestSetupProgress.value.delete(data.serviceName)
-        latestSetupProgress.value = new Map(latestSetupProgress.value)
-      }
-    })
-
-    const serviceInfoUpdatePresent = computed(() => currentServiceInfo.value.length > 0)
-    const initalStartupRequestComplete = ref(false)
-    const backendStartupInProgress = ref(false)
-    const allRequiredSetUp = computed(
-      () =>
-        currentServiceInfo.value.length > 0 &&
-        currentServiceInfo.value.filter((s) => s.isRequired).every((s) => s.isSetUp),
-    )
-    const allRequiredRunning = computed(
-      () =>
-        currentServiceInfo.value.length > 0 &&
-        currentServiceInfo.value.filter((s) => s.isRequired).every((s) => s.status === 'running'),
-    )
-
-    /**
-     * Components the user switched off in the setup wizard, read from settings.json
-     * (the same list the main process consults for its boot-time auto-start). Read
-     * here rather than taken from the wizard store, which imports this one. An
-     * unreadable settings file falls back to "nothing disabled" — the behaviour
-     * before the list existed.
-     */
-    async function getDisabledBackends(): Promise<string[]> {
+    },
+    migrate: async (_section, payload) => {
+      // Demo sessions stay ephemeral, the way the old sessionStorage
+      // scoping was: accept the upload without touching machine config.
+      if (isDemoModeActive()) return { success: true as const }
       try {
-        const s = await window.electronAPI.getLocalSettings()
-        return s.disabledBackends ?? []
-      } catch (e) {
-        console.warn(`Could not read disabled components, starting all: ${e}`)
-        return []
+        return await window.electronAPI.migrateBackendLaunchSettings(payload)
+      } catch (error) {
+        return { success: false as const, error: String(error) }
       }
-    }
-
-    async function startAllSetUpServices(): Promise<{
-      allServicesStarted: boolean
-    }> {
-      const disabled = await getDisabledBackends()
-      const serverStartups = await Promise.all(
-        currentServiceInfo.value
-          .filter((s) => s.isSetUp && !disabled.includes(s.serviceName))
-          .map(async (s) => {
-            try {
-              // Try to detect devices first
-              console.log(`Detecting devices for ${s.serviceName}`)
-              await detectDevices(s.serviceName)
-              await new Promise((resolve) => setTimeout(resolve, 100)) // wait a second for device detection to settle
-              console.log(
-                `Device detection complete for ${s.serviceName}`,
-                JSON.stringify({
-                  devices: s.devices,
-                  info: currentServiceInfo.value.find((info) => info.serviceName === s.serviceName),
-                }),
-              )
-              const lastSelectedDeviceId = lastSelectedDeviceIdPerBackend.value[s.serviceName]
-              const availableDevicesIds = currentServiceInfo.value
-                .find((info) => info.serviceName === s.serviceName)
-                ?.devices.map((d) => d.id)
-              const currentlySelectedDevice = currentServiceInfo.value
-                .find((info) => info.serviceName === s.serviceName)
-                ?.devices.find((d) => d.selected)?.id
-              console.log(
-                `Last selected device: ${lastSelectedDeviceId}, currently selected device: ${currentlySelectedDevice}, available devices: ${availableDevicesIds}`,
-              )
-              if (
-                availableDevicesIds &&
-                lastSelectedDeviceId &&
-                availableDevicesIds.includes(lastSelectedDeviceId) &&
-                lastSelectedDeviceId !== currentlySelectedDevice
-              ) {
-                console.log(`Re-selecting device ${lastSelectedDeviceId} for ${s.serviceName}`)
-                await selectDevice(s.serviceName, lastSelectedDeviceId)
-              }
-              if (isOnDemandBackend(s.serviceName)) {
-                console.log(
-                  `Not auto-starting ${s.serviceName}: started when requested, to preserve VRAM`,
-                )
-                return 'notYetStarted'
-              }
-              return await startService(s.serviceName)
-            } catch (error) {
-              console.error(`Service startup failed for ${s.serviceName}:`, error)
-              return 'failed'
-            }
-          }),
-      )
-      const serverStartupsCompleted = {
-        allServicesStarted: serverStartups.every(
-          (serverStatus) => serverStatus === 'running' || serverStatus === 'notYetStarted',
-        ),
-      }
-      if (!serverStartupsCompleted.allServicesStarted) {
-        console.warn('Not all services started')
-      }
-
-      return serverStartupsCompleted
-    }
-
-    async function uninstallService(serviceName: BackendServiceName): Promise<void> {
-      const listener = serviceListeners.get(serviceName)
-      if (!listener) {
-        throw new Error(`service name ${serviceName} not found.`)
-      }
-      listener.isActive = true
+    },
+    write: async (_section, value) => {
+      if (isDemoModeActive()) return { success: true as const }
       try {
-        try {
-          await stopService(serviceName)
-        } catch {
-          console.info(`service ${serviceName} was not running`)
+        const r = await window.electronAPI.updateLocalSettings(value as Partial<LocalSettings>)
+        return r.success
+          ? { success: true as const }
+          : { success: false as const, error: 'updating local settings failed' }
+      } catch (error) {
+        return { success: false as const, error: String(error) }
+      }
+    },
+  }
+
+  const launchPrefs = makeFileBackedPreference({
+    section: 'backendServices',
+    refs: {
+      versionOverrides,
+      comfyUiParameters,
+      llamaCppParameters,
+      llamaCppBuildVariant,
+      llamaCppOffloadDrive,
+      openvinoKvCacheU4,
+      lastSelectedDeviceIdPerBackend,
+    },
+    legacyKey: 'backendServices',
+    api: launchSettingsApi,
+    errorScope: 'backend-launch-settings',
+    alwaysMigrateLegacy: true,
+    // The device map is main-owned — selectDevice persists it main-side,
+    // with ':stt' sub-device keys the renderer mirror never holds. It
+    // hydrates from settings but never writes back.
+    toFile: ({ lastSelectedDeviceIdPerBackend: _deviceMirror, ...rest }) => rest,
+  })
+
+  async function init(): Promise<void> {
+    await launchPrefs.init()
+    // A legacy payload's device mirror is the renderer's stale copy; main's
+    // map is authoritative, so re-apply it over whatever hydration left.
+    if (lastReadDeviceMap) {
+      lastSelectedDeviceIdPerBackend.value = { ...lastReadDeviceMap }
+    }
+    syncVersionOverridesIntoState()
+    // The setup-time Phison probe may land before hydration; re-run the
+    // ssd-offload guard against the hydrated variant so a machine without
+    // the SSD still resets it — the persist plugin wrote the same correction.
+    void refreshPhisonSsdDetection().catch(() => {})
+  }
+
+  // Watch for changes to uiOverride and sync to persisted overrides
+  watch(
+    () => allBackendServiceNames.map((b) => versionState.value[b].uiOverride),
+    () => {
+      allBackendServiceNames.forEach((serviceName) => {
+        const override = versionState.value[serviceName].uiOverride
+        if (override) {
+          versionOverrides.value[serviceName] = override
+        } else {
+          delete versionOverrides.value[serviceName]
         }
-        // Clear error details when uninstalling
-        listener.clearErrorDetails()
-        await window.electronAPI.uninstall(serviceName)
-      } finally {
-        // A failed uninstall used to leave the listener active, so the next setup
-        // for this service started with dirty listener state (stale collected
-        // progress, and a terminal update from this run leaking into it).
-        listener.isActive = false
-      }
-    }
-
-    /**
-     * In-flight installs, keyed by service. A wizard commit and a gear-menu
-     * Reinstall (or a double click) must not launch two uv syncs against the same
-     * directory — and they cannot be told apart downstream, because the service
-     * has a single progress listener whose first terminal event would resolve both
-     * callers. Mirrors the `startInFlight` guard on the main-process service.
-     */
-    const setUpInFlight = new Map<
-      BackendServiceName,
-      Promise<{ success: boolean; logs: SetupProgress[]; errorDetails?: ErrorDetails | null }>
-    >()
-
-    function setUpService(
-      serviceName: BackendServiceName,
-      versionToInstall?: BackendVersion,
-    ): Promise<{ success: boolean; logs: SetupProgress[]; errorDetails?: ErrorDetails | null }> {
-      const inFlight = setUpInFlight.get(serviceName)
-      if (inFlight) {
-        console.warn(`setup of ${serviceName} already in progress — awaiting the running one`)
-        return inFlight
-      }
-      const run = runSetUpService(serviceName, versionToInstall).finally(() => {
-        setUpInFlight.delete(serviceName)
       })
-      setUpInFlight.set(serviceName, run)
-      return run
+    },
+    { deep: true },
+  )
+
+  allBackendServiceNames.forEach((serviceName) => {
+    window.electronAPI.resolveBackendVersion(serviceName).then((version) => {
+      versionState.value[serviceName].target = version
+    })
+  })
+  function applyServiceSnapshot(services: ApiServiceInformation[]): void {
+    // getServices returns [] until the registry exists. A late empty snapshot
+    // must not wipe services that already arrived via serviceInfoUpdate.
+    if (services.length === 0 && currentServiceInfo.value.length > 0) {
+      return
+    }
+    // A snapshot taken while some backends are still checking is a subset.
+    // Keep hydrated extras (getServices / a racing hydrate) so ai-backend
+    // does not vanish when llama.cpp publishes first.
+    const incomingNames = new Set(services.map((s) => s.serviceName))
+    const extras = currentServiceInfo.value.filter((s) => !incomingNames.has(s.serviceName))
+    currentServiceInfo.value = extras.length === 0 ? services : [...services, ...extras]
+    for (const service of currentServiceInfo.value) {
+      applyInstalledVersionFromService(service)
+    }
+  }
+
+  async function hydrateFromMain(): Promise<void> {
+    try {
+      applyServiceSnapshot(await window.electronAPI.getServices())
+    } catch (error) {
+      console.warn('Failed to refresh service info from main', error)
+    }
+  }
+
+  // Service status is a projection of the kernel event stream: subscribe
+  // first, then install the snapshot, then apply pushes. The listener-first
+  // handshake replaces the old init dance (pull + retry + a 5s re-poll to
+  // paper over pushes the pull raced against) — no service can be missed
+  // between snapshot and stream, and a recreated window (macOS close +
+  // dock activate) hydrates the same way, where the old point-to-point
+  // channel went to the destroyed webContents.
+  const kernelProjection = connectKernelEventStream(
+    (event) => {
+      if (event.type !== 'service') return
+      applyServiceUpdate(event.info as ApiServiceInformation)
+    },
+    (snapshot) => {
+      applyServiceSnapshot(snapshot.state.services as ApiServiceInformation[])
+    },
+  )
+  kernelProjection.ready.catch((reason: unknown) => {
+    console.warn('kernel snapshot unavailable; waiting on stream events instead', reason)
+    void hydrateFromMain()
+  })
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => kernelProjection.dispose())
+  }
+
+  function applyServiceUpdate(updatedInfo: ApiServiceInformation): void {
+    const idx = currentServiceInfo.value.findIndex((s) => s.serviceName === updatedInfo.serviceName)
+    if (idx >= 0) {
+      const next = [...currentServiceInfo.value]
+      next[idx] = updatedInfo
+      currentServiceInfo.value = next
+    } else {
+      // The snapshot can predate a service (registered after connect) —
+      // upsert so pushes still populate.
+      currentServiceInfo.value = [...currentServiceInfo.value, updatedInfo]
+    }
+    applyInstalledVersionFromService(updatedInfo)
+  }
+
+  /**
+   * Fold an authoritative status straight into the cached service info.
+   *
+   * `startService` / `stopService` resolve with the status the transition ended
+   * in, but the matching `serviceInfoUpdate` push arrives a tick later. Without
+   * this, code that awaits a start and then reads `info` still sees the
+   * pre-start status: that is how the on-demand speech sidecars failed on their
+   * first turn — the Whisper sidecar was up and healthy, but `info` still said
+   * 'starting', so resolving its endpoint returned null and transcription
+   * reported "Speech To Text is not available".
+   */
+  function applyStatus(serviceName: BackendServiceName, status: BackendStatus): BackendStatus {
+    const idx = currentServiceInfo.value.findIndex((s) => s.serviceName === serviceName)
+    if (idx >= 0 && currentServiceInfo.value[idx].status !== status) {
+      const next = [...currentServiceInfo.value]
+      next[idx] = { ...next[idx], status }
+      currentServiceInfo.value = next
+    }
+    return status
+  }
+
+  watch(llamaCppBuildVariant, () => {
+    const svc = currentServiceInfo.value.find((s) => s.serviceName === 'llamacpp-backend')
+    if (svc) applyInstalledVersionFromService(svc)
+  })
+
+  const latestSetupProgress = ref(new Map<BackendServiceName, SetupProgress>())
+
+  window.electronAPI.onServiceSetUpProgress(async (data) => {
+    const associatedListener = serviceListeners.get(data.serviceName)
+    if (!associatedListener) {
+      console.warn(`received unexpected setup update for service ${data.serviceName}`)
+      return
+    }
+    associatedListener.addData(data)
+
+    if (data.status === 'executing') {
+      latestSetupProgress.value.set(data.serviceName, data)
+      latestSetupProgress.value = new Map(latestSetupProgress.value)
+    } else {
+      latestSetupProgress.value.delete(data.serviceName)
+      latestSetupProgress.value = new Map(latestSetupProgress.value)
+    }
+  })
+
+  const serviceInfoUpdatePresent = computed(() => currentServiceInfo.value.length > 0)
+  const initalStartupRequestComplete = ref(false)
+  const backendStartupInProgress = ref(false)
+  const allRequiredSetUp = computed(
+    () =>
+      currentServiceInfo.value.length > 0 &&
+      currentServiceInfo.value.filter((s) => s.isRequired).every((s) => s.isSetUp),
+  )
+  const allRequiredRunning = computed(
+    () =>
+      currentServiceInfo.value.length > 0 &&
+      currentServiceInfo.value.filter((s) => s.isRequired).every((s) => s.status === 'running'),
+  )
+
+  /**
+   * Components the user switched off in the setup wizard, read from settings.json
+   * (the same list the main process consults for its boot-time auto-start). Read
+   * here rather than taken from the wizard store, which imports this one. An
+   * unreadable settings file falls back to "nothing disabled" — the behaviour
+   * before the list existed.
+   */
+  async function getDisabledBackends(): Promise<string[]> {
+    try {
+      const s = await window.electronAPI.getLocalSettings()
+      return s.disabledBackends ?? []
+    } catch (e) {
+      console.warn(`Could not read disabled components, starting all: ${e}`)
+      return []
+    }
+  }
+
+  async function startAllSetUpServices(): Promise<{
+    allServicesStarted: boolean
+  }> {
+    const disabled = await getDisabledBackends()
+    const serverStartups = await Promise.all(
+      currentServiceInfo.value
+        .filter((s) => s.isSetUp && !disabled.includes(s.serviceName))
+        .map(async (s) => {
+          try {
+            // Try to detect devices first
+            console.log(`Detecting devices for ${s.serviceName}`)
+            await detectDevices(s.serviceName)
+            await new Promise((resolve) => setTimeout(resolve, 100)) // wait a second for device detection to settle
+            console.log(
+              `Device detection complete for ${s.serviceName}`,
+              JSON.stringify({
+                devices: s.devices,
+                info: currentServiceInfo.value.find((info) => info.serviceName === s.serviceName),
+              }),
+            )
+            const lastSelectedDeviceId = lastSelectedDeviceIdPerBackend.value[s.serviceName]
+            const availableDevicesIds = currentServiceInfo.value
+              .find((info) => info.serviceName === s.serviceName)
+              ?.devices.map((d) => d.id)
+            const currentlySelectedDevice = currentServiceInfo.value
+              .find((info) => info.serviceName === s.serviceName)
+              ?.devices.find((d) => d.selected)?.id
+            console.log(
+              `Last selected device: ${lastSelectedDeviceId}, currently selected device: ${currentlySelectedDevice}, available devices: ${availableDevicesIds}`,
+            )
+            if (
+              availableDevicesIds &&
+              lastSelectedDeviceId &&
+              availableDevicesIds.includes(lastSelectedDeviceId) &&
+              lastSelectedDeviceId !== currentlySelectedDevice
+            ) {
+              console.log(`Re-selecting device ${lastSelectedDeviceId} for ${s.serviceName}`)
+              await selectDevice(s.serviceName, lastSelectedDeviceId)
+            }
+            if (isOnDemandBackend(s.serviceName)) {
+              console.log(
+                `Not auto-starting ${s.serviceName}: started when requested, to preserve VRAM`,
+              )
+              return 'notYetStarted'
+            }
+            return await startService(s.serviceName)
+          } catch (error) {
+            console.error(`Service startup failed for ${s.serviceName}:`, error)
+            return 'failed'
+          }
+        }),
+    )
+    const serverStartupsCompleted = {
+      allServicesStarted: serverStartups.every(
+        (serverStatus) => serverStatus === 'running' || serverStatus === 'notYetStarted',
+      ),
+    }
+    if (!serverStartupsCompleted.allServicesStarted) {
+      console.warn('Not all services started')
     }
 
-    async function runSetUpService(
-      serviceName: BackendServiceName,
-      versionToInstall?: BackendVersion,
-    ): Promise<{ success: boolean; logs: SetupProgress[]; errorDetails?: ErrorDetails | null }> {
-      console.log('starting setup')
-      const listener = serviceListeners.get(serviceName)
-      if (!listener) {
-        throw new Error(`service name ${serviceName} not found.`)
-      }
+    return serverStartupsCompleted
+  }
 
-      listener.clearErrorDetails()
-      const runToken = listener.beginRun()
-
+  async function uninstallService(serviceName: BackendServiceName): Promise<void> {
+    const listener = serviceListeners.get(serviceName)
+    if (!listener) {
+      throw new Error(`service name ${serviceName} not found.`)
+    }
+    listener.isActive = true
+    try {
       try {
         await stopService(serviceName)
       } catch {
-        console.warn(`service ${serviceName} was not running`)
+        console.info(`service ${serviceName} was not running`)
       }
+      // Clear error details when uninstalling
+      listener.clearErrorDetails()
+      await window.electronAPI.uninstall(serviceName)
+    } finally {
+      // A failed uninstall used to leave the listener active, so the next setup
+      // for this service started with dirty listener state (stale collected
+      // progress, and a terminal update from this run leaking into it).
+      listener.isActive = false
+    }
+  }
 
-      if (serviceName === 'llamacpp-backend') {
-        await refreshPhisonSsdDetection()
-      }
+  /**
+   * In-flight installs, keyed by service. A wizard commit and a gear-menu
+   * Reinstall (or a double click) must not launch two uv syncs against the same
+   * directory — and they cannot be told apart downstream, because the service
+   * has a single progress listener whose first terminal event would resolve both
+   * callers. Mirrors the `startInFlight` guard on the main-process service.
+   */
+  const setUpInFlight = new Map<
+    BackendServiceName,
+    Promise<{ success: boolean; logs: SetupProgress[]; errorDetails?: ErrorDetails | null }>
+  >()
 
-      const versions = versionState.value[serviceName]
-      // `versionToInstall` is passed by explicit version actions (Update/Downgrade) and must win
-      // over the currently-installed version — otherwise updating silently re-installs the old one.
-      const targetVersionSettings =
-        versionToInstall ?? versions.uiOverride ?? versions.installed ?? versions.target
-      const serviceSettings: ServiceSettings = { serviceName, ...targetVersionSettings }
-      if (serviceName === 'comfyui-backend') {
-        serviceSettings.comfyUiParameters = effectiveComfyUiParameters.value
-      }
-      if (serviceName === 'llamacpp-backend') {
-        serviceSettings.llamaCppParameters = effectiveLlamaCppParameters.value
-        serviceSettings.llamaCppBuildVariant = llamaCppBuildVariant.value
-      }
-      await updateServiceSettings(serviceSettings)
-      // Deliberately not awaited before `awaitFinalizationAndResetData` — progress
-      // arrives on a separate channel while the call is still running. But it must
-      // never be a floating promise: if it rejects (or returns without a terminal
-      // update) the listener has to be released, or the install hangs forever.
-      window.electronAPI.setUpService(serviceName).then(
-        () => listener.onInvocationSettled(runToken),
-        (error: unknown) =>
-          listener.onInvocationSettled(
-            runToken,
-            error instanceof Error ? error.message : String(error),
-          ),
-      )
-      const result = await listener.awaitFinalizationAndResetData()
-      if (result.success) {
-        await detectDevices(serviceName)
-        // Installed version is now automatically updated via serviceInfoUpdate
-      }
-      return result
+  function setUpService(
+    serviceName: BackendServiceName,
+    versionToInstall?: BackendVersion,
+  ): Promise<{ success: boolean; logs: SetupProgress[]; errorDetails?: ErrorDetails | null }> {
+    const inFlight = setUpInFlight.get(serviceName)
+    if (inFlight) {
+      console.warn(`setup of ${serviceName} already in progress — awaiting the running one`)
+      return inFlight
+    }
+    const run = runSetUpService(serviceName, versionToInstall).finally(() => {
+      setUpInFlight.delete(serviceName)
+    })
+    setUpInFlight.set(serviceName, run)
+    return run
+  }
+
+  async function runSetUpService(
+    serviceName: BackendServiceName,
+    versionToInstall?: BackendVersion,
+  ): Promise<{ success: boolean; logs: SetupProgress[]; errorDetails?: ErrorDetails | null }> {
+    console.log('starting setup')
+    const listener = serviceListeners.get(serviceName)
+    if (!listener) {
+      throw new Error(`service name ${serviceName} not found.`)
     }
 
-    function getServiceErrorDetails(serviceName: BackendServiceName): ErrorDetails | null {
-      // First check service info (startup errors from main process)
-      const serviceError = currentServiceInfo.value.find(
-        (s) => s.serviceName === serviceName,
-      )?.errorDetails
-      if (serviceError) return serviceError
+    listener.clearErrorDetails()
+    const runToken = listener.beginRun()
 
-      // Then check listener (installation errors captured in renderer)
-      const listener = serviceListeners.get(serviceName)
-      return listener?.getLastErrorDetails() ?? null
+    try {
+      await stopService(serviceName)
+    } catch {
+      console.warn(`service ${serviceName} was not running`)
     }
 
-    async function updateServiceSettings(settings: ServiceSettings): Promise<BackendStatus> {
-      return window.electronAPI.updateServiceSettings(settings)
+    if (serviceName === 'llamacpp-backend') {
+      await refreshPhisonSsdDetection()
     }
 
-    /** Installation UI toggles Phison without calling startService — main must see build variant for isSetUp. */
-    watch(
-      [llamaCppBuildVariant, llamaCppParameters],
-      async () => {
-        try {
-          await updateServiceSettings({
-            serviceName: 'llamacpp-backend',
-            llamaCppParameters: effectiveLlamaCppParameters.value,
-            llamaCppBuildVariant: llamaCppBuildVariant.value,
-          })
-        } catch (e) {
-          console.warn('Failed to sync Llama.cpp settings to main process:', e)
-        }
-      },
-      { flush: 'post' },
+    const versions = versionState.value[serviceName]
+    // `versionToInstall` is passed by explicit version actions (Update/Downgrade) and must win
+    // over the currently-installed version — otherwise updating silently re-installs the old one.
+    const targetVersionSettings =
+      versionToInstall ?? versions.uiOverride ?? versions.installed ?? versions.target
+    const serviceSettings: ServiceSettings = { serviceName, ...targetVersionSettings }
+    if (serviceName === 'comfyui-backend') {
+      serviceSettings.comfyUiParameters = effectiveComfyUiParameters.value
+    }
+    if (serviceName === 'llamacpp-backend') {
+      serviceSettings.llamaCppParameters = effectiveLlamaCppParameters.value
+      serviceSettings.llamaCppBuildVariant = llamaCppBuildVariant.value
+    }
+    await updateServiceSettings(serviceSettings)
+    // Deliberately not awaited before `awaitFinalizationAndResetData` — progress
+    // arrives on a separate channel while the call is still running. But it must
+    // never be a floating promise: if it rejects (or returns without a terminal
+    // update) the listener has to be released, or the install hangs forever.
+    window.electronAPI.setUpService(serviceName).then(
+      () => listener.onInvocationSettled(runToken),
+      (error: unknown) =>
+        listener.onInvocationSettled(
+          runToken,
+          error instanceof Error ? error.message : String(error),
+        ),
     )
-
-    /** Sync the OpenVINO KV cache precision toggle to the main process so a
-     * running OVMS service reloads its chat server with the new precision. */
-    watch(
-      openvinoKvCacheU4,
-      async () => {
-        try {
-          await updateServiceSettings({
-            serviceName: 'openvino-backend',
-            ovmsKvCachePrecision: effectiveOvmsKvCachePrecision.value,
-          })
-        } catch (e) {
-          console.warn('Failed to sync OpenVINO KV cache precision to main process:', e)
-        }
-      },
-      { flush: 'post' },
-    )
-
-    function selectDevice(serviceName: BackendServiceName, deviceId: string): Promise<void> {
-      lastSelectedDeviceIdPerBackend.value[serviceName] = deviceId
-      return window.electronAPI.selectDevice(serviceName, deviceId)
+    const result = await listener.awaitFinalizationAndResetData()
+    if (result.success) {
+      await detectDevices(serviceName)
+      // Installed version is now automatically updated via serviceInfoUpdate
     }
+    return result
+  }
 
-    function selectSttDevice(serviceName: BackendServiceName, deviceId: string): Promise<void> {
-      return window.electronAPI.selectSttDevice(serviceName, deviceId)
-    }
+  function getServiceErrorDetails(serviceName: BackendServiceName): ErrorDetails | null {
+    // First check service info (startup errors from main process)
+    const serviceError = currentServiceInfo.value.find(
+      (s) => s.serviceName === serviceName,
+    )?.errorDetails
+    if (serviceError) return serviceError
 
-    async function detectDevices(serviceName: BackendServiceName): Promise<void> {
-      return window.electronAPI.detectDevices(serviceName)
-    }
+    // Then check listener (installation errors captured in renderer)
+    const listener = serviceListeners.get(serviceName)
+    return listener?.getLastErrorDetails() ?? null
+  }
 
-    async function startService(serviceName: BackendServiceName): Promise<BackendStatus> {
-      if (serviceName === 'comfyui-backend') {
-        await updateServiceSettings({
-          serviceName: 'comfyui-backend',
-          comfyUiParameters: effectiveComfyUiParameters.value,
-        })
-      }
-      if (serviceName === 'llamacpp-backend') {
-        await refreshPhisonSsdDetection()
+  async function updateServiceSettings(settings: ServiceSettings): Promise<void> {
+    return window.electronAPI.updateServiceSettings(settings)
+  }
+
+  /** Installation UI toggles Phison without calling startService — main must see build variant for isSetUp. */
+  watch(
+    [llamaCppBuildVariant, llamaCppOffloadDrive, llamaCppParameters],
+    async () => {
+      try {
         await updateServiceSettings({
           serviceName: 'llamacpp-backend',
           llamaCppParameters: effectiveLlamaCppParameters.value,
           llamaCppBuildVariant: llamaCppBuildVariant.value,
         })
+      } catch (e) {
+        console.warn('Failed to sync Llama.cpp settings to main process:', e)
       }
-      if (serviceName === 'openvino-backend') {
+    },
+    { flush: 'post' },
+  )
+
+  /** Sync the OpenVINO KV cache precision toggle to the main process so a
+   * running OVMS service reloads its chat server with the new precision. */
+  watch(
+    openvinoKvCacheU4,
+    async () => {
+      try {
         await updateServiceSettings({
           serviceName: 'openvino-backend',
           ovmsKvCachePrecision: effectiveOvmsKvCachePrecision.value,
         })
-      }
-      // A spawn regenerates the service's loopback token, so anything the renderer
-      // cached for it is now stale. Drop it here — the per-fetch 401 retry recovers
-      // either way, but only after the first call to the restarted service has been
-      // rejected (e.g. TTS: restart after a model download → `POST /api/load` 401,
-      // refresh, retry). Invalidating up front removes that wasted round-trip.
-      invalidateBackendAuthToken(serviceName)
-      return applyStatus(serviceName, await window.electronAPI.startService(serviceName))
-    }
-
-    async function stopService(serviceName: BackendServiceName): Promise<BackendStatus> {
-      return applyStatus(serviceName, await window.electronAPI.stopService(serviceName))
-    }
-
-    const lastUsedBackend = ref<BackendServiceName | null>(null)
-
-    function updateLastUsedBackend(currentInferenceBackend: BackendServiceName) {
-      lastUsedBackend.value = currentInferenceBackend
-    }
-
-    async function resetLastUsedInferenceBackend(currentInferenceBackend: BackendServiceName) {
-      const lastUsedBackendSnapshot = lastUsedBackend.value
-      if (lastUsedBackendSnapshot === null || lastUsedBackendSnapshot === currentInferenceBackend) {
-        return
-      }
-      try {
-        const stopStatus = await stopService(lastUsedBackendSnapshot)
-        console.info(`unused service ${lastUsedBackendSnapshot} now in state ${stopStatus}`)
-        const startStatus = await startService(lastUsedBackendSnapshot)
-        console.info(`service ${lastUsedBackendSnapshot} now in state ${startStatus}`)
       } catch (e) {
-        console.warn(
-          `Could not reset last used inference backend ${lastUsedBackendSnapshot} due to ${e}`,
-        )
+        console.warn('Failed to sync OpenVINO KV cache precision to main process:', e)
       }
-    }
-
-    async function ensureBackendReadiness(
-      serviceName: BackendServiceName,
-      llmModelName: string,
-      embeddingModelName?: string,
-      contextSize?: number,
-      modelArgs?: string,
-    ): Promise<void> {
-      try {
-        const result = await window.electronAPI.ensureBackendReadiness(
-          serviceName,
-          llmModelName,
-          embeddingModelName,
-          contextSize,
-          modelArgs,
-        )
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to ensure backend readiness')
-        }
-        // The matching serviceInfoUpdate arrives a tick later. Fold the snapshot
-        // from this call in now so the next request sees whether MTP was armed.
-        if (result.service) upsertServiceInfo(result.service)
-      } catch (error) {
-        console.error(`Failed to ensure backend readiness for ${serviceName}:`, error)
-        throw error
-      }
-    }
-
-    async function ensureEmbeddingServerReady(
-      serviceName: BackendServiceName,
-      embeddingModelName: string,
-    ): Promise<void> {
-      try {
-        const result = await window.electronAPI.ensureEmbeddingServerReady(
-          serviceName,
-          embeddingModelName,
-        )
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to ensure embedding server ready')
-        }
-      } catch (error) {
-        console.error(`Failed to ensure embedding server ready for ${serviceName}:`, error)
-        throw error
-      }
-    }
-
-    async function startTranscriptionServer(modelName: string): Promise<void> {
-      try {
-        const result = await window.electronAPI.startTranscriptionServer(modelName)
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to start transcription server')
-        }
-      } catch (error) {
-        console.error(`Failed to start transcription server:`, error)
-        throw error
-      }
-    }
-
-    async function stopTranscriptionServer(): Promise<void> {
-      try {
-        const result = await window.electronAPI.stopTranscriptionServer()
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to stop transcription server')
-        }
-      } catch (error) {
-        console.error(`Failed to stop transcription server:`, error)
-        throw error
-      }
-    }
-
-    async function getTranscriptionServerUrl(): Promise<string | null> {
-      try {
-        const result = await window.electronAPI.getTranscriptionServerUrl()
-        if (result.success && result.url) {
-          return result.url
-        }
-        return null
-      } catch (error) {
-        console.error(`Failed to get transcription server URL:`, error)
-        return null
-      }
-    }
-
-    async function startSpeechServer(modelName: string): Promise<void> {
-      try {
-        const result = await window.electronAPI.startSpeechServer(modelName)
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to start speech server')
-        }
-      } catch (error) {
-        console.error(`Failed to start speech server:`, error)
-        throw error
-      }
-    }
-
-    async function stopSpeechServer(): Promise<void> {
-      try {
-        const result = await window.electronAPI.stopSpeechServer()
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to stop speech server')
-        }
-      } catch (error) {
-        console.error(`Failed to stop speech server:`, error)
-        throw error
-      }
-    }
-
-    async function getSpeechServerUrl(): Promise<string | null> {
-      try {
-        const result = await window.electronAPI.getSpeechServerUrl()
-        if (result.success && result.url) {
-          return result.url
-        }
-        return null
-      } catch (error) {
-        console.error(`Failed to get speech server URL:`, error)
-        return null
-      }
-    }
-
-    async function shouldShowInstallationDialog(): Promise<boolean> {
-      // Wait a moment for async setup checks to complete in the main process
-      // Services like ai-backend check setup asynchronously, so we need to give them time
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      // Re-fetch service info to get the latest setup status
-      try {
-        const latestServices = await window.electronAPI.getServices()
-        currentServiceInfo.value = latestServices
-      } catch (error) {
-        console.warn('Failed to refresh service info for installation check:', error)
-      }
-
-      // Only show if required backends are missing or have errors
-      const requiredServices = currentServiceInfo.value.filter((s) => s.isRequired)
-      return requiredServices.some(
-        (s) => !s.isSetUp || (s.errorDetails !== null && s.errorDetails !== undefined),
-      )
-    }
-
-    async function startAllSetUpServicesInBackground(): Promise<void> {
-      if (backendStartupInProgress.value) {
-        console.log('Backend startup already in progress, skipping')
-        return
-      }
-
-      // Check if there are any services to start
-      const servicesToStart = currentServiceInfo.value.filter((s) => s.isSetUp)
-      if (servicesToStart.length === 0) {
-        console.log('No services are set up to start')
-        return
-      }
-
-      console.log(
-        `Starting ${servicesToStart.length} backend service(s) in background:`,
-        servicesToStart.map((s) => s.serviceName),
-      )
-      backendStartupInProgress.value = true
-
-      // Start in background without blocking
-      startAllSetUpServices()
-        .then((result) => {
-          console.log('Background backend startup completed', result)
-          if (!result.allServicesStarted) {
-            console.warn('Not all services started successfully in background')
-          }
-        })
-        .catch((error) => {
-          console.error('Background backend startup failed', error)
-        })
-        .finally(() => {
-          backendStartupInProgress.value = false
-        })
-    }
-
-    return {
-      info: currentServiceInfo,
-      serviceInfoUpdateReceived: serviceInfoUpdatePresent,
-      allRequiredSetUp,
-      allRequiredRunning,
-      initalStartupRequestComplete,
-      lastUsedBackend,
-      versionState,
-      versionOverrides,
-      lastSelectedDeviceIdPerBackend,
-      comfyUiParameters,
-      comfyUiDefaultParameters,
-      effectiveComfyUiParameters,
-      llamaCppParameters,
-      llamaCppBuildVariant,
-      llamaCppDefaultParameters,
-      effectiveLlamaCppParameters,
-      openvinoKvCacheU4,
-      effectiveOvmsKvCachePrecision,
-      phisonSsdDetected,
-      refreshPhisonSsdDetection,
-      updateLastUsedBackend,
-      resetLastUsedInferenceBackend,
-      startAllSetUpServices,
-      setUpService,
-      updateServiceSettings,
-      startService,
-      stopService,
-      uninstallService,
-      detectDevices,
-      selectDevice,
-      selectSttDevice,
-      ensureBackendReadiness,
-      ensureEmbeddingServerReady,
-      startTranscriptionServer,
-      stopTranscriptionServer,
-      getTranscriptionServerUrl,
-      startSpeechServer,
-      stopSpeechServer,
-      getSpeechServerUrl,
-      getServiceErrorDetails,
-      shouldShowInstallationDialog,
-      startAllSetUpServicesInBackground,
-      backendStartupInProgress,
-      latestSetupProgress,
-    }
-  },
-  {
-    persist: {
-      storage: demoAwareStorage,
-      pick: [
-        'versionOverrides',
-        'lastSelectedDeviceIdPerBackend',
-        'comfyUiParameters',
-        'llamaCppParameters',
-        'llamaCppBuildVariant',
-        'openvinoKvCacheU4',
-      ],
     },
-  },
-)
+    { flush: 'post' },
+  )
+
+  function selectDevice(serviceName: BackendServiceName, deviceId: string): Promise<void> {
+    lastSelectedDeviceIdPerBackend.value[serviceName] = deviceId
+    return window.electronAPI.selectDevice(serviceName, deviceId)
+  }
+
+  function selectSttDevice(serviceName: BackendServiceName, deviceId: string): Promise<void> {
+    return window.electronAPI.selectSttDevice(serviceName, deviceId)
+  }
+
+  async function detectDevices(serviceName: BackendServiceName): Promise<void> {
+    return window.electronAPI.detectDevices(serviceName)
+  }
+
+  async function startService(serviceName: BackendServiceName): Promise<BackendStatus> {
+    if (serviceName === 'comfyui-backend') {
+      await updateServiceSettings({
+        serviceName: 'comfyui-backend',
+        comfyUiParameters: effectiveComfyUiParameters.value,
+      })
+    }
+    if (serviceName === 'llamacpp-backend') {
+      await refreshPhisonSsdDetection()
+      await updateServiceSettings({
+        serviceName: 'llamacpp-backend',
+        llamaCppParameters: effectiveLlamaCppParameters.value,
+        llamaCppBuildVariant: llamaCppBuildVariant.value,
+      })
+    }
+    if (serviceName === 'openvino-backend') {
+      await updateServiceSettings({
+        serviceName: 'openvino-backend',
+        ovmsKvCachePrecision: effectiveOvmsKvCachePrecision.value,
+      })
+    }
+    // A spawn regenerates the service's loopback token, so anything the renderer
+    // cached for it is now stale. Drop it here — the per-fetch 401 retry recovers
+    // either way, but only after the first call to the restarted service has been
+    // rejected (e.g. TTS: restart after a model download → `POST /api/load` 401,
+    // refresh, retry). Invalidating up front removes that wasted round-trip.
+    invalidateBackendAuthToken(serviceName)
+    return applyStatus(serviceName, await window.electronAPI.startService(serviceName))
+  }
+
+  async function stopService(serviceName: BackendServiceName): Promise<BackendStatus> {
+    return applyStatus(serviceName, await window.electronAPI.stopService(serviceName))
+  }
+
+  const lastUsedBackend = ref<BackendServiceName | null>(null)
+
+  function updateLastUsedBackend(currentInferenceBackend: BackendServiceName) {
+    lastUsedBackend.value = currentInferenceBackend
+  }
+
+  async function resetLastUsedInferenceBackend(currentInferenceBackend: BackendServiceName) {
+    const lastUsedBackendSnapshot = lastUsedBackend.value
+    if (lastUsedBackendSnapshot === null || lastUsedBackendSnapshot === currentInferenceBackend) {
+      return
+    }
+    try {
+      const stopStatus = await stopService(lastUsedBackendSnapshot)
+      console.info(`unused service ${lastUsedBackendSnapshot} now in state ${stopStatus}`)
+      const startStatus = await startService(lastUsedBackendSnapshot)
+      console.info(`service ${lastUsedBackendSnapshot} now in state ${startStatus}`)
+    } catch (e) {
+      console.warn(
+        `Could not reset last used inference backend ${lastUsedBackendSnapshot} due to ${e}`,
+      )
+    }
+  }
+
+  async function ensureBackendReadiness(
+    serviceName: BackendServiceName,
+    llmModelName: string,
+    embeddingModelName?: string,
+    contextSize?: number,
+    modelArgs?: string,
+    skipGpuAdmission?: boolean,
+    options?: { remember?: boolean },
+  ): Promise<void> {
+    try {
+      const result = await window.electronAPI.ensureBackendReadiness(
+        serviceName,
+        llmModelName,
+        embeddingModelName,
+        contextSize,
+        modelArgs,
+        skipGpuAdmission,
+        options,
+      )
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to ensure backend readiness')
+      }
+      // The matching service update arrives a tick later. Fold the snapshot
+      // from this call in now so the next request sees whether MTP was armed.
+      if (result.service) applyServiceUpdate(result.service)
+    } catch (error) {
+      console.error(`Failed to ensure backend readiness for ${serviceName}:`, error)
+      throw error
+    }
+  }
+
+  async function ensureEmbeddingServerReady(
+    serviceName: BackendServiceName,
+    embeddingModelName: string,
+  ): Promise<void> {
+    try {
+      const result = await window.electronAPI.ensureEmbeddingServerReady(
+        serviceName,
+        embeddingModelName,
+      )
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to ensure embedding server ready')
+      }
+    } catch (error) {
+      console.error(`Failed to ensure embedding server ready for ${serviceName}:`, error)
+      throw error
+    }
+  }
+
+  async function startTranscriptionServer(modelName: string): Promise<void> {
+    try {
+      const result = await window.electronAPI.startTranscriptionServer(modelName)
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to start transcription server')
+      }
+    } catch (error) {
+      console.error(`Failed to start transcription server:`, error)
+      throw error
+    }
+  }
+
+  async function stopTranscriptionServer(): Promise<void> {
+    try {
+      const result = await window.electronAPI.stopTranscriptionServer()
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to stop transcription server')
+      }
+    } catch (error) {
+      console.error(`Failed to stop transcription server:`, error)
+      throw error
+    }
+  }
+
+  async function getTranscriptionServerUrl(): Promise<string | null> {
+    try {
+      const result = await window.electronAPI.getTranscriptionServerUrl()
+      if (result.success && result.url) {
+        return result.url
+      }
+      return null
+    } catch (error) {
+      console.error(`Failed to get transcription server URL:`, error)
+      return null
+    }
+  }
+
+  async function startSpeechServer(modelName: string): Promise<void> {
+    try {
+      const result = await window.electronAPI.startSpeechServer(modelName)
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to start speech server')
+      }
+    } catch (error) {
+      console.error(`Failed to start speech server:`, error)
+      throw error
+    }
+  }
+
+  async function stopSpeechServer(): Promise<void> {
+    try {
+      const result = await window.electronAPI.stopSpeechServer()
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to stop speech server')
+      }
+    } catch (error) {
+      console.error(`Failed to stop speech server:`, error)
+      throw error
+    }
+  }
+
+  async function getSpeechServerUrl(): Promise<string | null> {
+    try {
+      const result = await window.electronAPI.getSpeechServerUrl()
+      if (result.success && result.url) {
+        return result.url
+      }
+      return null
+    } catch (error) {
+      console.error(`Failed to get speech server URL:`, error)
+      return null
+    }
+  }
+
+  async function shouldShowInstallationDialog(): Promise<boolean> {
+    // Wait a moment for async setup checks to complete in the main process
+    // Services like ai-backend check setup asynchronously, so we need to give them time
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // Re-fetch service info to get the latest setup status
+    try {
+      await hydrateFromMain()
+    } catch (error) {
+      console.warn('Failed to refresh service info for installation check:', error)
+    }
+
+    // Only show if required backends are missing or have errors
+    const requiredServices = currentServiceInfo.value.filter((s) => s.isRequired)
+    return requiredServices.some(
+      (s) => !s.isSetUp || (s.errorDetails !== null && s.errorDetails !== undefined),
+    )
+  }
+
+  async function startAllSetUpServicesInBackground(): Promise<void> {
+    if (backendStartupInProgress.value) {
+      console.log('Backend startup already in progress, skipping')
+      return
+    }
+
+    // Check if there are any services to start
+    const servicesToStart = currentServiceInfo.value.filter((s) => s.isSetUp)
+    if (servicesToStart.length === 0) {
+      console.log('No services are set up to start')
+      return
+    }
+
+    console.log(
+      `Starting ${servicesToStart.length} backend service(s) in background:`,
+      servicesToStart.map((s) => s.serviceName),
+    )
+    backendStartupInProgress.value = true
+
+    // Start in background without blocking
+    startAllSetUpServices()
+      .then((result) => {
+        console.log('Background backend startup completed', result)
+        if (!result.allServicesStarted) {
+          console.warn('Not all services started successfully in background')
+        }
+      })
+      .catch((error) => {
+        console.error('Background backend startup failed', error)
+      })
+      .finally(() => {
+        backendStartupInProgress.value = false
+      })
+  }
+
+  return {
+    info: currentServiceInfo,
+    serviceInfoUpdateReceived: serviceInfoUpdatePresent,
+    allRequiredSetUp,
+    allRequiredRunning,
+    initalStartupRequestComplete,
+    lastUsedBackend,
+    versionState,
+    versionOverrides,
+    lastSelectedDeviceIdPerBackend,
+    comfyUiParameters,
+    comfyUiDefaultParameters,
+    effectiveComfyUiParameters,
+    llamaCppParameters,
+    llamaCppBuildVariant,
+    llamaCppOffloadDrive,
+    llamaCppDefaultParameters,
+    effectiveLlamaCppParameters,
+    openvinoKvCacheU4,
+    effectiveOvmsKvCachePrecision,
+    phisonSsdDetected,
+    refreshPhisonSsdDetection,
+    updateLastUsedBackend,
+    resetLastUsedInferenceBackend,
+    startAllSetUpServices,
+    setUpService,
+    updateServiceSettings,
+    startService,
+    stopService,
+    uninstallService,
+    detectDevices,
+    selectDevice,
+    selectSttDevice,
+    ensureBackendReadiness,
+    ensureEmbeddingServerReady,
+    startTranscriptionServer,
+    stopTranscriptionServer,
+    getTranscriptionServerUrl,
+    startSpeechServer,
+    stopSpeechServer,
+    getSpeechServerUrl,
+    getServiceErrorDetails,
+    shouldShowInstallationDialog,
+    startAllSetUpServicesInBackground,
+    backendStartupInProgress,
+    latestSetupProgress,
+    hydrateFromMain,
+    init,
+  }
+})
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useBackendServices, import.meta.hot))
+}
 
 /**
  * Grace period between the main-process setup call settling and us declaring the

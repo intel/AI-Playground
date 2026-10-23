@@ -135,11 +135,11 @@ const toolParserItems = computed(() => [
       </div>
     </div>
 
-    <!-- Coding and large MoE are the two boxes whose label cannot carry their
-         meaning: one decides which presets offer the model, the other is a
-         hardware gate that can hide it everywhere. So they sit outside the grid,
-         each with its hint always on screen — a hint shown only once the box is
-         ticked comes too late to inform the decision. -->
+    <!-- Coding, agentic and large MoE are the boxes whose label cannot carry their
+         meaning: coding and agentic decide which presets offer the model, and large
+         MoE is a hardware gate that can hide it everywhere. So they sit outside the
+         grid, each with its hint always on screen — a hint shown only once the box
+         is ticked comes too late to inform the decision. -->
     <div class="flex flex-col gap-1">
       <div class="flex items-center gap-2">
         <Checkbox
@@ -151,6 +151,20 @@ const toolParserItems = computed(() => [
       </div>
       <p class="text-xs text-muted-foreground">
         {{ languages.MODEL_MANAGER_CAP_CODING_HINT }}
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <div class="flex items-center gap-2">
+        <Checkbox
+          :id="`${prefix}-agentic`"
+          :model-value="modelValue.supportsAgentic === true"
+          @update:model-value="(v) => setFlag('supportsAgentic', v === true)"
+        />
+        <Label :for="`${prefix}-agentic`">{{ languages.MODEL_MANAGER_CAP_AGENTIC }}</Label>
+      </div>
+      <p class="text-xs text-muted-foreground">
+        {{ languages.MODEL_MANAGER_CAP_AGENTIC_HINT }}
       </p>
     </div>
 

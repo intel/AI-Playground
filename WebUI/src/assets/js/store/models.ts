@@ -429,7 +429,7 @@ export const useModels = defineStore(
 
     /**
      * Return download params for whichever of the given Qwen3-TTS repos are missing,
-     * ready to hand to `showDownloadDialog` (the standard model-download popup).
+     * ready to hand to Permissions (`requestDownload`).
      */
     async function getMissingQwenTtsModels(repoIds: string[]): Promise<DownloadModelParam[]> {
       const modelPath = getModelPath('TTS', 'openvino')
@@ -468,7 +468,7 @@ export const useModels = defineStore(
      */
     async function restorePathsSettings() {
       await window.electronAPI.restorePathsSettings()
-      const setupData = await window.electronAPI.getInitSetting()
+      const setupData = (await window.electronAPI.getInitSetting())!
       paths.value = setupData.modelPaths
       return setupData.modelLists
     }

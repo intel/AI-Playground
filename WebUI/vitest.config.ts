@@ -8,8 +8,10 @@ export default defineConfig({
     exclude: ['node_modules', 'dist'],
   },
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+      // Only the `electron/` prefix — a bare `electron` must stay the npm package.
+      { find: /^electron\//, replacement: `${path.resolve(__dirname, './electron')}/` },
+    ],
   },
 })

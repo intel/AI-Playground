@@ -7,6 +7,7 @@ interface ModelCapabilities {
   supportsToolCalling?: boolean
   supportsVision?: boolean
   supportsReasoning?: boolean
+  supportsAgentic?: boolean
   maxContextSize?: number
   name?: string
 }
@@ -31,6 +32,7 @@ const formatCapabilities = () => {
   if (props.model.supportsVision) caps.push('Vision')
   if (props.model.supportsToolCalling) caps.push('Tool Calling')
   if (props.model.supportsReasoning) caps.push('Reasoning')
+  if (props.model.supportsAgentic) caps.push('Agentic')
   return caps
 }
 

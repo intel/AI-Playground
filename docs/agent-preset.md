@@ -66,7 +66,7 @@ pointing at "produce a playable game". It is the preset to use for games; Agent 
 use when nobody has written that specialization yet, and it starts you at an empty folder.
 
 The Game Agent procedure lives in the `html-game-studio` skill (`GAME_STUDIO_SKILL` in
-`WebUI/electron/agentMode/capabilities/gameStudio.ts`). The preset `systemPrompt` only orients
+`WebUI/electron/agent/capabilities/gameStudio.ts`). The preset `systemPrompt` only orients
 the session (scaffold, plan on disk, one section per edit) and tells the model to read that
 skill at the path announced in `<available_skills>`.
 

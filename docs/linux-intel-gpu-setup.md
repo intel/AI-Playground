@@ -18,7 +18,7 @@ the system **before** you install the app (AppImage, `.deb`, or dev build).
 ## 1. How backend → GPU selection works
 
 Each backend independently decides whether to use the GPU on Linux. The decision
-is made by `WebUI/electron/subprocesses/deviceDetection.ts`, which checks both
+is made by `WebUI/electron/adapters/hardware/deviceDetection.ts`, which checks both
 hardcoded library paths **and** the dynamic linker cache (`ldconfig -p`) so it
 works across distros. The decision is **logged** to the terminal running
 `npm run dev` (not the in-app console, because it runs at service-construction
@@ -300,13 +300,13 @@ uv lock
 
 ## 7. Relevant source
 
-- `WebUI/electron/subprocesses/deviceDetection.ts` — `linuxHasLevelZeroRuntime()`,
+- `WebUI/electron/adapters/hardware/deviceDetection.ts` — `linuxHasLevelZeroRuntime()`,
   `linuxHasVulkanLoader()` (ldconfig-aware, logged).
-- `WebUI/electron/subprocesses/comfyUIBackendService.ts` — XPU variant selection,
+- `WebUI/electron/adapters/backends/comfyUIBackendService.ts` — XPU variant selection,
   oneAPI `LD_LIBRARY_PATH`, `ZE_FLAT_DEVICE_HIERARCHY`, lowvram handling.
-- `WebUI/electron/subprocesses/llamaCppBackendService.ts` — Vulkan build
+- `WebUI/electron/adapters/backends/llamaCppBackendService.ts` — Vulkan build
   selection (`resolveDownloadUrl()`), `--list-devices` parsing.
-- `WebUI/electron/subprocesses/openVINOBackendService.ts` — OVMS env (system
+- `WebUI/electron/adapters/backends/openVINOBackendService.ts` — OVMS env (system
   Python on Linux), Python device-detection venv.
-- `WebUI/electron/subprocesses/hardwareDiscovery.ts` — `lspci`-based Intel GPU
+- `WebUI/electron/adapters/hardware/hardwareDiscovery.ts` — `lspci`-based Intel GPU
   detection (mode recommendation).

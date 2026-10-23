@@ -1,6 +1,7 @@
 .DS_Store
 .idea
 .vscode/
+.opencode/
 node_modules/
 **/.vite/
 env/
@@ -50,3 +51,8 @@ home-agent/.*id
 # Laminar tracing — local project API keys (dev opt-in); never commit
 WebUI/external/laminar.dev.json
 WebUI/external/laminar.localhost.json
+
+# Benchmarking data might be licensed for internal use only and must not be
+# redistributed, so the raw scores stay on the machine that fetched them; only
+# the thresholded booleans they inform are committed.
+docs/agentic-scores.local.json

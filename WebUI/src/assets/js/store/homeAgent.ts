@@ -6,7 +6,7 @@ import { useBackendServices } from './backendServices'
 import { useOpenAiCompatibleChat, type AipgUiMessage } from './openAiCompatibleChat'
 import { useImageGenerationPresets, isImage, isVideo, is3D } from './imageGenerationPresets'
 import { usePromptStore } from './promptArea'
-import { usePresetSwitching } from './presetSwitching'
+import { artifactKindForMedia, runArtifact } from '../artifact/runArtifact'
 import { usePresets } from './presets'
 import { useConfirmations } from './confirmations'
 import { useActivities } from './activities'
@@ -14,16 +14,19 @@ import { useGlobalSetup } from './globalSetup'
 import { useModels } from './models'
 import { parseConfirmationReply } from './confirmationReply'
 import { fetchModelMeta, runModelDownload } from '@/lib/modelDownloader'
+import type { IpcMutationResult } from '@/types/ipcChannels'
 import { extractToolMedia } from '@/assets/js/tools/toolMedia'
 // Lazy-instantiated inside helpers to avoid a setup-time cycle with textInference,
 // which already instantiates useHomeAgent() at the top of its own setup.
 import { useTextInference } from './textInference'
-import type { IndexedDocument, ValidFileExtension } from './textInference'
-import { useSpeechToText } from './speechToText'
-import { useTextToSpeech } from './textToSpeech'
-import { useQwen3TextToSpeech } from './qwen3TextToSpeech'
-import { base64ToBlob, transcribeAudioBlob } from '@/lib/transcribe'
-import { synthesizeSpeech, bytesToBase64 } from '@/lib/synthesizeSpeech'
+import type { IndexedDocument, ValidFileExtension } from '@/types/rag'
+import {
+  NO_TRANSCRIPTION_ENDPOINT,
+  readyTranscriptionUnattended,
+  synthesizeClip,
+  transcribe,
+} from '../speech/speechIO'
+import { base64ToBlob } from '@/lib/transcribe'
 import { markdownToSpeechText } from '@/lib/markdownToSpeech'
 import {
   useConversations,
@@ -55,6 +58,7 @@ import { useErrors } from './errors'
 import { createTelegramAdapter } from './channels/telegramAdapter'
 import { createSlackAdapter } from './channels/slackAdapter'
 import { createLocalWebAdapter } from './channels/localWebAdapter'
+import { registerRemoteTurnPort } from '@/assets/js/permissions/remoteTurnPort'
 
 // ── Channel registry ────────────────────────────────────────────────────────
 // Kinds we manage in this store. Adding a fourth one means appending to this
@@ -131,7 +135,6 @@ export const useHomeAgent = defineStore(
     const chatStore = useOpenAiCompatibleChat()
     const imageGenStore = useImageGenerationPresets()
     const promptStore = usePromptStore()
-    const presetSwitching = usePresetSwitching()
     const conversations = useConversations()
     const presetsStore = usePresets()
     const confirmations = useConfirmations()
@@ -681,15 +684,10 @@ export const useHomeAgent = defineStore(
       const transcript = flattenForSummary(msgs)
       if (!transcript) return 'Untitled chat'
 
-      try {
-        const summary = await chatStore.summarizeMessages(transcript)
-        const clean = summary || 'Untitled chat'
-        summaryCache.value[key] = { messageCount: msgs.length, summary: clean }
-        return clean
-      } catch (e) {
-        console.error('homeAgent: summarizeConversation failed:', e)
-        return 'Untitled chat'
-      }
+      const summary = await chatStore.summarizeMessages(transcript)
+      const clean = summary || 'Untitled chat'
+      summaryCache.value[key] = { messageCount: msgs.length, summary: clean }
+      return clean
     }
 
     // ── Channel-dispatch helpers ─────────────────────────────────────────────
@@ -877,15 +875,19 @@ export const useHomeAgent = defineStore(
     }
 
     /**
-     * Remote model-download path used when `checkModelAvailability` finds missing
+     * Remote model-download path used when a readiness check finds missing
      * models during a remote turn (no desktop user to drive the modal). Declines
      * gated models that need browser interaction, asks approval in-channel
-     * (mirrored on the desktop), then runs the download headlessly with progress
+     * (mirrored on the desktop) unless the caller passes a pre-grant's
+     * `skipConfirmation`, then runs the download headlessly with progress
      * streamed to both the channel and the desktop activity sink. Resolves on
      * success; throws (silent/cancelled AppError) on decline or failure so the
      * caller's `reject` unwinds the inference attempt cleanly.
      */
-    async function handleRemoteModelDownload(list: DownloadModelParam[]): Promise<void> {
+    async function handleRemoteModelDownload(
+      list: DownloadModelParam[],
+      options?: { skipConfirmation?: boolean },
+    ): Promise<void> {
       const turn = activeRemoteTurn
       if (!turn) {
         throw createAppError({
@@ -933,7 +935,9 @@ export const useHomeAgent = defineStore(
 
       const summaryLines = metaList.map((m) => `• \`${m.repo_id}\`${m.size ? ` (${m.size})` : ''}`)
       const summaryMarkdown = `I need to download ${metaList.length === 1 ? 'a model' : `${metaList.length} models`} before I can answer:\n${summaryLines.join('\n')}`
-      const approved = await requestDownloadConfirmation(turn, conversationKey, summaryMarkdown)
+      const approved =
+        options?.skipConfirmation === true ||
+        (await requestDownloadConfirmation(turn, conversationKey, summaryMarkdown))
       if (!approved) {
         throw createCancellation({ technicalMessage: 'remote model download declined' })
       }
@@ -1016,33 +1020,16 @@ export const useHomeAgent = defineStore(
       if (!fromVoice) return
       const trimmed = markdownToSpeechText(text ?? '').trim()
       if (!trimmed) return
-      const textToSpeech = useTextToSpeech()
       if (!useTextInference().speakRepliesAllowed(HOME_AGENT_CHAT_PRESET_NAME)) return
 
       try {
-        if (textToSpeech.selectedEngine === 'qwen3') {
-          const qwen3 = useQwen3TextToSpeech()
-          // `synthesize` would open the download popup for a missing model, so
-          // check first and bail out instead.
-          if (!qwen3.isBackendSetUp() || !(await qwen3.isModelInstalled())) return
-          const { audioBase64, mediaType } = await qwen3.synthesize({ text: trimmed })
-          await adapter.voice(audioBase64, mediaType || 'audio/wav', meta)
-          return
-        }
-        // Kokoro / external endpoint. `available` covers exactly those two.
-        if (!textToSpeech.available) return
-        // Start the OVMS speech server on demand (no dialog; no-op if already up or
-        // the model isn't installed — a configured fallback still serves).
-        await textToSpeech.ensureSpeechServerRunning()
-        const endpoint = await textToSpeech.resolveSpeech()
-        if (!endpoint) return
-        // Request WAV — it's universally supported by TTS servers (OVMS and
-        // OpenAI-compatible fallbacks). The home-agent channel layer transcodes
-        // to Ogg/Opus so Telegram still renders a real voice bubble, decoupling
-        // us from the server's `response_format` support.
-        const { bytes, mediaType } = await synthesizeSpeech(trimmed, endpoint, { format: 'wav' })
-        const base64 = bytesToBase64(bytes)
-        await adapter.voice(base64, mediaType || 'audio/wav', meta)
+        // Synthesis goes through whichever engine the user selected, Qwen3
+        // included, via the one engine seam — unattended, so a missing model
+        // simply means no voice reply instead of a popup nobody at the channel
+        // can answer.
+        const clip = await synthesizeClip({ text: trimmed, unattended: true, format: 'wav' })
+        if (!clip) return
+        await adapter.voice(clip.audioBase64, clip.mediaType, meta)
       } catch (e) {
         console.error('homeAgent: voice reply failed:', e)
       }
@@ -1075,42 +1062,43 @@ export const useHomeAgent = defineStore(
     }
 
     /**
-     * Pin the live preset/backend to Home Agent and prep inference so the
-     * summarizer uses the bundled Home Agent model. Returns `false` and
-     * replies to the active channel with an error if readiness fails.
+     * Pin the live preset to Home Agent so `buildChatModelConfig()` ships that
+     * model on `chat:summarize`. Main occupies and loads (remember: false).
+     * Returns a restore callback, or `false` after messaging the channel when
+     * the preset cannot be applied. Callers restore after summaries so the
+     * request and the load name the same model.
      */
     async function ensureSummarizerReady(
       adapter: ChannelAdapter,
       meta?: InboundMeta,
-    ): Promise<boolean> {
+    ): Promise<false | (() => void)> {
       const textInference = useTextInference()
-      // Snapshot the user's currently selected desktop preset/variant so we
-      // can restore them after transiently switching to the Home Agent
-      // preset for summarization.
       const previousPreset = presetsStore.activePresetName
       const previousVariant = previousPreset
         ? (presetsStore.activeVariantName[previousPreset] ?? null)
         : null
-      textInference.applyPresetToGlobals(HOME_AGENT_CHAT_PRESET_NAME, null)
+      const resumeSelectionMemory = textInference.pauseChatBackendSelectionMemory()
       try {
-        await textInference.ensureReadyForInference()
-        return true
+        textInference.applyPresetToGlobals(HOME_AGENT_CHAT_PRESET_NAME, null)
       } catch (e) {
-        console.error('homeAgent: ensureReadyForInference for summary failed:', e)
+        resumeSelectionMemory()
+        console.error('homeAgent: apply Home Agent preset for summary failed:', e)
         await reply(
           adapter,
           '⚠️ Could not prepare the model to summarize chats. Try again later.',
           meta,
         )
         return false
-      } finally {
+      }
+      return () => {
         if (previousPreset && previousPreset !== HOME_AGENT_CHAT_PRESET_NAME) {
           try {
             textInference.applyPresetToGlobals(previousPreset, previousVariant)
-          } catch (e) {
-            console.error('homeAgent: failed to restore previous preset:', e)
+          } catch (err) {
+            console.error('homeAgent: failed to restore previous preset:', err)
           }
         }
+        resumeSelectionMemory()
       }
     }
 
@@ -1133,9 +1121,12 @@ export const useHomeAgent = defineStore(
       await reply(adapter, '🤔 Preparing recent chats…', meta)
 
       const stopTyping = typing(adapter, 'typing', meta)
+      const restore = await ensureSummarizerReady(adapter, meta)
+      if (!restore) {
+        stopTyping()
+        return
+      }
       try {
-        if (!(await ensureSummarizerReady(adapter, meta))) return
-
         const items: Array<{ key: string; label: string }> = []
         for (const c of candidates) {
           const summary = await summarizeConversation(c.key)
@@ -1146,7 +1137,15 @@ export const useHomeAgent = defineStore(
         const buttons = items.map((it) => [{ text: it.label, callbackData: `loadConv:${it.key}` }])
 
         await keyboard(adapter, '📂 Pick a chat to resume:', buttons, meta)
+      } catch (e) {
+        console.error('homeAgent: summarizeConversation failed:', e)
+        await reply(
+          adapter,
+          '⚠️ Could not prepare the model to summarize chats. Try again later.',
+          meta,
+        )
       } finally {
+        restore()
         stopTyping()
       }
     }
@@ -1179,10 +1178,18 @@ export const useHomeAgent = defineStore(
       })
 
       const stopTyping = anyNeedsGen ? typing(adapter, 'typing', meta) : () => undefined
+      let restore: () => void = () => undefined
+      if (anyNeedsGen) {
+        const ready = await ensureSummarizerReady(adapter, meta)
+        if (!ready) {
+          stopTyping()
+          return
+        }
+        restore = ready
+      }
       try {
         if (anyNeedsGen) {
           await reply(adapter, '🤔 Preparing chat history…', meta)
-          if (!(await ensureSummarizerReady(adapter, meta))) return
         }
 
         const summaries: Record<string, string> = {}
@@ -1211,7 +1218,15 @@ export const useHomeAgent = defineStore(
             '\n\nResume one with <code>/load &lt;id&gt;</code> or just <code>/load</code> for a tap menu.',
           meta,
         )
+      } catch (e) {
+        console.error('homeAgent: summarizeConversation failed:', e)
+        await reply(
+          adapter,
+          '⚠️ Could not prepare the model to summarize chats. Try again later.',
+          meta,
+        )
       } finally {
+        restore()
         stopTyping()
       }
     }
@@ -1281,43 +1296,35 @@ export const useHomeAgent = defineStore(
       audio: RemoteAudio[],
       meta?: InboundMeta,
     ): Promise<string | null> {
-      const speechToText = useSpeechToText()
       // Start the selected engine's server on demand. Both are dialog-free (a
       // remote sender can't answer a download popup) and no-op when the backend or
-      // model isn't installed — a configured fallback still serves. The standalone
-      // sidecar needs this explicitly: its endpoint resolves from the registered
-      // service's baseUrl whether or not the process is running, so without the
-      // start below transcription would just fail to connect.
-      if (speechToText.effectiveSttEngine === 'standalone') {
-        await speechToText.ensureStandaloneServerRunning()
-      } else {
-        await speechToText.ensureTranscriptionServerRunning()
-      }
-      const endpoint = await speechToText.resolveTranscription()
-      if (!endpoint) {
-        await reply(
-          adapter,
-          '⚠️ No speech-to-text is available. Install the OpenVINO backend or the standalone Whisper backend, or configure a fallback transcription endpoint in the Speech to Text preset settings.',
-          meta,
-        )
-        return null
-      }
+      // model isn't installed — a configured fallback still serves.
+      await readyTranscriptionUnattended()
+
       const stopTyping = typing(adapter, 'typing', meta)
       try {
         const parts: string[] = []
         for (const a of audio) {
           const blob = base64ToBlob(a.data_base64, a.mime)
-          const text = await transcribeAudioBlob(blob, endpoint)
+          const { text } = await transcribe({ audio: blob })
           if (text) parts.push(text.trim())
         }
         return parts.filter(Boolean).join(' ').trim()
       } catch (e) {
         console.error('homeAgent: audio transcription failed:', e)
-        await reply(
-          adapter,
-          `⚠️ Could not transcribe the audio: ${e instanceof Error ? e.message : String(e)}`,
-          meta,
-        )
+        if (e instanceof Error && e.message === NO_TRANSCRIPTION_ENDPOINT) {
+          await reply(
+            adapter,
+            '⚠️ No speech-to-text is available. Install the OpenVINO backend or the standalone Whisper backend, or configure a fallback transcription endpoint in the Speech to Text preset settings.',
+            meta,
+          )
+        } else {
+          await reply(
+            adapter,
+            `⚠️ Could not transcribe the audio: ${e instanceof Error ? e.message : String(e)}`,
+            meta,
+          )
+        }
         return null
       } finally {
         stopTyping()
@@ -1363,8 +1370,8 @@ export const useHomeAgent = defineStore(
               filename,
               doc.data_base64,
             )
-            if (!result.success || !result.filepath) {
-              throw new Error(result.error || 'failed to persist document')
+            if (!result.success) {
+              throw new Error(result.error)
             }
             const stub: IndexedDocument = {
               filename,
@@ -1830,16 +1837,6 @@ export const useHomeAgent = defineStore(
     ): Promise<void> {
       focusRemoteChatDiscussion()
 
-      const comfyService = backendServices.info.find((s) => s.serviceName === 'comfyui-backend')
-      if (!comfyService || comfyService.status !== 'running') {
-        await reply(
-          adapter,
-          '⚠️ Image generation is not available — the ComfyUI backend is not running.',
-          meta,
-        )
-        return
-      }
-
       const presetsList = presetsStore
         .getPresetsByCategories(['create-images'], 'comfy')
         .filter((p) => !p.excludeFromHomeAgentPicker)
@@ -1896,23 +1893,22 @@ export const useHomeAgent = defineStore(
       prompt: string,
       meta?: InboundMeta,
     ): Promise<void> {
-      const comfyService = backendServices.info.find((s) => s.serviceName === 'comfyui-backend')
-      if (!comfyService || comfyService.status !== 'running') {
-        await reply(
-          adapter,
-          '⚠️ Image generation is not available — the ComfyUI backend is not running.',
-          meta,
-        )
+      // Resolve without selecting: the runner drives the generation, so the
+      // desktop view (mode, preset, form) stays exactly as it was.
+      const targetPreset = presetsStore.resolvePresetVariant(
+        presetName,
+        presetsStore.activeVariantName[presetName],
+      )
+      if (!targetPreset || targetPreset.type !== 'comfy') {
+        const presetLabel = adapter.formatItalic(adapter.escapeInline(presetName))
+        await reply(adapter, `⚠️ Preset ${presetLabel} is not available.`, meta)
         return
       }
 
-      const previousMode = promptStore.getCurrentMode()
       // Match the typing indicator to the eventual delivery so Telegram shows
-      // "sending a photo/video/document…" during the ComfyUI render. Read the
-      // media type from the target preset by name (the active preset hasn't
-      // been switched yet at this point). Slack ignores the action name and
-      // just toggles the :eyes: reaction.
-      const targetMediaType = presetsStore.presets.find((p) => p.name === presetName)?.mediaType
+      // "sending a photo/video/document…" during the ComfyUI render. Slack
+      // ignores the action name and just toggles the :eyes: reaction.
+      const targetMediaType = targetPreset.mediaType
       const uploadAction =
         targetMediaType === 'video'
           ? 'upload_video'
@@ -1959,87 +1955,37 @@ export const useHomeAgent = defineStore(
       // Mark this as a remote turn so any required model downloads route their
       // approval + progress to the channel (via handleRemoteModelDownload)
       // instead of popping a desktop-only modal nobody at the channel can see.
+      // Backend start and node/package installs are the runner's — same as the
+      // desktop UI. Installs run on this machine; missing models still go
+      // through the in-channel download flow.
       activeRemoteTurn = { adapter, meta }
       try {
-        promptStore.setModeOnly('imageGen')
-
-        const switchResult = await presetSwitching.switchPreset(presetName, {
-          skipModeSwitch: true,
-        })
-        if (!switchResult.success) {
-          const presetLabel = adapter.formatItalic(adapter.escapeInline(presetName))
-          const errLabel = adapter.escapeInline(switchResult.error ?? 'unknown error')
-          await reply(adapter, `⚠️ Could not select preset ${presetLabel}: ${errLabel}`, meta)
-          return
-        }
-
-        if (!imageGenStore.activePreset) {
-          await reply(
-            adapter,
-            '⚠️ No image generation preset is selected. Please configure one in AI Playground.',
-            meta,
-          )
-          return
-        }
-
-        const validation = await imageGenStore.validatePresetRequirements()
-        if (!validation.backendRunning) {
-          await reply(
-            adapter,
-            '⚠️ Image generation is not available — the ComfyUI backend is not running.',
-            meta,
-          )
-          return
-        }
-        // Custom nodes / Python packages have no remote install path, so a
-        // missing one is still a hard block. Missing models, however, are
-        // routed through the in-channel download flow below.
-        if (
-          validation.missingCustomNodes.length > 0 ||
-          validation.missingPythonPackages.length > 0
-        ) {
-          const parts: string[] = []
-          if (validation.missingCustomNodes.length > 0)
-            parts.push(`missing custom nodes: ${validation.missingCustomNodes.join(', ')}`)
-          if (validation.missingPythonPackages.length > 0)
-            parts.push(`missing packages: ${validation.missingPythonPackages.join(', ')}`)
-          await reply(
-            adapter,
-            `⚠️ Image generation requirements are not met: ${parts.join('; ')}. Please configure AI Playground first.`,
-            meta,
-          )
-          return
-        }
-
-        // Required models that are not downloaded yet: with activeRemoteTurn set
-        // above this routes the approval + progress to the channel. On decline /
-        // cancel / failure the helper has already messaged the channel, so just
-        // unwind cleanly.
+        let result
         try {
-          await imageGenStore.ensureModelsAreAvailable()
+          result = await runArtifact({
+            kind: artifactKindForMedia(targetMediaType, false),
+            workflow: presetName,
+            mode: 'imageGen',
+            prompt,
+          })
         } catch {
+          // A declined/cancelled required-model download — the in-channel
+          // download flow has already messaged the channel; unwind quietly.
           return
         }
 
-        const knownIdsBefore = new Set(imageGenStore.generatedImages.map((img) => img.id))
-        imageGenStore.prompt = prompt
-        try {
-          await imageGenStore.generate('imageGen')
-        } catch (e) {
+        if (result.state === 'cancelled') return
+
+        if (result.state === 'failed') {
           await reply(
             adapter,
-            `⚠️ Image generation failed to start: ${e instanceof Error ? e.message : String(e)}`,
+            `⚠️ Image generation failed: ${result.error ?? 'unknown error'}`,
             meta,
           )
           return
         }
 
-        const newImageIds = new Set(
-          imageGenStore.generatedImages
-            .filter((img) => !knownIdsBefore.has(img.id))
-            .map((img) => img.id),
-        )
-
+        const newImageIds = new Set(result.items.map((img) => img.id))
         if (newImageIds.size === 0) {
           await reply(adapter, '⚠️ Image generation did not produce any images.', meta)
           return
@@ -2051,7 +1997,6 @@ export const useHomeAgent = defineStore(
         activeRemoteTurn = null
         stopDraft()
         stopTyping()
-        promptStore.setModeOnly(previousMode)
       }
     }
 
@@ -2345,7 +2290,7 @@ export const useHomeAgent = defineStore(
     async function saveChannelConfig(
       kind: ChannelKind,
       config: Partial<ChannelConfig>,
-    ): Promise<{ success: boolean; error?: string }> {
+    ): Promise<IpcMutationResult> {
       try {
         // safeStorage save (electron main process). Pass the flat config blob;
         // the main side partitions secret vs public fields.
@@ -2374,7 +2319,7 @@ export const useHomeAgent = defineStore(
         return result
       } catch (e) {
         console.error(`homeAgent.saveChannelConfig(${kind}) failed:`, e)
-        return { success: false, error: String(e) }
+        return { success: false as const, error: String(e) }
       }
     }
 
@@ -2483,6 +2428,11 @@ export const useHomeAgent = defineStore(
     }
 
     void initConfig()
+
+    registerRemoteTurnPort({
+      isActive: () => isRemoteTurnActive(),
+      downloadModels: (models, options) => handleRemoteModelDownload(models, options),
+    })
 
     // ── Read-only convenience getters ───────────────────────────────────────
     // External consumers (setup composables, setup-step components) read these.

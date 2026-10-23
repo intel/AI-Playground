@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useModels } from './models'
 import { useModelPreferences } from './modelPreferences'
 import { usePresets } from './presets'
-import { useDialogStore } from './dialogs'
+import { requestDownload } from '@/assets/js/permissions/permissions'
 import { useGlobalSetup } from './globalSetup'
 import { useTextInference } from './textInference'
 import { useProductMode } from './productMode'
@@ -12,6 +12,7 @@ import { WHISPER_OVMS_MODELS, WHISPER_STANDALONE_MODELS } from '../whisperConsta
 import { SPEECHT5_MODEL_NAME } from './textToSpeech'
 import { QWEN3_TTS_MODEL_REPOS } from '../qwen3TtsConstants'
 import { createAppError } from '../errors/appError'
+import type { IpcMutationResult } from '@/types/ipcChannels'
 import { entriesToDownloadParams } from '../models/downloadParams'
 import {
   DEFAULT_FILTERS,
@@ -22,6 +23,7 @@ import {
   countByUseCase,
   entriesForProductMode,
   filterEntries,
+  normalizeModelKey,
   sortEntries,
   type ModelLibraryFilters,
   type ModelSort,
@@ -30,6 +32,7 @@ import {
   type SpeechModelInput,
 } from '../models/library'
 import type { ModelCapabilityValues, ModelEntry, ScannedModel } from '../models/types'
+import { useVramFitLevels, type VramFitTarget } from '@/lib/useLlamaCppVramFit'
 
 /**
  * The model management view's state: the unified entry list, its filters and
@@ -43,7 +46,6 @@ export const useModelLibrary = defineStore('modelLibrary', () => {
   const models = useModels()
   const modelPreferences = useModelPreferences()
   const presets = usePresets()
-  const dialogs = useDialogStore()
   const globalSetup = useGlobalSetup()
   const textInference = useTextInference()
   const productMode = useProductMode()
@@ -156,8 +158,50 @@ export const useModelLibrary = defineStore('modelLibrary', () => {
   const backendOptions = computed(() => availableBackends(categoryEntries.value))
   const downloadStateOptions = computed(() => availableDownloadStates(categoryEntries.value))
 
+  /**
+   * Same rule as those two: a category with no llama.cpp LLM in it has nothing
+   * the size filter could act on, so the toolbar does not offer the control.
+   */
+  const fitFilterAvailable = computed(() =>
+    categoryEntries.value.some(
+      (entry) => entry.useCase === 'llm' && entry.serviceBackend === 'llama_cpp',
+    ),
+  )
+
+  /**
+   * A library entry as the VRAM estimator wants it. The entry knows the file;
+   * the catalog's `LlmModel` knows the projector and the context ceiling, which
+   * the estimate needs and the scan does not carry — so the two are matched on
+   * the normalized name. Matching also means both this table and the chat
+   * picker key the same model to the same cached GGUF header, and the header is
+   * read once for the app rather than once per surface.
+   */
+  const llamaCppCatalog = computed(
+    () =>
+      new Map(
+        textInference.llmModels
+          .filter((model) => model.type === 'llamaCPP')
+          .map((model) => [normalizeModelKey(model.name), model]),
+      ),
+  )
+
+  function fitTargetFor(entry: ModelEntry): VramFitTarget | undefined {
+    if (entry.useCase !== 'llm' || entry.serviceBackend !== 'llama_cpp') return undefined
+    const known = llamaCppCatalog.value.get(normalizeModelKey(entry.name))
+    return {
+      name: known?.name ?? entry.name,
+      downloaded: entry.downloaded,
+      mmproj: known?.mmproj,
+      llamaCppArgs: known?.llamaCppArgs ?? entry.llamaCppArgs,
+      maxContextSize: known?.maxContextSize,
+    }
+  }
+
+  const { levelOf } = useVramFitLevels()
+  const vramLevel = (entry: ModelEntry) => levelOf(fitTargetFor(entry))
+
   const visibleEntries = computed(() =>
-    sortEntries(filterEntries(entries.value, filters.value), sort.value),
+    sortEntries(filterEntries(entries.value, filters.value, { vramLevel }), sort.value),
   )
 
   const selectedEntries = computed(() =>
@@ -230,6 +274,10 @@ export const useModelLibrary = defineStore('modelLibrary', () => {
       ) {
         next.downloadState = 'all'
       }
+      // Likewise the size filter: a category with nothing to judge hides the
+      // toggle, and a filter left on behind a control the user can no longer
+      // see would come back the next time they open an LLM category.
+      if (next.fitsOnly && !fitFilterAvailable.value) next.fitsOnly = false
       filters.value = next
     }
     // Selecting a row and then filtering it away would hide what a batch action
@@ -293,11 +341,14 @@ export const useModelLibrary = defineStore('modelLibrary', () => {
     // The IPC call can reject outright (the handler throwing, the channel gone),
     // not only resolve with `success: false` — an unhandled rejection here would
     // leave the user with a menu item that silently did nothing.
-    const reveal = async () => {
+    const reveal = async (): Promise<IpcMutationResult> => {
       try {
         return await window.electronAPI.showModelInFolder(entry.absolutePath!)
       } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : String(error) }
+        return {
+          success: false as const,
+          error: error instanceof Error ? error.message : String(error),
+        }
       }
     }
     const result = await reveal()
@@ -338,11 +389,14 @@ export const useModelLibrary = defineStore('modelLibrary', () => {
         if (!entry?.absolutePath) continue
         // A rejected call counts as a failed path like any other, so one bad
         // entry cannot abandon the rest of a batch delete half-done.
-        let result: { success: boolean; error?: string }
+        let result: IpcMutationResult
         try {
           result = await window.electronAPI.deleteModelPath(entry.absolutePath)
         } catch (error) {
-          result = { success: false, error: error instanceof Error ? error.message : String(error) }
+          result = {
+            success: false as const,
+            error: error instanceof Error ? error.message : String(error),
+          }
         }
         if (result.success) {
           deleted += 1
@@ -372,18 +426,17 @@ export const useModelLibrary = defineStore('modelLibrary', () => {
     return { deleted, failed }
   }
 
-  /** Queue downloads through the existing (already multi-model) download dialog. */
-  function download(entriesToDownload: ModelEntry[]) {
+  /** Queue downloads through the shared permissions download prompt. */
+  async function download(entriesToDownload: ModelEntry[]) {
     const params = entriesToDownloadParams(entriesToDownload, models.getModelPath)
     if (params.length === 0) return
-    dialogs.showDownloadDialog(
-      params,
-      () => {
-        refresh()
-        clearSelection()
-      },
-      () => refresh(),
-    )
+    try {
+      await requestDownload(params)
+      clearSelection()
+    } catch {
+      // Download declined or failed; either way the list may have changed.
+    }
+    refresh()
   }
 
   function downloadOne(id: string) {
@@ -401,6 +454,8 @@ export const useModelLibrary = defineStore('modelLibrary', () => {
     useCaseCounts,
     backendOptions,
     downloadStateOptions,
+    fitTargetFor,
+    fitFilterAvailable,
     filters,
     sort,
     selection,

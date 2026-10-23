@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ComfyUIApiWorkflow } from './presets'
-import { isNodeLink, modifySettingInWorkflow } from './comfyUiWorkflowHelpers'
+import { isNodeLink, modifySettingInWorkflow } from '@/lib/comfyWorkflow'
 
 describe('isNodeLink', () => {
   it('recognizes [nodeId, slot] tuples', () => {

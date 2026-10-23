@@ -61,13 +61,14 @@ export class AppDriver {
    *
    * The presets' own `preferredModels` are big — a 35B MoE on llama.cpp — because
    * they are tuned for game quality. These tests only care that a game gets built
-   * at all, so they pin the smallest model that still clears both preset gates
-   * (`requiresToolCalling` and `requiresCoding`): Qwen3.5-4B. That cuts the
-   * download to a few GB and the turn to a fraction of the time.
+   * at all, so they pin the smallest model that still clears the preset gates
+   * (`requiresToolCalling`, `requiresCoding`, and `requiresAgentic`): Qwen3.5-9B.
+   * Qwen3.5-4B is smaller, and it is marked agentic, but the catalog sets
+   * `supportsCoding` false, so Game Agent and Quick Coder do not list it.
    */
   private static readonly AGENT_GAME_MODEL: Record<string, string> = {
-    'llamaCPP - GGUF': 'Qwen3.5-4B-Q4_K_M.gguf',
-    OpenVINO: 'Qwen3.5-4B-int4-ov',
+    'llamaCPP - GGUF': 'Qwen3.5-9B-Q4_K_M.gguf',
+    OpenVINO: 'Qwen3.5-9B-int4-ov',
   }
 
   /** Context size the pinned small model is run at — see the call site for why. */
@@ -332,7 +333,7 @@ export class AppDriver {
    * product mode so the caller can skip.
    *
    * Why this exists next to {@link runAgentGamePreset}: a full Game Agent build is
-   * dozens of model steps and runs well past half an hour on the pinned 4B model,
+   * dozens of model steps and runs well past half an hour on the pinned 9B model,
    * which is too long to sit in the suite. What actually regresses — preset wiring,
    * model/backend load, the agent harness starting and driving its tool loop — all
    * shows up in the first minute, so this asserts that much and no more. It does
@@ -385,8 +386,8 @@ export class AppDriver {
         AppDriver.AGENT_GAME_MODEL[backend] ?? AppDriver.AGENT_GAME_MODEL['llamaCPP - GGUF']
       await test.step(`Pin the small agent model: ${model}`, () =>
         this.settings.selectModel(model, 'Agent'))
-      // The preset asks for 128k, the size its big preferred model is tuned for. A 4B
-      // model on a laptop GPU cannot allocate a KV cache that size, and llama.cpp then
+      // The preset asks for 128k, the size its big preferred model is tuned for. The
+      // pinned model on a laptop GPU cannot allocate a KV cache that size, and llama.cpp then
       // refuses to load the model at all — the turn dies inside ensureReadyForInference
       // before it ever starts. Still well above the 32k the panel says agentic sessions
       // want. A no-op on OpenVINO GPU, which has no such setting to get wrong.

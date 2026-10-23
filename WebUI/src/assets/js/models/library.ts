@@ -4,6 +4,7 @@
 import { type CapabilityKey, modelHasCapability } from '../capabilities'
 import { hasCapabilityOverrides, mergeCapabilities } from './overrides'
 import type { InferenceDefaults, SamplingProfile } from '@/types/shared'
+import type { VramFitVerdict } from '@/lib/vram/types'
 import {
   type ModelCapabilityValues,
   type ModelEntry,
@@ -331,6 +332,8 @@ export type ModelLibraryFilters = {
   backend: ModelServiceBackend | 'all'
   capabilities: CapabilityKey[]
   downloadState: ModelDownloadState
+  /** Hide models the VRAM estimator says will not fit the card. */
+  fitsOnly: boolean
 }
 
 export const DEFAULT_FILTERS: ModelLibraryFilters = {
@@ -339,6 +342,7 @@ export const DEFAULT_FILTERS: ModelLibraryFilters = {
   backend: 'all',
   capabilities: [],
   downloadState: 'all',
+  fitsOnly: false,
 }
 
 /**
@@ -354,10 +358,25 @@ export function matchesSearch(entry: ModelEntry, search: string): boolean {
 export function filterEntries(
   entries: ModelEntry[],
   filters: ModelLibraryFilters,
-  options: { alwaysInclude?: ReadonlySet<string> } = {},
+  options: {
+    alwaysInclude?: ReadonlySet<string>
+    /**
+     * The VRAM verdict for an entry, or null when there is none — a model the
+     * estimator cannot speak for (anything but a llama.cpp LLM), a header still
+     * being read, or no GPU sample yet. Injected rather than computed here so
+     * this stays a pure function over the entry list.
+     */
+    vramLevel?: (entry: ModelEntry) => VramFitVerdict | null
+  } = {},
 ): ModelEntry[] {
   return entries.filter((entry) => {
     if (options.alwaysInclude?.has(entry.id)) return true
+    // Out goes anything the estimator judged and rejected, and anything it was
+    // asked about and could not judge — both are reasons not to offer a model.
+    // A null is neither: an embedding model has no size verdict to fail, and a
+    // header still in flight has not answered yet, so both stay.
+    const level = filters.fitsOnly ? options.vramLevel?.(entry) : undefined
+    if (level === 'over' || level === 'unknown') return false
     if (filters.useCase === 'favorites' && !entry.favorite) return false
     if (
       filters.useCase !== 'all' &&

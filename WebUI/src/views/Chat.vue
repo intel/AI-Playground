@@ -51,6 +51,14 @@
               "
               alt="Generated Image"
             />
+            <audio
+              v-for="(clip, clipIndex) in audioAttachments(message)"
+              :key="clipIndex"
+              controls
+              class="w-full max-w-md"
+              :src="clip.url"
+              :aria-label="clip.filename ?? 'Attached audio'"
+            />
             <MarkdownRenderer
               :class="textInference.fontSizeClass"
               :content="getMessageTextForCopy(message)"
@@ -170,64 +178,53 @@
 
                 <!-- Tool parts -->
                 <template v-else-if="isToolUIPart(part)">
-                  <template v-if="isAipgTool(part) && part.type === 'tool-comfyUI'">
+                  <template v-if="isAipgTool(part) && toolPartNameOf(part) === 'comfyUI'">
                     <div>
-                      <span v-if="part.state === 'input-streaming' && !part.input?.workflow"
+                      <span
+                        v-if="part.state === 'input-streaming' && !toolInputRecord(part).workflow"
                         >Generating…</span
                       >
                       <span v-else
                         >Generating using the preset
-                        <b>{{ part.input?.workflow ?? 'unknown' }}</b></span
+                        <b>{{ toolInputRecord(part).workflow ?? 'unknown' }}</b></span
                       >
                       <br />
                       <br />
                       <span
-                        ><em>{{ part.input?.prompt ?? '' }}</em></span
+                        ><em>{{ toolInputRecord(part).prompt ?? '' }}</em></span
                       >
-                      <ChatWorkflowResult
-                        :images="getToolImages(part)"
-                        :processing="getToolProcessing(part)"
-                        :currentState="getToolCurrentState(part)"
-                        :stepText="getToolStepText(part)"
-                        :toolCallId="(part as any).toolCallId"
-                      />
+                      <ChatWorkflowResult v-bind="toolMediaCard(part)" />
                     </div>
                   </template>
-                  <template v-else-if="isAipgTool(part) && part.type === 'tool-comfyUiImageEdit'">
+                  <template
+                    v-else-if="isAipgTool(part) && toolPartNameOf(part) === 'comfyUiImageEdit'"
+                  >
                     <div>
-                      <span v-if="part.state === 'input-streaming' && !part.input?.workflow"
+                      <span
+                        v-if="part.state === 'input-streaming' && !toolInputRecord(part).workflow"
                         >Editing…</span
                       >
                       <span v-else
                         >Editing using the preset
-                        <b>{{ part.input?.workflow ?? 'unknown' }}</b></span
+                        <b>{{ toolInputRecord(part).workflow ?? 'unknown' }}</b></span
                       >
                       <br />
                       <br />
                       <span
-                        ><em>{{ part.input?.prompt ?? '' }}</em></span
+                        ><em>{{ toolInputRecord(part).prompt ?? '' }}</em></span
                       >
-                      <ChatWorkflowResult
-                        :images="getToolImages(part)"
-                        :processing="getToolProcessing(part)"
-                        :currentState="getToolCurrentState(part)"
-                        :stepText="getToolStepText(part)"
-                        :toolCallId="(part as any).toolCallId"
-                      />
+                      <ChatWorkflowResult v-bind="toolMediaCard(part)" />
                     </div>
                   </template>
-                  <!-- Thin media delegation tool: the nested media agent reports its
-                       steps to mediaAgentRuns (keyed by toolCallId), which the
-                       timeline renders live; the shared imageGeneration store still
-                       feeds ChatWorkflowResult through toolProgressMap. -->
-                  <template v-else-if="isAipgTool(part) && part.type === 'tool-media'">
+                  <template v-else-if="isAipgTool(part) && toolPartNameOf(part) === 'media'">
                     <div>
-                      <span v-if="part.state === 'input-streaming' && !part.input?.request"
+                      <span
+                        v-if="part.state === 'input-streaming' && !toolInputRecord(part).request"
                         >Creating media…</span
                       >
                       <span v-else>
                         Creating media:
-                        <em>{{ part.input?.request ?? '' }}</em>
+                        <em>{{ toolInputRecord(part).request ?? '' }}</em>
                       </span>
                       <MediaAgentTimeline
                         class="mt-2"
@@ -243,17 +240,13 @@
                       >
                         {{ (part as any).output?.message ?? 'Media generation failed.' }}
                       </div>
-                      <ChatWorkflowResult
-                        :images="getToolImages(part)"
-                        :processing="getToolProcessing(part)"
-                        :currentState="getToolCurrentState(part)"
-                        :stepText="getToolStepText(part)"
-                        :toolCallId="(part as any).toolCallId"
-                      />
+                      <ChatWorkflowResult v-bind="toolMediaCard(part)" />
                     </div>
                   </template>
                   <template
-                    v-else-if="isAipgTool(part) && part.type === 'tool-visualizeObjectDetections'"
+                    v-else-if="
+                      isAipgTool(part) && toolPartNameOf(part) === 'visualizeObjectDetections'
+                    "
                   >
                     <div>
                       <div
@@ -277,7 +270,9 @@
                       </div>
                     </div>
                   </template>
-                  <template v-else-if="isAipgTool(part) && part.type === 'tool-captureScreenshot'">
+                  <template
+                    v-else-if="isAipgTool(part) && toolPartNameOf(part) === 'captureScreenshot'"
+                  >
                     <div>
                       <div
                         v-if="part.state === 'output-available' && (part as any).output?.dataUri"
@@ -301,7 +296,9 @@
                       </div>
                     </div>
                   </template>
-                  <template v-else-if="isAipgTool(part) && part.type === 'tool-screenshotWebPage'">
+                  <template
+                    v-else-if="isAipgTool(part) && toolPartNameOf(part) === 'screenshotWebPage'"
+                  >
                     <div>
                       <div
                         v-if="part.state === 'output-available' && (part as any).output?.dataUri"
@@ -323,7 +320,9 @@
                     </div>
                   </template>
                   <template
-                    v-else-if="isAipgTool(part) && part.type === 'tool-synthesizeTextToSpeech'"
+                    v-else-if="
+                      isAipgTool(part) && toolPartNameOf(part) === 'synthesizeTextToSpeech'
+                    "
                   >
                     <div>
                       <ChatTtsToolResult
@@ -361,7 +360,7 @@
                 v-if="
                   i === activeConversation.length - 1 &&
                   hasActiveChatActivity &&
-                  !imageGeneration.processing
+                  !messageHasLiveMedia(message)
                 "
                 :conversation-key="conversations.activeKey"
               />
@@ -387,40 +386,34 @@
                 <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
               </button>
               <button
-                v-if="textToSpeech.available"
+                v-if="speakAvailable"
                 class="flex items-end"
                 title="Speak"
                 :disabled="
                   openAiCompatibleChat.processing ||
-                  (textToSpeech.preparingSpeech && textToSpeech.speakingMessageId !== message.id)
+                  (preparingSpeech && speakingMessageId !== message.id)
                 "
                 :class="{
                   'opacity-50 cursor-not-allowed':
                     openAiCompatibleChat.processing ||
-                    (textToSpeech.preparingSpeech && textToSpeech.speakingMessageId !== message.id),
+                    (preparingSpeech && speakingMessageId !== message.id),
                 }"
                 @click="toggleSpeak(message)"
               >
                 <span
-                  v-if="
-                    textToSpeech.preparingSpeech &&
-                    textToSpeech.speakingMessageId === message.id &&
-                    !textToSpeech.isSpeaking
-                  "
+                  v-if="preparingSpeech && speakingMessageId === message.id && !isSpeaking"
                   class="svg-icon i-loading w-4 h-4 animate-spin"
                   aria-hidden="true"
                 ></span>
                 <span
                   v-else
                   class="svg-icon w-4 h-4"
-                  :class="textToSpeech.speakingMessageId === message.id ? 'i-stop' : 'i-speaker'"
+                  :class="speakingMessageId === message.id ? 'i-stop' : 'i-speaker'"
                 ></span>
                 <span class="text-xs ml-1">{{
-                  textToSpeech.preparingSpeech &&
-                  textToSpeech.speakingMessageId === message.id &&
-                  !textToSpeech.isSpeaking
+                  preparingSpeech && speakingMessageId === message.id && !isSpeaking
                     ? 'Starting…'
-                    : textToSpeech.speakingMessageId === message.id && textToSpeech.isSpeaking
+                    : speakingMessageId === message.id && isSpeaking
                       ? 'Stop'
                       : 'Speak'
                 }}</span>
@@ -462,6 +455,39 @@
               <span class="mr-2"
                 >1st Token Time: {{ message.metadata?.timings.prompt_ms.toFixed(2) }}ms</span
               >
+              <template v-if="message.metadata?.compute?.gpuMemPeakMiB != null">
+                <span class="mr-2">⋅</span>
+                <span class="mr-2"
+                  >{{ formatMib(message.metadata.compute.gpuMemPeakMiB) }} vRAM peak</span
+                >
+              </template>
+              <template v-else-if="message.metadata?.compute?.hostMemPeakMiB != null">
+                <span class="mr-2">⋅</span>
+                <span class="mr-2"
+                  >{{ formatMib(message.metadata.compute.hostMemPeakMiB) }} RAM peak</span
+                >
+              </template>
+              <template
+                v-if="CHAT_ENERGY_ESTIMATES_ENABLED && message.metadata?.energy?.wattHours != null"
+              >
+                <span class="mr-2">⋅</span>
+                <span class="mr-2"
+                  >{{ formatEnergyWh(message.metadata.energy.wattHours) }} GPU energy</span
+                >
+              </template>
+              <template
+                v-if="
+                  CHAT_ENERGY_ESTIMATES_ENABLED &&
+                  i + 1 === activeConversation.length &&
+                  conversationEnergy
+                "
+              >
+                <span class="mr-2">⋅</span>
+                <span class="mr-2"
+                  >est. {{ formatUsd(conversationEnergy.costPerMillionOutputTokensUsd) }} / 1M
+                  output tokens @ $0.35/kWh</span
+                >
+              </template>
             </div>
           </div>
         </div>
@@ -493,7 +519,15 @@ import { usePromptStore } from '@/assets/js/store/promptArea.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
 import { useErrors } from '@/assets/js/store/errors'
 import { createAppError } from '@/assets/js/errors/appError'
-import { useTextToSpeech } from '@/assets/js/store/textToSpeech'
+import {
+  isSpeaking,
+  pendingVoiceTurn,
+  preparingSpeech,
+  speak,
+  speakRepliesAvailable,
+  speakingMessageId,
+  stopSpeaking,
+} from '@/assets/js/speech/speechIO'
 import ChatWorkflowResult from '@/components/ChatWorkflowResult.vue'
 import MediaAgentTimeline from '@/components/MediaAgentTimeline.vue'
 import ChatMcpToolDisplay from '@/components/ChatMcpToolDisplay.vue'
@@ -506,22 +540,30 @@ import ChatTtsToolResult from '@/components/ChatTtsToolResult.vue'
 import { useConversations } from '@/assets/js/store/conversations'
 import { useActivities } from '@/assets/js/store/activities'
 import { useConfirmations } from '@/assets/js/store/confirmations'
-import {
-  useImageGenerationPresets,
-  type MediaItem,
-  type GenerateState,
-} from '@/assets/js/store/imageGenerationPresets'
-import { useComfyUiPresets } from '@/assets/js/store/comfyUiPresets'
+import { type MediaItem } from '@/assets/js/store/imageGenerationPresets'
+import { useMediaAgentRuns } from '@/assets/js/store/mediaAgentRuns'
+import { useArtifactRuns } from '@/assets/js/store/artifactRuns'
+import type { ArtifactPhase } from '@/types/kernelEvents'
+import { ensureMediaAgentEventWiring } from '@/assets/js/agents/mediaAgent'
 import { DynamicToolUIPart, isToolUIPart, ToolUIPart } from 'ai'
 import { aipgTools, AipgTools } from '@/assets/js/tools/tools'
+import { toolPartNameOf } from '@/lib/agentTranscript'
+import {
+  isAipgChatToolPart,
+  isChatMediaToolPart,
+  isChatMcpToolPart,
+  isChatWebBrowseToolPart,
+} from '@/lib/chatToolParts'
 import { UserCircleIcon } from '@heroicons/vue/24/outline'
+import { CHAT_ENERGY_ESTIMATES_ENABLED, estimateConversationEnergy } from '@/lib/chatEnergy'
+import { formatEnergyWh, formatMib, formatUsd } from '@/lib/computeMetricsFormat'
 
 const openAiCompatibleChat = useOpenAiCompatibleChat()
-const textToSpeech = useTextToSpeech()
+const speakAvailable = computed(() => speakRepliesAvailable())
 const textInference = useTextInference()
 const promptStore = usePromptStore()
-const imageGeneration = useImageGenerationPresets()
-const comfyUi = useComfyUiPresets()
+const mediaAgentRuns = useMediaAgentRuns()
+const artifactRuns = useArtifactRuns()
 const conversations = useConversations()
 const activities = useActivities()
 const confirmations = useConfirmations()
@@ -568,10 +610,11 @@ const showScrollButton = ref(false)
 const chatPanel = ref<HTMLElement | null>(null)
 
 const activeConversation = computed(() => openAiCompatibleChat.messages)
+const conversationEnergy = computed(() => estimateConversationEnergy(activeConversation.value))
 const showRagSourcePerMessageId = reactive<Record<string, boolean>>({})
 
 const ragSourcePerMessageId = reactive<Record<string, string>>({})
-const aipgToolPartTypes = new Set(Object.keys(aipgTools).map((toolName) => `tool-${toolName}`))
+const aipgToolNames = new Set(Object.keys(aipgTools))
 
 // Inline ![alt](aipg-media://…) tokens are also rendered as a ChatWorkflowResult
 // tool-part below, so strip them from the text part to avoid duplicate images.
@@ -579,20 +622,6 @@ const AIPG_IMAGE_MD_RE_DISPLAY = /!\[[^\]]*]\(aipg-media:\/\/[^)]+\)/g
 function stripAipgMediaImages(text: string): string {
   return text.replace(AIPG_IMAGE_MD_RE_DISPLAY, '').trim()
 }
-
-// Track progress for active tool calls
-const toolProgressMap = reactive<
-  Record<
-    string,
-    {
-      processing: boolean
-      currentState?: GenerateState
-      stepText?: string
-      images: MediaItem[]
-      initialImageIds: Set<string> // Track which image IDs existed when tool call started
-    }
-  >
->({})
 
 defineExpose({
   scrollToBottom,
@@ -603,6 +632,7 @@ defineExpose({
 const chatLikeModes: ChatLikeModeType[] = ['chat', 'audio']
 
 onMounted(() => {
+  ensureMediaAgentEventWiring()
   for (const mode of chatLikeModes) {
     promptStore.registerSubmitCallback(mode, handlePromptSubmit)
     promptStore.registerCancelCallback(mode, handleCancel)
@@ -640,6 +670,17 @@ watch(
           ragSourcePerMessageId[message.id] = ragSource
           // Default to collapsed state
           showRagSourcePerMessageId[message.id] = false
+        }
+        if (message.role !== 'assistant' || !Array.isArray(message.parts)) return
+        for (const part of message.parts) {
+          if (toolPartNameOf(part) !== 'media') continue
+          const id = (part as { toolCallId?: string }).toolCallId
+          if (!id) continue
+          const state = (part as { state?: string }).state
+          if (state === 'output-available' && (part as { output?: unknown }).output != null) {
+            mediaAgentRuns.endRun(id, 'done')
+          }
+          if (state === 'output-error') mediaAgentRuns.endRun(id, 'failed')
         }
       })
     }
@@ -683,8 +724,8 @@ function handleCancel() {
   if (openAiCompatibleChat.processing) {
     openAiCompatibleChat.stop()
   }
-  // Also cancel any ongoing ComfyUI inference from tool calls
-  comfyUi.stop()
+  // Also cancel any ongoing generation through the main-process runner
+  void window.electronAPI.artifact.cancel()
 
   // Immediately reset prompt state to unblock UI
   promptStore.promptSubmitted = false
@@ -728,6 +769,15 @@ function copyText(text: string) {
     .catch((e) => console.error('Error while copying text to clipboard', e))
 }
 
+function audioAttachments(message: { parts: unknown[] }): Array<{
+  url: string
+  filename?: string
+}> {
+  return (message.parts as Array<{ type: string; mediaType?: string; url?: string }>)
+    .filter((part) => part.type === 'file' && part.mediaType?.startsWith('audio/') && part.url)
+    .map((part) => part as { url: string; filename?: string })
+}
+
 function getMessageTextForCopy(message: { parts: { type: string; text?: string }[] }): string {
   // Mirror the sanitization applied to the rendered MarkdownRenderer
   // (`stripAipgMediaImages`) so copied text matches what the user actually
@@ -741,15 +791,12 @@ function getMessageTextForCopy(message: { parts: { type: string; text?: string }
 }
 
 function toggleSpeak(message: { id: string; parts: { type: string; text?: string }[] }): void {
-  if (
-    textToSpeech.speakingMessageId === message.id &&
-    (textToSpeech.isSpeaking || textToSpeech.preparingSpeech)
-  ) {
-    textToSpeech.stopSpeaking()
+  if (speakingMessageId.value === message.id && (isSpeaking.value || preparingSpeech.value)) {
+    stopSpeaking()
     return
   }
-  if (textToSpeech.preparingSpeech) return
-  textToSpeech.speak(getMessageTextForCopy(message), message.id)
+  if (preparingSpeech.value) return
+  void speak({ text: getMessageTextForCopy(message), messageId: message.id })
 }
 
 // Auto-play the assistant reply when the user's input came from speech.
@@ -758,10 +805,10 @@ watch(
   (processing, wasProcessing) => {
     if (!(wasProcessing && !processing)) return
     // "Speak replies" for the active preset (edited on the Text To Speech tool row).
-    if (!textToSpeech.available || !textInference.speakRepliesAllowed()) return
-    if (!textToSpeech.pendingVoiceTurn) return
+    if (!speakRepliesAvailable() || !textInference.speakRepliesAllowed()) return
+    if (!pendingVoiceTurn.value) return
 
-    textToSpeech.pendingVoiceTurn = false
+    pendingVoiceTurn.value = false
 
     const messages = openAiCompatibleChat.messages
     const last = messages?.[messages.length - 1]
@@ -769,95 +816,59 @@ watch(
 
     const text = getMessageTextForCopy(last)
     if (text.trim().length > 0) {
-      textToSpeech.speak(text, last.id)
+      void speak({ text, messageId: last.id })
     }
   },
 )
 
-// Helper functions for AIPG tool rendering
-// The tool part types that produce media through the shared imageGeneration
-// store (and therefore share the toolProgressMap live-progress tracking).
-const mediaToolPartTypes = new Set(['tool-comfyUI', 'tool-comfyUiImageEdit', 'tool-media'])
-function isMediaToolPart(part: { type: string }): boolean {
-  return mediaToolPartTypes.has(part.type)
+function toolInputRecord(part: { input?: unknown }): Record<string, unknown> {
+  return part.input && typeof part.input === 'object' && !Array.isArray(part.input)
+    ? (part.input as Record<string, unknown>)
+    : {}
 }
 
-function getToolImages(part: ToolUIPart<AipgTools>): MediaItem[] {
-  if (!isMediaToolPart(part)) return []
-  const toolCallId = part.toolCallId
-  const progress = toolProgressMap[toolCallId]
-
-  // If we have progress tracking with images, use those
-  if (progress && progress.images.length > 0) {
-    return progress.images
-  }
-
-  // Otherwise, use output images if available (e.g. after a reload)
-  if (part.state === 'output-available') {
-    const output = part.output as { images?: unknown[] } | undefined
-    if (!output?.images) return []
-    return output.images.map((img) => ({
-      ...(img as MediaItem),
-      state: 'done' as const,
-    }))
-  }
-
-  return []
+type ToolMediaCard = {
+  images: MediaItem[]
+  phase?: ArtifactPhase
+  progress?: { current: number; max: number }
 }
 
-function getToolProcessing(part: ToolUIPart<AipgTools>): boolean {
-  const toolCallId = part.toolCallId
-  const progress = toolProgressMap[toolCallId]
-
-  // If we have progress tracking, use that
-  if (progress) {
-    return progress.processing
-  }
-
-  // Otherwise, check part state
-  return part.state === 'input-streaming' || part.state === 'input-available'
+// Live runs the tool call owns (directly, or through the media specialist),
+// falling back to the settled tool output once the runs have aged out or the
+// page was reloaded.
+function toolMediaCard(part: ToolUIPart<AipgTools> | DynamicToolUIPart): ToolMediaCard {
+  if (!isChatMediaToolPart(part)) return { images: [] }
+  const live = artifactRuns.viewFor(part.toolCallId)
+  const settled = part.state === 'output-available' || part.state === 'output-error'
+  const phase = settled ? undefined : live.phase
+  if (live.items.length > 0) return { images: live.items, phase, progress: live.progress }
+  const output = part.state === 'output-available' ? (part.output as { images?: unknown[] }) : null
+  const images = (output?.images ?? []).map((img) => ({
+    ...(img as MediaItem),
+    state: 'done' as const,
+  }))
+  return { images, phase, progress: live.progress }
 }
 
-function getToolCurrentState(part: ToolUIPart<AipgTools>): GenerateState | undefined {
-  const toolCallId = part.toolCallId
-  const progress = toolProgressMap[toolCallId]
-
-  if (progress && progress.currentState) {
-    return progress.currentState as GenerateState
-  }
-
-  return undefined
+function messageHasLiveMedia(message: { parts?: unknown[] }): boolean {
+  return (message.parts ?? []).some((part) => {
+    const toolPart = part as ToolUIPart<AipgTools> | DynamicToolUIPart
+    return isChatMediaToolPart(toolPart) && artifactRuns.viewFor(toolPart.toolCallId).processing
+  })
 }
 
-function getToolStepText(part: ToolUIPart<AipgTools>): string | undefined {
-  const toolCallId = part.toolCallId
-  const progress = toolProgressMap[toolCallId]
-
-  if (progress && progress.stepText) {
-    return progress.stepText
-  }
-
-  return undefined
+function isAipgTool(part: ToolUIPart<AipgTools> | DynamicToolUIPart): boolean {
+  return isAipgChatToolPart(part, aipgToolNames)
 }
 
-// Type guard to check if a part is an AIPG tool (static tool)
-function isAipgTool(
-  part: ToolUIPart<AipgTools> | DynamicToolUIPart,
-): part is ToolUIPart<AipgTools> {
-  return part.type !== 'dynamic-tool' && aipgToolPartTypes.has(part.type)
-}
-
-// Type guard to check if a part is an MCP tool (dynamic tool with mcp__ prefix)
 function isMcpTool(part: ToolUIPart<AipgTools> | DynamicToolUIPart): part is DynamicToolUIPart {
-  return part.type === 'dynamic-tool' && part.toolName.startsWith('mcp__')
+  return isChatMcpToolPart(part)
 }
 
 // Web-browsing tool parts (browseWeb + interactWithWebPage) are aggregated into a
 // single "Browsed N pages" trace element per assistant message.
-const webBrowsePartTypes = new Set(['tool-searchWeb', 'tool-browseWeb', 'tool-interactWithWebPage'])
-
 function isWebBrowsePart(part: ToolUIPart<AipgTools> | DynamicToolUIPart): boolean {
-  return isAipgTool(part) && webBrowsePartTypes.has(part.type)
+  return isChatWebBrowseToolPart(part)
 }
 
 type ChatMessage = NonNullable<typeof activeConversation.value>[number]
@@ -925,7 +936,7 @@ function isFirstWebBrowsePart(message: ChatMessage, partIndex: number): boolean 
 function webBrowseEntriesFor(message: ChatMessage): WebBrowseEntry[] {
   return webBrowsePartsOf(message).map((part) => {
     const input = part.input as { url?: string; action?: string; query?: string } | undefined
-    if (part.type === 'tool-searchWeb') {
+    if (toolPartNameOf(part) === 'searchWeb') {
       return {
         toolCallId: part.toolCallId,
         state: part.state,
@@ -940,148 +951,12 @@ function webBrowseEntriesFor(message: ChatMessage): WebBrowseEntry[] {
       state: part.state,
       title: output?.title,
       url: output?.url,
-      requestedUrl: part.type === 'tool-browseWeb' ? input?.url : undefined,
-      action: part.type === 'tool-interactWithWebPage' ? input?.action : undefined,
+      requestedUrl: toolPartNameOf(part) === 'browseWeb' ? input?.url : undefined,
+      action: toolPartNameOf(part) === 'interactWithWebPage' ? input?.action : undefined,
       errorText: part.state === 'output-error' ? part.errorText : undefined,
     }
   })
 }
-
-// Watch for new tool calls starting to initialize their image tracking
-watch(
-  () => activeConversation.value,
-  (messages) => {
-    if (!messages) return
-
-    // Find tool calls that just started (input-streaming or input-available)
-    messages.forEach((msg) => {
-      msg.parts.forEach((part) => {
-        if (isMediaToolPart(part) && 'toolCallId' in part) {
-          const toolCallId = part.toolCallId
-          const state = part.state
-
-          // If this tool call just started and we haven't initialized it yet
-          if (
-            (state === 'input-streaming' || state === 'input-available') &&
-            !toolProgressMap[toolCallId]
-          ) {
-            // Record the current set of image IDs to exclude them from this tool call's images
-            const currentImageIds = new Set(imageGeneration.generatedImages.map((img) => img.id))
-            toolProgressMap[toolCallId] = {
-              processing: true,
-              images: [],
-              initialImageIds: currentImageIds,
-            }
-          }
-        }
-      })
-    })
-  },
-  { deep: true },
-)
-
-// Watch imageGeneration store to track progress for active tool calls
-watch(
-  () => [
-    imageGeneration.generatedImages,
-    imageGeneration.processing,
-    imageGeneration.currentState,
-    imageGeneration.stepText,
-  ],
-  () => {
-    // Find active tool calls that are processing
-    const activeToolParts =
-      activeConversation.value
-        ?.flatMap((msg) => msg.parts)
-        .filter(
-          (part) =>
-            isMediaToolPart(part) &&
-            'state' in part &&
-            (part.state === 'input-streaming' || part.state === 'input-available'),
-        )
-        .map((part) => ({
-          toolCallId: (part as { toolCallId: string }).toolCallId,
-          part,
-        })) || []
-
-    // Update progress for each active tool call
-    activeToolParts.forEach(({ toolCallId }) => {
-      const progress = toolProgressMap[toolCallId]
-      if (!progress) return
-
-      // Only get images that were created for this tool call (not in initial set)
-      const toolCallImages = imageGeneration.generatedImages
-        .filter((img) => !progress.initialImageIds.has(img.id))
-        .filter(
-          (img) => img.state === 'queued' || img.state === 'generating' || img.state === 'done',
-        )
-        // Filter out items without valid URL based on type
-        .filter((img) => {
-          if (img.type === 'image') return img.imageUrl && img.imageUrl.trim() !== ''
-          if (img.type === 'video') return img.videoUrl && img.videoUrl.trim() !== ''
-          if (img.type === 'model3d') return img.model3dUrl && img.model3dUrl.trim() !== ''
-          return false
-        })
-        .map((img) => ({ ...img }))
-
-      progress.images = toolCallImages
-      progress.processing = imageGeneration.processing
-      progress.currentState = imageGeneration.currentState
-      progress.stepText = imageGeneration.stepText
-    })
-  },
-  { deep: true },
-)
-
-// Also watch processing state
-watch(
-  () => imageGeneration.processing,
-  (processing) => {
-    // Get the set of currently active tool call IDs (input-streaming or input-available)
-    const activeToolCallIds = new Set(
-      activeConversation.value
-        ?.flatMap((msg) => msg.parts)
-        .filter(
-          (part) =>
-            isMediaToolPart(part) &&
-            'state' in part &&
-            (part.state === 'input-streaming' || part.state === 'input-available'),
-        )
-        .map((part) => (part as { toolCallId: string }).toolCallId) || [],
-    )
-
-    Object.keys(toolProgressMap).forEach((toolCallId) => {
-      const progress = toolProgressMap[toolCallId]
-      if (!progress) return
-
-      if (processing) {
-        // When processing starts, only set processing=true for active tool calls
-        // This prevents completed tool calls from showing the progress indicator again
-        if (activeToolCallIds.has(toolCallId)) {
-          progress.processing = true
-        }
-      } else {
-        // When processing stops, update any tool call that was processing
-        // (it may no longer be "active" since its state changed to output-available)
-        if (progress.processing) {
-          progress.processing = false
-          // Mark images as done and filter out any without valid URL
-          progress.images = progress.images
-            .filter((img) => {
-              if (img.type === 'image') return img.imageUrl && img.imageUrl.trim() !== ''
-              if (img.type === 'video') return img.videoUrl && img.videoUrl.trim() !== ''
-              if (img.type === 'model3d') return img.model3dUrl && img.model3dUrl.trim() !== ''
-              return false
-            })
-            .map((img) => ({
-              ...img,
-              state: 'done' as const,
-            }))
-        }
-      }
-    })
-  },
-)
 </script>
 
 <style>

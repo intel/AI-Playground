@@ -42,10 +42,10 @@ onMounted(async () => {
 
   try {
     const result = await window.electronAPI.readLocalAudioAsDataUri(out.savedFilePath)
-    if (result.success && result.dataUri) {
+    if (result.success) {
       playbackSrc.value = result.dataUri
     } else {
-      loadError.value = result.error ?? 'Could not load audio file'
+      loadError.value = result.error
     }
   } catch (e) {
     loadError.value = e instanceof Error ? e.message : String(e)

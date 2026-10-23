@@ -1,7 +1,6 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { useSpeechToText } from './speechToText'
-import { transcribeAudioBuffer } from '@/lib/transcribe'
+import { transcribe } from '../speech/speechIO'
 import { convertToWav } from '@/lib/audioUtils'
 
 export interface AudioRecorderConfig {
@@ -362,16 +361,9 @@ export const useAudioRecorder = defineStore('audioRecorder', () => {
     error.value = null
 
     try {
-      const speechToText = useSpeechToText()
-      const endpoint = await speechToText.resolveTranscription()
-
-      if (!endpoint) {
-        throw new Error(
-          'No transcription endpoint available. Enable Speech To Text (OVMS) or configure a fallback endpoint in settings.',
-        )
-      }
-
-      const text = await transcribeAudioBuffer(await audioBlob.value.arrayBuffer(), endpoint)
+      // The mic's blob is already WAV (see onstop) — the adapter's transcribe
+      // detects that and sends it without a re-encode.
+      const { text } = await transcribe({ audio: audioBlob.value })
       const trimmed = text.trim()
       const meaningless = trimmed.length > 0 && /^[.\s…]+$/.test(trimmed)
 

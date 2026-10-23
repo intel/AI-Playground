@@ -149,6 +149,7 @@ describe('OpenVINO catalog MTP', () => {
       expect(model.reasoningParser).toBe('gemma4')
     }
     const large = gemma.find((entry) => entry.name.includes('26b'))
+    // Visible without a Phison SSD. largeMoe only adds the aiDAPTIV preset list.
     expect(large?.largeMoe).toBe(false)
     expect(large?.supportsVision).toBe(true)
   })

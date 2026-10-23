@@ -649,8 +649,8 @@ function stopPreview() {
 async function playPreviewFile(filePath: string, voiceName: string) {
   stopPreview()
   const result = await window.electronAPI.readLocalAudioAsDataUri(filePath)
-  if (!result.success || !result.dataUri) {
-    toast.error(result.error ?? 'Could not load the voice preview')
+  if (!result.success) {
+    toast.error(result.error)
     return
   }
   const audio = new Audio(result.dataUri)

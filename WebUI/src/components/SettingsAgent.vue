@@ -223,6 +223,23 @@
         </label>
       </div>
 
+      <!-- Same selector as Chat Settings' Embeddings row, but bound to the
+           embedding backend rather than the chat backend: an agent can run on a
+           cloud model while its document search stays local. The model
+           downloads on first actual rag use, not from here. -->
+      <div v-if="ragEnabled" class="grid grid-cols-[120px_1fr] items-center gap-4">
+        <Label class="whitespace-nowrap">Embeddings</Label>
+        <drop-down-new
+          :title="languages.RAG_DOCUMENT_EMBEDDING_MODEL"
+          :value="activeEmbeddingModelName"
+          :items="embeddingModelItems"
+          @change="
+            (modelName) =>
+              textInference.selectEmbeddingModel(textInference.embeddingBackend, modelName)
+          "
+        ></drop-down-new>
+      </div>
+
       <!-- Which workflows the media capability may use. Shown whenever the
            capability exists, including while it reports itself unavailable —
            turning every workflow off is what makes it unavailable, and this is
@@ -317,6 +334,7 @@ import SettingsBuiltinTools from '@/components/SettingsBuiltinTools.vue'
 import { usePresets } from '@/assets/js/store/presets'
 import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
 import { useContextSizeField } from '@/assets/js/contextSizeField'
+import { useEmbeddingModelPicker } from '@/assets/js/embeddingModelPicker'
 import * as toast from '@/assets/js/toast'
 
 const agentMode = useAgentMode()
@@ -343,6 +361,20 @@ const hasMediaCapability = computed(() =>
   capabilityCatalog.value.some((capability) => capability.id === 'media'),
 )
 
+// The embedding picker below belongs to the rag capability; hide it with the
+// checkbox rather than dangling a control for something the session lacks.
+const ragEnabled = computed(
+  () =>
+    capabilityCatalog.value.some((capability) => capability.id === 'rag') &&
+    agentMode.isCapabilityEnabled('rag'),
+)
+
+const { activeName: activeEmbeddingModelName, items: embeddingModelItems } =
+  useEmbeddingModelPicker(
+    () => textInference.llmEmbeddingModels,
+    () => textInference.embeddingBackend,
+  )
+
 // Only the enabled capabilities' commands: an extension that is not part of the
 // session cannot answer them.
 const capabilityCommands = computed(() =>
@@ -355,6 +387,7 @@ async function refreshCapabilityCatalog(): Promise<void> {
   capabilityCatalog.value = await window.electronAPI.agentMode.listCapabilities({
     workspaceDir: agentMode.workspaceDir,
     toolSpecs: getAgentToolSpecs(),
+    embeddingModel: textInference.activeEmbeddingModel ?? undefined,
   })
 }
 
@@ -364,10 +397,16 @@ onMounted(async () => {
 })
 
 // Whether the media capability has anything to offer is decided in the main
-// process from the tool specs, so turning its last workflow off (or back on) in
-// the panel below only reaches the checkbox after re-asking.
+// process from the tool specs, so turning its last workflow or speech tool off
+// (or back on) in the panel below only reaches the checkbox after re-asking.
 watch(
-  () => [mediaAgentHasTools(), textInference.toolDelegationEnabled],
+  () => [
+    mediaAgentHasTools(),
+    textInference.toolDelegationEnabled,
+    textInference.isBuiltinToolEnabled('synthesizeTextToSpeech'),
+    textInference.isBuiltinToolEnabled('transcribeAudio'),
+    textInference.activeEmbeddingModel,
+  ],
   () => void refreshCapabilityCatalog(),
 )
 

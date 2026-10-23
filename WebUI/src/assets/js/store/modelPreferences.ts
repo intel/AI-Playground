@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
-import { demoAwareStorage } from '../demoAwareStorage'
+import { ref } from 'vue'
+import { makeFileBackedPreference } from '@/lib/fileBackedPreferences'
 import { hasCapabilityOverrides, pickDefined } from '../models/overrides'
 import { modelEntryId } from '../models/library'
 import type { ModelCapabilityValues } from '../models/types'
@@ -22,88 +23,90 @@ export type ModelPreferences = {
   capabilities?: Partial<ModelCapabilityValues>
 }
 
-export const useModelPreferences = defineStore(
-  'modelPreferences',
-  () => {
-    /** Keyed by `ModelEntry.id` (`${pathKey}:${normalizedName}`). */
-    const preferences = ref<Record<string, ModelPreferences>>({})
+export const useModelPreferences = defineStore('modelPreferences', () => {
+  /** Keyed by `ModelEntry.id` (`${pathKey}:${normalizedName}`). */
+  const preferences = ref<Record<string, ModelPreferences>>({})
 
-    function get(id: string): ModelPreferences | undefined {
-      return preferences.value[id]
-    }
+  // Step 8 (§6.1): favorites and capability overrides are kernel-owned
+  // preferences (preferences.json), hydrated before mount. The store stays
+  // dependency-free by design — the helper owns the errors-store reporting.
+  const prefs = makeFileBackedPreference({
+    section: 'modelPreferences',
+    refs: { preferences },
+    legacyKey: 'modelPreferences',
+  })
+  if (import.meta.hot) import.meta.hot.dispose(() => prefs.dispose())
 
-    function update(id: string, patch: ModelPreferences) {
-      const next: ModelPreferences = { ...preferences.value[id], ...patch }
-      if (next.favorite === false) delete next.favorite
-      if (next.capabilities && !hasCapabilityOverrides(next.capabilities)) delete next.capabilities
-      if (Object.keys(next).length === 0) {
-        // Keep the persisted object free of empty entries so a full reset really
-        // leaves no trace.
-        const { [id]: _removed, ...rest } = preferences.value
-        preferences.value = rest
-        return
-      }
-      preferences.value = { ...preferences.value, [id]: next }
-    }
+  function get(id: string): ModelPreferences | undefined {
+    return preferences.value[id]
+  }
 
-    function setFavorite(id: string, favorite: boolean) {
-      update(id, { favorite })
-    }
-
-    function setCapabilities(id: string, capabilities: Partial<ModelCapabilityValues>) {
-      update(id, { capabilities: pickDefined(capabilities) })
-    }
-
-    function resetCapabilities(id: string) {
-      update(id, { capabilities: undefined })
-    }
-
-    function reset(id: string) {
+  function update(id: string, patch: ModelPreferences) {
+    const next: ModelPreferences = { ...preferences.value[id], ...patch }
+    if (next.favorite === false) delete next.favorite
+    if (next.capabilities && !hasCapabilityOverrides(next.capabilities)) delete next.capabilities
+    if (Object.keys(next).length === 0) {
+      // Keep the persisted object free of empty entries so a full reset really
+      // leaves no trace.
       const { [id]: _removed, ...rest } = preferences.value
       preferences.value = rest
+      return
     }
+    preferences.value = { ...preferences.value, [id]: next }
+  }
 
-    /**
-     * Capability overrides for a chat/embedding model, looked up by model name.
-     * `store/models.ts` merges these into every model on refresh; it deals in
-     * names rather than entry ids, so the id is derived from the path key here.
-     */
-    function capabilityOverridesFor(
-      pathKey: string,
-      name: string,
-    ): Partial<ModelCapabilityValues> | undefined {
-      return preferences.value[modelEntryId(pathKey, name)]?.capabilities
-    }
+  function setFavorite(id: string, favorite: boolean) {
+    update(id, { favorite })
+  }
 
-    /**
-     * Flags for a model, by path key + name, for the pickers. Takes a raw name in
-     * any on-disk or catalog form (`owner---repo\file` vs `owner/repo/file`);
-     * `modelEntryId` normalises both to the same key.
-     */
-    function flagsFor(pathKey: string, name: string): { favorite: boolean } {
-      const entry = preferences.value[modelEntryId(pathKey, name)]
-      return { favorite: entry?.favorite === true }
-    }
+  function setCapabilities(id: string, capabilities: Partial<ModelCapabilityValues>) {
+    update(id, { capabilities: pickDefined(capabilities) })
+  }
 
-    return {
-      preferences,
-      get,
-      update,
-      setFavorite,
-      setCapabilities,
-      resetCapabilities,
-      reset,
-      capabilityOverridesFor,
-      flagsFor,
-    }
-  },
-  {
-    persist: {
-      storage: demoAwareStorage,
-      pick: ['preferences'],
-    },
-  },
-)
+  function resetCapabilities(id: string) {
+    update(id, { capabilities: undefined })
+  }
+
+  function reset(id: string) {
+    const { [id]: _removed, ...rest } = preferences.value
+    preferences.value = rest
+  }
+
+  /**
+   * Capability overrides for a chat/embedding model, looked up by model name.
+   * `store/models.ts` merges these into every model on refresh; it deals in
+   * names rather than entry ids, so the id is derived from the path key here.
+   */
+  function capabilityOverridesFor(
+    pathKey: string,
+    name: string,
+  ): Partial<ModelCapabilityValues> | undefined {
+    return preferences.value[modelEntryId(pathKey, name)]?.capabilities
+  }
+
+  /**
+   * Flags for a model, by path key + name, for the pickers. Takes a raw name in
+   * any on-disk or catalog form (`owner---repo\file` vs `owner/repo/file`);
+   * `modelEntryId` normalises both to the same key.
+   */
+  function flagsFor(pathKey: string, name: string): { favorite: boolean } {
+    const entry = preferences.value[modelEntryId(pathKey, name)]
+    return { favorite: entry?.favorite === true }
+  }
+
+  return {
+    preferences,
+    get,
+    update,
+    setFavorite,
+    setCapabilities,
+    resetCapabilities,
+    reset,
+    capabilityOverridesFor,
+    flagsFor,
+    init: () => prefs.init(),
+  }
+})
 
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useModelPreferences, import.meta.hot))

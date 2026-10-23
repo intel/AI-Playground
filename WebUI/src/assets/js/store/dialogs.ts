@@ -68,7 +68,11 @@ export const useDialogStore = defineStore('dialog', () => {
   const maskEditorPreviewImageUrl = ref<string>('')
   const maskEditorIsModified = ref(false)
 
-  type ShowWarningDialogOptions = { dontShowAgainKey: string }
+  type ShowWarningDialogOptions = {
+    dontShowAgainKey: string
+    /** Invoked when the user cancels; the dialog closes itself either way. */
+    onCancel?: () => void
+  }
 
   function showWarningDialog(
     message: string,
@@ -77,7 +81,7 @@ export const useDialogStore = defineStore('dialog', () => {
   ) {
     warningMessage.value = sanitizeMarkdown(parse(message) as string)
     warningConfirmFunction.value = func
-    warningCancelFunction.value = () => {}
+    warningCancelFunction.value = options?.onCancel ?? (() => {})
     warningDontShowAgainKey.value = options?.dontShowAgainKey ?? null
     warningDialogVisible.value = true
   }

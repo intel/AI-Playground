@@ -6,10 +6,10 @@ import { type GameSummary } from './pages/AgentModePage'
 
 // The two game-building agent presets, one test each. Both run on the Pi agent
 // harness (not the chat harness the "Assistant" specs cover) and both own a
-// managed game folder. Both presets are pinned to Qwen3.5-4B
+// managed game folder. Both presets are pinned to Qwen3.5-9B
 // (AppDriver.AGENT_GAME_MODEL) rather than the big models they prefer, so the run
-// stays cheap; a 4B model writes a rough game, and that is fine here. Nothing
-// below inspects gameplay.
+// stays cheaper than the 35B they prefer; a 9B model writes a rough game, and that
+// is fine here. Nothing below inspects gameplay.
 //
 // The two tests deliberately assert to different depths, because the presets cost
 // very different amounts to run:
@@ -20,7 +20,7 @@ import { type GameSummary } from './pages/AgentModePage'
 //    it produced: `index.html` existing at all is the proof, and there is no
 //    `game.js`.
 //  - Game Agent plans, edits section by section and play-tests in a browser — dozens
-//    of model steps, well over half an hour on a 4B model. Too long for the suite,
+//    of model steps, well over half an hour on the pinned 9B. Too long for the suite,
 //    so this one only proves the turn STARTS and is still going a minute later
 //    (AppDriver.AGENT_GAME_PROGRESS_WINDOW). That covers what actually regresses —
 //    preset wiring, model/backend load, the agent loop getting underway — and
@@ -30,7 +30,7 @@ import { type GameSummary } from './pages/AgentModePage'
 // OpenVINO isn't offered in NVIDIA product mode, where the run falls back to
 // llama.cpp. A preset not offered at all in the running product mode skips itself.
 
-/** The one-line request both presets get — small enough for a 4B model to finish. */
+/** The one-line request both presets get — small enough for the pinned 9B to finish. */
 const GAME_REQUEST = 'Make a one-button endless runner where I dodge asteroids.'
 
 /** Read a file inside the produced game folder; '' when the agent never wrote it. */

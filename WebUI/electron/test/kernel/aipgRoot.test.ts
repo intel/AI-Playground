@@ -1,0 +1,170 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+
+// aipgRoot caches the shared-mode decision and the "seeded" flag at module scope,
+// so each scenario loads a fresh module instance with its own electron /
+// installConfig mocks via vi.resetModules() + dynamic import.
+//
+// All of %PUBLIC%, %LOCALAPPDATA% and process.resourcesPath are pointed at
+// temp dirs so that shared mode — which seeds the shared root — never touches a
+// real machine-wide location.
+
+const origPlatform = process.platform
+const origResourcesPath = (process as { resourcesPath?: string }).resourcesPath
+const origPublic = process.env.PUBLIC
+const origLocalAppData = process.env.LOCALAPPDATA
+
+let tmpBase = ''
+let tmpResources = ''
+let tmpPublic = ''
+let tmpLocalAppData = ''
+
+function setProp(obj: object, key: string, value: unknown) {
+  Object.defineProperty(obj, key, { value, configurable: true })
+}
+
+async function loadAipgRoot(opts: {
+  isPackaged: boolean
+  mode: 'shared' | 'per-user' | null
+  platform: NodeJS.Platform
+  sharedResourcesDir?: string
+}) {
+  vi.resetModules()
+  setProp(process, 'platform', opts.platform)
+  vi.doMock('electron', () => ({
+    app: { isPackaged: opts.isPackaged, getVersion: () => '0.0.0-test' },
+  }))
+  vi.doMock('../../kernel/installConfig.ts', () => ({
+    readInstallConfig: () => {
+      if (!opts.mode) return null
+      const sharedResourcesDir =
+        opts.sharedResourcesDir !== undefined
+          ? opts.sharedResourcesDir
+          : opts.mode === 'shared'
+            ? path.join(tmpPublic, 'AI Playground')
+            : undefined
+      return { modelFolderMode: opts.mode, sharedResourcesDir }
+    },
+  }))
+  return import('../../kernel/aipgRoot.ts')
+}
+
+beforeEach(() => {
+  tmpBase = fs.mkdtempSync(path.join(os.tmpdir(), `aipg-root-${process.pid}-`))
+  tmpResources = path.join(tmpBase, 'bundle')
+  tmpPublic = path.join(tmpBase, 'Public')
+  tmpLocalAppData = path.join(tmpBase, 'LocalAppData')
+  fs.mkdirSync(tmpResources, { recursive: true })
+  setProp(process, 'resourcesPath', tmpResources)
+  process.env.PUBLIC = tmpPublic
+  process.env.LOCALAPPDATA = tmpLocalAppData
+})
+
+afterEach(() => {
+  vi.doUnmock('electron')
+  vi.doUnmock('../../kernel/installConfig.ts')
+  vi.doUnmock('../../kernel/sharedAcl.ts')
+  vi.resetModules()
+  setProp(process, 'platform', origPlatform)
+  setProp(process, 'resourcesPath', origResourcesPath)
+  process.env.PUBLIC = origPublic
+  process.env.LOCALAPPDATA = origLocalAppData
+  fs.rmSync(tmpBase, { recursive: true, force: true })
+})
+
+describe('writableConfigRoot', () => {
+  it('is a private per-user config dir in a shared all-users install', async () => {
+    const mod = await loadAipgRoot({ isPackaged: true, mode: 'shared', platform: 'win32' })
+
+    expect(mod.writableConfigRoot()).toBe(path.join(tmpLocalAppData, 'ai-playground', 'config'))
+    // The shared branch resolves without hitting packagedResourcesRoot(), so the
+    // two roots are distinct — that separation is the whole point of the feature.
+    expect(mod.writableConfigRoot()).not.toBe(mod.packagedResourcesRoot())
+  })
+
+  it('equals the resources root for an all-users install without sharing', async () => {
+    const mod = await loadAipgRoot({ isPackaged: true, mode: 'per-user', platform: 'win32' })
+
+    expect(mod.writableConfigRoot()).toBe(mod.packagedResourcesRoot())
+  })
+
+  it('ignores a "shared" config on non-Windows (guarded by platform)', async () => {
+    const mod = await loadAipgRoot({ isPackaged: true, mode: 'shared', platform: 'linux' })
+
+    // Not win32 -> shared mode inactive -> config root equals the resources root.
+    expect(mod.writableConfigRoot()).toBe(mod.packagedResourcesRoot())
+  })
+
+  it('equals the resources root in dev (unpackaged)', async () => {
+    const mod = await loadAipgRoot({ isPackaged: false, mode: null, platform: 'win32' })
+
+    expect(mod.writableConfigRoot()).toBe(mod.packagedResourcesRoot())
+  })
+})
+
+describe('packagedResourcesRoot', () => {
+  it('points at the machine-wide shared resources root in shared mode', async () => {
+    const mod = await loadAipgRoot({ isPackaged: true, mode: 'shared', platform: 'win32' })
+
+    expect(mod.packagedResourcesRoot()).toBe(path.join(tmpPublic, 'AI Playground', 'resources'))
+  })
+
+  it('does not copy a bundled .venv or python-interpreter into the shared root', async () => {
+    fs.mkdirSync(path.join(tmpResources, '.venv'), { recursive: true })
+    fs.writeFileSync(path.join(tmpResources, '.venv', 'pyvenv.cfg'), 'home = leftover')
+    fs.mkdirSync(path.join(tmpResources, 'python-interpreter'), { recursive: true })
+    fs.writeFileSync(path.join(tmpResources, 'python-interpreter', 'python.exe'), '')
+    fs.writeFileSync(path.join(tmpResources, 'uv.exe'), '')
+    const mod = await loadAipgRoot({ isPackaged: true, mode: 'shared', platform: 'win32' })
+
+    const root = mod.packagedResourcesRoot()
+    expect(fs.existsSync(path.join(root, 'uv.exe'))).toBe(true)
+    expect(fs.existsSync(path.join(root, '.venv'))).toBe(false)
+    expect(fs.existsSync(path.join(root, 'python-interpreter'))).toBe(false)
+  })
+
+  it('honors an admin-chosen shared resources base dir, appending the resources leaf', async () => {
+    const customBase = path.join(tmpBase, 'CustomShared')
+    const mod = await loadAipgRoot({
+      isPackaged: true,
+      mode: 'shared',
+      platform: 'win32',
+      sharedResourcesDir: customBase,
+    })
+
+    // The `resources` leaf is always appended so model_config's relative
+    // `./resources/models` paths (anchored to path.dirname(root)) still resolve.
+    expect(mod.packagedResourcesRoot()).toBe(path.join(customBase, 'resources'))
+  })
+
+  it('does not fall back to %PUBLIC% when shared mode has no resources dir', async () => {
+    const mod = await loadAipgRoot({
+      isPackaged: true,
+      mode: 'shared',
+      platform: 'win32',
+      sharedResourcesDir: '',
+    })
+
+    expect(mod.packagedResourcesRoot()).toBe(
+      path.join(tmpLocalAppData, 'ai-playground', 'resources'),
+    )
+  })
+
+  it('replaces a pre-seeded uv.exe when the seed marker matches', async () => {
+    fs.writeFileSync(path.join(tmpResources, 'uv.exe'), 'from-bundle')
+    fs.writeFileSync(path.join(tmpResources, 'notes.txt'), 'shipped-note')
+    const sharedRoot = path.join(tmpPublic, 'AI Playground', 'resources')
+    fs.mkdirSync(sharedRoot, { recursive: true })
+    fs.writeFileSync(path.join(sharedRoot, '.aipg-seed-version'), '0.0.0-test')
+    fs.writeFileSync(path.join(sharedRoot, 'uv.exe'), 'trojan')
+    fs.writeFileSync(path.join(sharedRoot, 'planted.txt'), 'leave-me')
+    const mod = await loadAipgRoot({ isPackaged: true, mode: 'shared', platform: 'win32' })
+
+    expect(mod.packagedResourcesRoot()).toBe(sharedRoot)
+    expect(fs.readFileSync(path.join(sharedRoot, 'uv.exe'), 'utf-8')).toBe('from-bundle')
+    expect(fs.readFileSync(path.join(sharedRoot, 'planted.txt'), 'utf-8')).toBe('leave-me')
+    expect(fs.existsSync(path.join(sharedRoot, 'notes.txt'))).toBe(false)
+  })
+})

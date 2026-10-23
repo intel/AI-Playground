@@ -1,9 +1,8 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import type { MediaItem } from './imageGenerationPresets'
-import { useImageGenerationPresets } from './imageGenerationPresets'
-import { useActivities } from './activities'
-import type { ToolAgentPhase } from '../agents/toolAgent'
+import { useArtifactRuns } from './artifactRuns'
+import type { ToolAgentPhase } from '@/lib/toolAgent'
 
 // Live view of nested media specialist runs (agents/mediaAgent.ts), keyed by the
 // delegating tool call id so both surfaces can render the same timeline while
@@ -12,7 +11,8 @@ import type { ToolAgentPhase } from '../agents/toolAgent'
 //
 // Only a UI mirror — nothing here feeds the model, and a missing run simply
 // means "no live data" (e.g. after a reload), which the timeline handles by
-// falling back to the step lines persisted in the tool output.
+// falling back to the step lines persisted in the tool output. A step's live
+// status and media come from the artifact runs it owns (artifactRuns store).
 
 export type MediaRunStepState = 'running' | 'done' | 'failed'
 
@@ -49,17 +49,28 @@ export type MediaRun = {
 const RUN_LIMIT = 20
 
 export const useMediaAgentRuns = defineStore('mediaAgentRuns', () => {
-  const imageGeneration = useImageGenerationPresets()
-  const activities = useActivities()
+  const artifactRuns = useArtifactRuns()
 
   const runs = ref<MediaRun[]>([])
-  // Media items that already existed when the current step began, so a step
-  // only claims what it produced itself (the generation store is global).
-  let stepBaselineIds = new Set<string>()
+
+  function withLiveProgress(step: MediaRunStep): MediaRunStep {
+    const live = artifactRuns.viewFor(step.toolCallId)
+    if (step.state !== 'running') {
+      return step.media.length || !live.items.length ? step : { ...step, media: live.items }
+    }
+    const { progress } = live
+    return {
+      ...step,
+      label: artifactRuns.labelFor(live) ?? step.label,
+      progress: progress && progress.max > 0 ? progress.current / progress.max : undefined,
+      media: live.items,
+    }
+  }
 
   function run(runId: string | undefined): MediaRun | null {
     if (!runId) return null
-    return runs.value.find((item) => item.id === runId) ?? null
+    const found = runs.value.find((item) => item.id === runId)
+    return found ? { ...found, steps: found.steps.map(withLiveProgress) } : null
   }
 
   /** Status line of the step in flight — "what is this run doing right now". */
@@ -69,16 +80,6 @@ export const useMediaAgentRuns = defineStore('mediaAgentRuns', () => {
 
   function patchRun(runId: string, patch: (current: MediaRun) => MediaRun): void {
     runs.value = runs.value.map((item) => (item.id === runId ? patch(item) : item))
-  }
-
-  function patchActiveStep(runId: string, patch: (step: MediaRunStep) => MediaRunStep): void {
-    patchRun(runId, (current) => {
-      const index = current.steps.findLastIndex((step) => step.state === 'running')
-      if (index === -1) return current
-      const steps = [...current.steps]
-      steps[index] = patch(steps[index])
-      return { ...current, steps }
-    })
   }
 
   function beginRun(runId: string, request: string): void {
@@ -124,7 +125,6 @@ export const useMediaAgentRuns = defineStore('mediaAgentRuns', () => {
       label: string
     },
   ): void {
-    stepBaselineIds = new Set(imageGeneration.generatedImages.map((item) => item.id))
     patchRun(runId, (current) => ({
       ...current,
       phase: 'running-tool',
@@ -143,8 +143,7 @@ export const useMediaAgentRuns = defineStore('mediaAgentRuns', () => {
           ? {
               ...step,
               state: result.error ? 'failed' : 'done',
-              // Prefer the tool's own result over what was mirrored live.
-              media: result.media?.length ? result.media : step.media,
+              media: result.media ?? [],
               error: result.error,
               progress: undefined,
             }
@@ -166,33 +165,6 @@ export const useMediaAgentRuns = defineStore('mediaAgentRuns', () => {
       ),
     }))
   }
-
-  // Mirror the global generation state onto the step that is currently running.
-  // The activity carries ComfyUI's own label and determinate percentage
-  // (comfyUiPresets writes value/max there), so nothing needs re-parsing.
-  watch(
-    () => [activities.imageGenActivity, imageGeneration.generatedImages] as const,
-    ([activity, generated]) => {
-      const active = runs.value.find((item) => item.state === 'running')
-      if (!active) return
-      const media = generated
-        .filter((item) => !stepBaselineIds.has(item.id))
-        .filter((item) => item.state !== 'stopped' && item.state !== 'failed')
-        .filter((item) => {
-          if (item.type === 'image') return item.imageUrl.trim() !== ''
-          if (item.type === 'video') return item.videoUrl.trim() !== ''
-          return item.model3dUrl.trim() !== ''
-        })
-        .map((item) => ({ ...item }))
-      patchActiveStep(active.id, (step) => ({
-        ...step,
-        label: activity?.label ?? step.label,
-        progress: activity?.progress,
-        media,
-      }))
-    },
-    { deep: true },
-  )
 
   return {
     runs,

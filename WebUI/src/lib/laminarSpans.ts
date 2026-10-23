@@ -8,7 +8,7 @@ import { laminarTelemetryActive, sendLaminarEvent } from './laminarTelemetry'
 // here in the renderer. `@lmnr-ai/lmnr` still cannot run on this page (see
 // laminarTelemetry.ts), so this follows the same pattern as chat telemetry:
 // serialize start/end here, create the real spans in main
-// (electron/laminarSpans.ts), which parents them under the open media TOOL span
+// (electron/observability/laminarSpans.ts), which parents them under the open media TOOL span
 // when there is one.
 //
 // Everything here is fire-and-forget and never throws: a missing span is worth

@@ -266,7 +266,7 @@ export function createSlackAdapter(): ChannelAdapter {
       })
       return {
         success: r.success,
-        error: r.error,
+        error: r.success ? undefined : r.error,
         ref: r.success && r.ts && r.channel ? { ts: r.ts, channel: r.channel } : undefined,
       }
     },
@@ -329,7 +329,7 @@ export function createSlackAdapter(): ChannelAdapter {
       })
       return {
         success: r.success,
-        error: r.error,
+        error: r.success ? undefined : r.error,
         ref: r.success && r.ts && r.channel ? { ts: r.ts, channel: r.channel } : undefined,
       }
     },
@@ -343,7 +343,7 @@ export function createSlackAdapter(): ChannelAdapter {
         text,
         blocks: [{ type: 'section', text: { type: 'mrkdwn', text } }],
       })
-      return { success: r.success, error: r.error }
+      return { success: r.success, error: r.success ? undefined : r.error }
     },
     startTypingHeartbeat: (action, meta) => startTypingHeartbeat(action, meta),
     createDraftStream: (meta) => createSlackDraftStream(meta),

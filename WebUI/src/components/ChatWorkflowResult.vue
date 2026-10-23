@@ -87,29 +87,8 @@
           v-show="processing"
           class="absolute inset-0 flex justify-center items-center rounded-lg"
         >
-          <loading-bar
-            v-if="
-              currentState &&
-              [
-                'start_backend',
-                'load_model',
-                'load_model_components',
-                'install_workflow_components',
-                'load_workflow_components',
-              ].includes(currentState as string)
-            "
-            :text="loadingStateToText(currentState as string)"
-            class="w-3/4"
-          ></loading-bar>
-          <ImageGenerationProgress
-            v-else-if="
-              currentImage &&
-              currentImage.state !== 'stopped' &&
-              (currentImage.state === 'generating' || currentImage.state === 'queued')
-            "
-            :step-text="stepText || 'Generating...'"
-          />
-          <ImageGenerationProgress v-else :step-text="stepText || 'Preparing...'" />
+          <loading-bar v-if="phase !== 'running'" :text="phaseLabel" class="w-3/4"></loading-bar>
+          <ImageGenerationProgress v-else :step-text="phaseLabel" />
         </div>
 
         <!-- Action buttons (absolutely positioned on the right side) -->
@@ -179,26 +158,29 @@ import {
   isVideo,
   is3D,
   useImageGenerationPresets,
-  type GenerateState,
 } from '@/assets/js/store/imageGenerationPresets'
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import Model3DViewer from '@/components/Model3DViewer.vue'
 import IconButton from '@/components/ui/IconButton.vue'
+import { artifactPhaseLabel, isTerminalPhase } from '@/lib/artifactRunProjection'
+import type { ArtifactPhase } from '@/types/kernelEvents'
 
-interface Props {
+const props = defineProps<{
   images: MediaItem[]
-  processing: boolean
-  currentState?: GenerateState
-  stepText?: string
-  toolCallId?: string
-}
-
-const props = defineProps<Props>()
+  /** Phase of the owning tool's run in flight; absent once nothing is running. */
+  phase?: ArtifactPhase
+  progress?: { current: number; max: number }
+}>()
 const i18nState = useI18N().state
 const languages = i18nState
 const imageGeneration = useImageGenerationPresets()
 const promptStore = usePromptStore()
 const showInfoParams = ref(false)
+
+const processing = computed(() => !!props.phase && !isTerminalPhase(props.phase))
+const phaseLabel = computed(
+  () => artifactPhaseLabel(props.phase, props.progress, i18nState) ?? i18nState.COM_GENERATING,
+)
 
 // Check if imageUrl is the transparent placeholder
 const isPlaceholderUrl = (url: string | undefined): boolean => {
@@ -276,23 +258,6 @@ function copyImage(image: MediaItem) {
 
 function openImageInFolder(image: MediaItem) {
   window.electronAPI.openImageInFolder(getMediaUrl(image))
-}
-
-function loadingStateToText(state: string) {
-  switch (state) {
-    case 'start_backend':
-      return i18nState.COM_STARTING_BACKEND
-    case 'load_model':
-      return i18nState.COM_LOADING_MODEL
-    case 'load_model_components':
-      return i18nState.COM_LOADING_MODEL_COMPONENTS
-    case 'install_workflow_components':
-      return i18nState.COM_INSTALL_WORKFLOW_COMPONENTS
-    case 'load_workflow_components':
-      return i18nState.COM_LOADING_WORKFLOW_COMPONENTS
-    default:
-      return state
-  }
 }
 
 function getMediaUrl(image: MediaItem) {

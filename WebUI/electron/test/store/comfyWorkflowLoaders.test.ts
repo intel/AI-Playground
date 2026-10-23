@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { loaderModelNames, nodeTitle } from '@/assets/js/store/comfyUiWorkflowHelpers'
+import { loaderModelNames, nodeTitle } from '@/lib/comfyWorkflow'
 import type { ComfyUIApiWorkflow } from '@/assets/js/store/presets'
 
 /**

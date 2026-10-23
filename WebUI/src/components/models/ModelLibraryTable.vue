@@ -12,6 +12,7 @@ import {
 import { StarIcon } from '@heroicons/vue/24/solid'
 import { StarIcon as StarOutlineIcon } from '@heroicons/vue/24/outline'
 import CapabilityIcons from '@/components/CapabilityIcons.vue'
+import ModelVramFit from '@/components/ModelVramFit.vue'
 import ModelRowActions from './ModelRowActions.vue'
 import { useModelLibrary } from '@/assets/js/store/modelLibrary'
 import { useI18N } from '@/assets/js/store/i18n'
@@ -125,6 +126,9 @@ function usedBySummary(entry: ModelEntry): string {
           <TableCell class="max-w-[340px]">
             <div class="flex items-center gap-2">
               <span class="truncate" :title="entry.name">{{ entry.label }}</span>
+              <!-- Same chip as the chat picker, and absent on the same terms:
+                   anything but a llama.cpp LLM has no estimate to show. -->
+              <ModelVramFit :model="library.fitTargetFor(entry)" />
               <CapabilityIcons
                 v-if="entry.useCase === 'llm'"
                 :model="entry.capabilities"

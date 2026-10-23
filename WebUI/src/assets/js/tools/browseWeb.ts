@@ -1,14 +1,12 @@
 import { tool } from 'ai'
 import { z } from 'zod'
-import { useActivities } from '../store/activities'
-import { useWebBrowser } from '../store/webBrowser'
-import { ToolConversationContextSchema, conversationKeyFor } from './toolContext'
+import { ToolConversationContextSchema } from './toolContext'
 
-function chatScope(conversationKey: string): { kind: 'chat'; conversationKey: string } {
-  return { kind: 'chat', conversationKey }
-}
-
-const MAX_LINKS_RETURNED = 40
+// Schema + description only. The bodies run in main against the browser window
+// the manager already owned (`electron/chat/chatWebTools.ts`), which is also
+// where the model-facing formatters live — a `toModelOutput` declared here
+// would never reach the model, since the tool set crosses to main as JSON
+// Schema.
 
 // Shared guidance appended to the search/browse descriptions so the model digs
 // into real pages instead of answering from search snippets (which are often
@@ -21,41 +19,14 @@ const RESEARCH_DEPTH_GUIDANCE =
   'require reading more than a few pages, read the most promising ones first, then ask ' +
   'the user whether they want you to dig deeper before continuing.'
 
-// The browser window returns structured data; we flatten it to a compact string
-// for the model. A string (rather than a nested output schema) keeps the AI
-// SDK's `InferUITools` inference shallow — deep tool outputs collapse the whole
-// message-type graph to `any` (see tools.ts).
-function formatSnapshot(snapshot: WebPageSnapshot): string {
-  const lines: string[] = []
-  lines.push(`Title: ${snapshot.title || '(untitled)'}`)
-  lines.push(`URL: ${snapshot.url}`)
-  lines.push('')
-  lines.push('Page content:')
-  lines.push(snapshot.text || '(no readable text on this page)')
-  if (snapshot.links.length > 0) {
-    lines.push('')
-    lines.push('Links (use interactWithWebPage with the linkIndex to follow one):')
-    for (const link of snapshot.links.slice(0, MAX_LINKS_RETURNED)) {
-      lines.push(`[${link.index}] ${link.text} — ${link.href}`)
-    }
-  }
-  return lines.join('\n')
-}
-
-function formatSearchResults(results: WebSearchResults): string {
-  if (results.results.length === 0) {
-    return (
-      `No search results found for "${results.query}". Try a different query, or open a ` +
-      `specific URL with browseWeb.`
-    )
-  }
-  const lines: string[] = [`Search results for "${results.query}":`]
-  results.results.forEach((r, index) => {
-    lines.push(`[${index}] ${r.title} — ${r.url}`)
-    if (r.snippet) lines.push(`    ${r.snippet}`)
-  })
-  return lines.join('\n')
-}
+// What main returns, so the browse-trace element stays typed. The model never
+// sees this shape — `chatWebTools.ts` flattens it to text.
+const WebPageSnapshotSchema = z.object({
+  title: z.string(),
+  url: z.string(),
+  text: z.string(),
+  links: z.array(z.object({ index: z.number(), text: z.string(), href: z.string() })),
+})
 
 export const searchWeb = tool({
   description:
@@ -68,24 +39,6 @@ export const searchWeb = tool({
     maxResults: z.number().optional().describe('Maximum number of results to return (default 8).'),
   }),
   contextSchema: ToolConversationContextSchema,
-  execute: async (args: { query: string; maxResults?: number }, options) => {
-    const activities = useActivities()
-    const webBrowser = useWebBrowser()
-    const conversationKey = conversationKeyFor(options?.context)
-    return await activities.track(
-      {
-        category: 'browsing',
-        label: 'Searching the web…',
-        detail: args.query,
-        scope: chatScope(conversationKey),
-      },
-      async () => await webBrowser.search(args.query, args.maxResults),
-    )
-  },
-  toModelOutput: ({ output }) => ({
-    type: 'text',
-    value: formatSearchResults(output as WebSearchResults),
-  }),
 })
 
 export const browseWeb = tool({
@@ -101,36 +54,9 @@ export const browseWeb = tool({
       .string()
       .describe('The URL of the page to open. A scheme is optional (https:// is assumed).'),
   }),
+  outputSchema: WebPageSnapshotSchema,
   contextSchema: ToolConversationContextSchema,
-  execute: async (args: { url: string }, options) => {
-    const activities = useActivities()
-    const webBrowser = useWebBrowser()
-    const conversationKey = conversationKeyFor(options?.context)
-    return await activities.track(
-      {
-        category: 'browsing',
-        label: 'Browsing the web…',
-        detail: args.url,
-        scope: chatScope(conversationKey),
-      },
-      async () => await webBrowser.navigate(args.url),
-    )
-  },
-  // The UI reads the structured snapshot (title/url) for the browse-trace
-  // element; the model only needs the readable text + numbered links.
-  toModelOutput: ({ output }) => ({
-    type: 'text',
-    value: formatSnapshot(output as WebPageSnapshot),
-  }),
 })
-
-type ScreenshotWebPageOutput = {
-  ok: boolean
-  message: string
-  // data:image/png;base64,... — kept so the chat UI can render the capture and
-  // openAiCompatibleChat can inject it as a real vision image for the model.
-  dataUri?: string
-}
 
 export const screenshotWebPage = tool({
   description:
@@ -142,44 +68,6 @@ export const screenshotWebPage = tool({
     'or searchWeb first.',
   inputSchema: z.object({}),
   contextSchema: ToolConversationContextSchema,
-  execute: async (_args, options): Promise<ScreenshotWebPageOutput> => {
-    const activities = useActivities()
-    const webBrowser = useWebBrowser()
-    const conversationKey = conversationKeyFor(options?.context)
-    return await activities.track(
-      {
-        category: 'browsing',
-        label: 'Capturing the page…',
-        detail: webBrowser.currentUrl,
-        scope: chatScope(conversationKey),
-      },
-      async () => {
-        try {
-          const base64 = await webBrowser.screenshot()
-          if (!base64) {
-            return { ok: false, message: 'Could not capture the page (no image returned).' }
-          }
-          return {
-            ok: true,
-            message: 'Captured the current page.',
-            dataUri: `data:image/png;base64,${base64}`,
-          }
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          return { ok: false, message }
-        }
-      },
-    )
-  },
-  // The image is NOT returned here: the OpenAI-compatible backend JSON-stringifies
-  // tool-result content, so base64 would be sent as text. openAiCompatibleChat's
-  // request post-processing detects this tool's result and injects the capture as
-  // a real image message (mirrors captureScreenshot).
-  toModelOutput: ({ output }) => {
-    const value = output as ScreenshotWebPageOutput
-    if (!value.ok) return { type: 'error-text', value: value.message }
-    return { type: 'text', value: value.message }
-  },
 })
 
 export const interactWithWebPage = tool({
@@ -201,32 +89,6 @@ export const interactWithWebPage = tool({
       .optional()
       .describe('For "click"/"scroll": an optional CSS selector to target instead of a linkIndex.'),
   }),
+  outputSchema: WebPageSnapshotSchema,
   contextSchema: ToolConversationContextSchema,
-  execute: async (
-    args: { action: 'click' | 'scroll' | 'back'; linkIndex?: number; selector?: string },
-    options,
-  ) => {
-    const activities = useActivities()
-    const webBrowser = useWebBrowser()
-    const conversationKey = conversationKeyFor(options?.context)
-    const interaction: WebBrowserInteraction =
-      args.action === 'click'
-        ? { action: 'click', linkIndex: args.linkIndex, selector: args.selector }
-        : args.action === 'scroll'
-          ? { action: 'scroll', selector: args.selector }
-          : { action: 'back' }
-    return await activities.track(
-      {
-        category: 'browsing',
-        label: 'Browsing the web…',
-        detail: webBrowser.currentUrl,
-        scope: chatScope(conversationKey),
-      },
-      async () => await webBrowser.interact(interaction),
-    )
-  },
-  toModelOutput: ({ output }) => ({
-    type: 'text',
-    value: formatSnapshot(output as WebPageSnapshot),
-  }),
 })

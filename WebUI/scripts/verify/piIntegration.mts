@@ -170,6 +170,13 @@ if (!report.memoryToolsPresent) failures.push('memory tools missing')
 if (report.activeAfter.includes('media')) failures.push('tool narrowing had no effect')
 if (!report.promptHasAppendedText) failures.push('appended system prompt missing')
 if (report.noticeCount === 0) failures.push('slash command produced no output')
+// Pi 1.0's CLI loads codemode, tool search, and its own MCP client as built-in
+// extensions. SDK sessions only get them if a factory opts in. They must stay
+// out: the app has its own MCP client, and those tools are not part of a turn.
+const piBuiltins = registered.filter(
+  (name) => name === 'codemode' || name === 'tool_search' || name.startsWith('mcp__'),
+)
+if (piBuiltins.length > 0) failures.push(`Pi builtins registered: ${piBuiltins.join(', ')}`)
 
 await session.extensionRunner.emit({ type: 'session_shutdown', reason: 'quit' })
 session.dispose()

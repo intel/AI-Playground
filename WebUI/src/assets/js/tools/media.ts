@@ -1,28 +1,20 @@
-import { tool, type ModelMessage } from 'ai'
-import type { ToolResultOutput } from '@ai-sdk/provider-utils'
+import { tool } from 'ai'
 import { z } from 'zod'
-import { runMediaAgent, MediaAgentMediaSchema } from '../agents/mediaAgent'
-import { findSourceImage } from './comfyUiImageEdit'
-import { queueMediaRequest } from './mediaPipeline'
-import { createChatModel } from '@/lib/chatModel'
-import { useActivities } from '../store/activities'
-import { useConversations } from '../store/conversations'
-import { useI18N } from '../store/i18n'
+import { MediaAgentMediaSchema } from '../agents/mediaAgent'
+import { slimMediaModelOutput } from '@/lib/mediaModelOutput'
 
 // ── Thin media delegation tool ────────────────────────────────────────────────
 //
 // The only media surface the parent chat model sees when tool delegation is
-// enabled (textInference.toolDelegationEnabled): a natural-language request,
-// executed by the nested media agent (agents/mediaAgent.ts) on the same
-// model/endpoint. The heavy workflow catalog and the comfy tool schemas stay
-// entirely inside the nested run.
+// enabled (textInference.toolDelegationEnabled): a natural-language request.
+// Chat parent turns run that specialist in main (`electron/chat/chatMediaTool.ts`);
+// this object is schema-only so the turn request can serialize it.
 //
-// UI vs model payload: `output` keeps the full comfy-shaped `images[]` (the
-// Chat renderer and the Agent Mode workspace saver consume it), while
-// `toModelOutput` sends only the summary, the step lines and slim image refs —
-// enough for the model to describe results and for a follow-up edit to find
-// the produced image (see findLatestImageInConversation), without re-sending
-// bulky settings payloads on every later turn.
+// UI vs model payload: `output` keeps the condensed `images[]` (the Chat
+// renderer and the Agent Mode workspace saver consume it), while
+// `toModelOutput` sends only the summary, the step lines and slim image refs.
+// A vision model also receives the image as a following user message; a model
+// without vision does not. Either way the settings payload stays off the wire.
 
 export const MediaToolOutputSchema = z
   .object({
@@ -56,63 +48,7 @@ export const media = tool({
       ),
   }),
   outputSchema: MediaToolOutputSchema,
-  execute: async (args, { messages, abortSignal, toolCallId }): Promise<MediaToolOutput> => {
-    const activities = useActivities()
-    const conversations = useConversations()
-    const i18nState = useI18N().state
-    const sourceImage = findSourceImage((messages ?? []) as ModelMessage[]) ?? undefined
-    return await activities.track(
-      {
-        category: 'tools',
-        label: i18nState.COM_ACTIVITY_CREATING_MEDIA,
-        scope: { kind: 'chat', conversationKey: conversations.activeKey },
-      },
-      // One request at a time: a model that asks for several images in one step
-      // gets parallel tool calls from the AI SDK, and they all share one ComfyUI
-      // and one generation store (see mediaPipeline.ts).
-      () =>
-        queueMediaRequest(
-          () =>
-            runMediaAgent({
-              request: args.request,
-              sourceImage,
-              model: createChatModel(),
-              abortSignal,
-              // Keys the live timeline to this tool part (see mediaAgentRuns).
-              runId: toolCallId,
-            }),
-          abortSignal,
-        ),
-    )
-  },
   toModelOutput: ({ output }) => slimMediaModelOutput(output),
 })
 
-/**
- * Model-facing condensation of a media tool result: summary + step lines +
- * slim image refs (id/type/url only — no settings payloads). Used both live
- * (`toModelOutput`) and when replaying persisted history (the chat store's
- * request post-processing), so the rich UI output never reaches the model.
- */
-export function slimMediaModelOutput(output: MediaToolOutput): ToolResultOutput {
-  if (output.success === false || output.images.length === 0) {
-    return {
-      type: 'error-text',
-      value: output.message ?? output.summary ?? 'Media generation failed.',
-    }
-  }
-  return {
-    type: 'json',
-    value: {
-      summary: output.summary,
-      steps: output.steps,
-      images: output.images.map((item) => {
-        const slim: Record<string, string> = { id: item.id, type: item.type }
-        if (item.imageUrl) slim.imageUrl = item.imageUrl
-        if (item.videoUrl) slim.videoUrl = item.videoUrl
-        if (item.model3dUrl) slim.model3dUrl = item.model3dUrl
-        return slim
-      }),
-    },
-  }
-}
+export { slimMediaModelOutput }

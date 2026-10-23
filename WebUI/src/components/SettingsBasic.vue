@@ -139,6 +139,8 @@
     </div>
   </DemoModeBlocker>
 
+  <SettingsPermissions />
+
   <DemoModeBlocker>
     <div class="flex flex-col gap-3 pt-4">
       <SettingsHeading>{{ languages.SETTINGS_DEVELOPER }}</SettingsHeading>
@@ -343,6 +345,7 @@ import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import DemoModeSettings from '@/components/DemoModeSettings.vue'
 import SettingsHeading from '@/components/SettingsHeading.vue'
+import SettingsPermissions from '@/components/SettingsPermissions.vue'
 import { useI18N } from '@/assets/js/store/i18n'
 import { Button } from '@/components/ui/button'
 import DemoModeBlocker from '@/components/DemoModeBlocker.vue'

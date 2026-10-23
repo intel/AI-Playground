@@ -33,6 +33,7 @@ import re
 import secrets
 import threading
 import time
+import unicodedata
 from collections.abc import Iterable
 from http import HTTPStatus
 from http.cookies import SimpleCookie
@@ -74,6 +75,11 @@ _MAX_BODY_BYTES = 64 * 1024 * 1024
 # how long the subsequent bind retries if it hasn't yet.
 _SHUTDOWN_TIMEOUT_SECONDS = 5.0
 _REBIND_TIMEOUT_SECONDS = 3.0
+
+
+def _password_bytes(password: str) -> bytes:
+    # compare_digest rejects a non-ASCII str. NFC so equivalent forms still match.
+    return unicodedata.normalize("NFC", password).encode("utf-8")
 
 
 class _BodyError(Exception):
@@ -347,11 +353,14 @@ class LocalWebChannel(ChannelBase):
         `compare_digest` keeps the check constant-time so the response latency
         can't leak how much of the password matched.
         """
-        if (
-            not password
-            or not self._password
-            or not secrets.compare_digest(password, self._password)
-        ):
+        try:
+            same = secrets.compare_digest(
+                _password_bytes(password), _password_bytes(self._password)
+            )
+        except UnicodeEncodeError:
+            # A lone surrogate is legal in a JSON string and not valid UTF-8.
+            same = False
+        if not password or not self._password or not same:
             self._note_login_failure(client)
             return None
         with self._login_lock:

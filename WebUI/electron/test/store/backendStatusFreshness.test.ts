@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
 // startService() / stopService() resolve with the status the transition ended in,
-// while the matching serviceInfoUpdate push arrives a tick later. Callers that
+// while the matching kernel service event arrives a tick later. Callers that
 // await a start and then read `info` — the on-demand speech sidecars resolve their
 // endpoint immediately afterwards — must not see the pre-start status. These tests
 // pin that the store folds the returned status in straight away.
@@ -22,8 +22,14 @@ const stopService = vi.fn(async () => 'stopped')
 vi.stubGlobal('window', {
   electronAPI: {
     getServices: vi.fn(async () => [NOT_STARTED]),
-    // Never fires in these tests: that is the point — the push is what lags.
-    onServiceInfoUpdate: vi.fn(),
+    // The kernel stream never fires in these tests: that is the point — the
+    // push is what lags; the snapshot seeds the initial cache.
+    onKernelEvent: vi.fn(() => () => {}),
+    getKernelSnapshot: vi.fn(async () => ({
+      scope: { kind: 'global' },
+      sequence: 0,
+      state: { services: [NOT_STARTED], activeTurn: null },
+    })),
     onServiceSetUpProgress: vi.fn(),
     getComfyUiDefaultParameters: vi.fn(async () => ''),
     getLlamaCppDefaultParameters: vi.fn(async () => ''),
@@ -47,7 +53,7 @@ vi.mock('@/assets/js/demoAwareStorage', () => ({
 async function freshStore() {
   const { useBackendServices } = await import('@/assets/js/store/backendServices')
   const store = useBackendServices()
-  // Seed the cache the way the initial getServices() would.
+  // Seed the cache the way the kernel snapshot would.
   await vi.waitFor(() => expect(store.info.length).toBeGreaterThan(0))
   return store
 }

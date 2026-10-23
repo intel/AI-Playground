@@ -120,6 +120,7 @@ import {
 } from '@/lib/agentTranscript'
 import { agentEmptyStateKind } from '@/lib/presetModes'
 import { useMediaAgentRuns } from '@/assets/js/store/mediaAgentRuns'
+import { ensureMediaAgentEventWiring } from '@/assets/js/agents/mediaAgent'
 import { UserCircleIcon } from '@heroicons/vue/24/outline'
 
 const agentMode = useAgentMode()
@@ -204,6 +205,7 @@ watch(
 onMounted(() => {
   promptStore.registerSubmitCallback('agent', handlePromptSubmit)
   promptStore.registerCancelCallback('agent', handleCancel)
+  ensureMediaAgentEventWiring()
 })
 
 onUnmounted(() => {

@@ -22,7 +22,7 @@ import { selectDefaultInstalls, type SeedCandidate } from '@/lib/wizardInstallDe
 import * as toast from '@/assets/js/toast'
 import { useErrors } from './errors'
 import { extractMessage } from '../errors/appError'
-import type { ErrorDetails } from '../../../../electron/subprocesses/service'
+import type { ErrorDetails } from '../../../../electron/adapters/backends/service'
 
 // Derived from the single source of truth rather than restated: a backend added
 // there but forgotten here would silently never appear in the wizard.
@@ -831,8 +831,23 @@ export const useSetupWizard = defineStore('setupWizard', () => {
 
   let initialLoadingPollHandle: ReturnType<typeof setTimeout> | null = null
 
+  function isAiBackendSettled(): boolean {
+    const info = backendServices.info.find((s) => s.serviceName === 'ai-backend')
+    // uninitializedStatus means the setup check is still in flight — isSetUp
+    // is the constructor default, not a verdict. Wait for notInstalled /
+    // notYetStarted so an installed machine is not sent to the wizard.
+    return info != null && info.status !== 'uninitializedStatus'
+  }
+
   async function initialize() {
-    const aiBackendReady = backendServices.info.some((s) => s.serviceName === 'ai-backend')
+    if (!isAiBackendSettled()) {
+      // The kernel snapshot is empty until each backend publishes. A not-installed
+      // ai-backend used to never publish, so this poll never exited. getServices
+      // reads the registry directly and unblocks the wizard on a fresh machine
+      // once the setup check has settled.
+      await backendServices.hydrateFromMain()
+    }
+    const aiBackendReady = isAiBackendSettled()
     if (!aiBackendReady) {
       globalSetup.loadingState = 'verifyBackend'
       if (initialLoadingPollHandle !== null) {

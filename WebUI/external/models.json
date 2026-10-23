@@ -7,6 +7,7 @@
     "supportsVision": true,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "maxContextSize": 262144
   },
@@ -18,6 +19,7 @@
     "supportsVision": true,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "maxContextSize": 262144,
     "llamaCppArgs": "--spec-default --spec-type draft-mtp --spec-draft-n-max 6"
@@ -29,7 +31,8 @@
     "supportsToolCalling": true,
     "supportsVision": true,
     "supportsReasoning": true,
-    "supportsCoding": true,
+    "supportsCoding": false,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "maxContextSize": 262144
   },
@@ -41,6 +44,7 @@
     "supportsVision": true,
     "supportsReasoning": false,
     "supportsCoding": true,
+    "supportsAgentic": false,
     "maxContextSize": 256000
   },
   {
@@ -51,6 +55,7 @@
     "supportsVision": true,
     "supportsReasoning": false,
     "supportsCoding": true,
+    "supportsAgentic": false,
     "supportsThinkingToggle": true,
     "maxContextSize": 131072
   },
@@ -62,6 +67,7 @@
     "supportsVision": true,
     "supportsReasoning": false,
     "supportsCoding": true,
+    "supportsAgentic": false,
     "supportsThinkingToggle": true,
     "maxContextSize": 128000
   },
@@ -71,7 +77,8 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
-    "supportsCoding": true,
+    "supportsCoding": false,
+    "supportsAgentic": false,
     "maxContextSize": 8192
   },
   {
@@ -80,7 +87,8 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
-    "supportsCoding": true,
+    "supportsCoding": false,
+    "supportsAgentic": false,
     "largeMoe": true,
     "maxContextSize": 8192
   },
@@ -92,6 +100,7 @@
     "supportsVision": true,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "maxContextSize": 262144,
     "inferenceDefaults": {
@@ -120,6 +129,7 @@
     "supportsVision": true,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "maxContextSize": 262144,
     "inferenceDefaults": {
@@ -148,6 +158,7 @@
     "supportsVision": true,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "maxContextSize": 262144,
     "inferenceDefaults": {
@@ -176,6 +187,7 @@
     "supportsVision": true,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "maxContextSize": 262144,
     "inferenceDefaults": {
@@ -204,6 +216,7 @@
     "supportsVision": true,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "largeMoe": false,
     "maxContextSize": 262144,
@@ -217,6 +230,7 @@
     "supportsVision": true,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "largeMoe": false,
     "maxContextSize": 262144,
@@ -230,6 +244,7 @@
     "supportsVision": true,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "largeMoe": false,
     "maxContextSize": 262144,
@@ -243,6 +258,7 @@
     "supportsVision": true,
     "supportsReasoning": false,
     "supportsCoding": true,
+    "supportsAgentic": false,
     "largeMoe": true,
     "maxContextSize": 256000
   },
@@ -253,6 +269,7 @@
     "supportsVision": false,
     "supportsReasoning": false,
     "supportsCoding": true,
+    "supportsAgentic": false,
     "supportsThinkingToggle": true,
     "largeMoe": true,
     "maxContextSize": 262144
@@ -264,6 +281,7 @@
     "supportsVision": false,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": false,
     "largeMoe": true,
     "requiresPhison": true,
     "maxContextSize": 131072
@@ -275,6 +293,7 @@
     "supportsVision": false,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": false,
     "largeMoe": true,
     "requiresPhison": true,
     "maxContextSize": 131072
@@ -286,6 +305,7 @@
     "supportsVision": false,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "largeMoe": true,
     "requiresPhison": true,
@@ -298,6 +318,7 @@
     "supportsVision": false,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "largeMoe": true,
     "requiresPhison": true,
@@ -311,6 +332,7 @@
     "supportsVision": true,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "maxContextSize": 262144,
     "enableMtp": true
@@ -322,7 +344,8 @@
     "toolParser": "qwen3coder",
     "supportsVision": true,
     "supportsReasoning": true,
-    "supportsCoding": true,
+    "supportsCoding": false,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "maxContextSize": 262144,
     "enableMtp": true
@@ -335,6 +358,7 @@
     "supportsVision": true,
     "supportsReasoning": false,
     "supportsCoding": true,
+    "supportsAgentic": false,
     "maxContextSize": 262144
   },
   {
@@ -343,7 +367,8 @@
     "supportsToolCalling": true,
     "supportsVision": false,
     "supportsReasoning": true,
-    "supportsCoding": true,
+    "supportsCoding": false,
+    "supportsAgentic": false,
     "supportsThinkingToggle": true,
     "maxContextSize": 40960,
     "npuSupport": true
@@ -355,7 +380,8 @@
     "toolParser": "gptoss",
     "supportsVision": false,
     "supportsReasoning": true,
-    "supportsCoding": true,
+    "supportsCoding": false,
+    "supportsAgentic": false,
     "maxContextSize": 131072
   },
   {
@@ -367,6 +393,7 @@
     "supportsVision": true,
     "supportsReasoning": false,
     "supportsCoding": true,
+    "supportsAgentic": false,
     "supportsThinkingToggle": true,
     "maxContextSize": 131072
   },
@@ -378,6 +405,7 @@
     "supportsVision": true,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "maxContextSize": 262144,
     "inferenceDefaults": {
@@ -406,6 +434,7 @@
     "supportsVision": true,
     "supportsReasoning": true,
     "supportsCoding": true,
+    "supportsAgentic": true,
     "supportsThinkingToggle": true,
     "maxContextSize": 262144,
     "enableMtp": true
@@ -419,6 +448,7 @@
     "supportsVision": true,
     "supportsReasoning": false,
     "supportsCoding": true,
+    "supportsAgentic": false,
     "supportsThinkingToggle": true,
     "largeMoe": false,
     "maxContextSize": 262144

@@ -22,7 +22,7 @@ Note: This directory is at root level so the files can be committed to the repos
 
 ### 2. New UV Functions
 
-Added to `WebUI/electron/subprocesses/uvBasedBackends/uv.ts`:
+Added to `WebUI/electron/adapters/install/uvBasedBackends/uv.ts`:
 
 ```typescript
 // Generic function to sync a uv project (runs `uv sync`)
@@ -36,7 +36,7 @@ These are reusable functions that can be used for any uv-based project, not just
 
 ### 3. ComfyUI Backend Service Changes
 
-Updated `WebUI/electron/subprocesses/comfyUIBackendService.ts`:
+Updated `WebUI/electron/adapters/backends/comfyUIBackendService.ts`:
 
 **Removed:**
 - `UvPipService` instance and usage
@@ -47,7 +47,7 @@ Updated `WebUI/electron/subprocesses/comfyUIBackendService.ts`:
 **Changed:**
 - `baseDir`: Now uses `aipgBaseDir` from uv.ts
 - `pythonEnvDir`: Changed from `comfyui-backend-env` to `ComfyUI/.venv`
-- Default ComfyUI git ref comes from shipped [`WebUI/external/backend-versions.json`](../WebUI/external/backend-versions.json) (`getBundledComfyUiGitRefSync()` in [`WebUI/electron/remoteUpdates.ts`](../WebUI/electron/remoteUpdates.ts)).
+- Default ComfyUI git ref comes from shipped [`WebUI/external/backend-versions.json`](../WebUI/external/backend-versions.json) (`getBundledComfyUiGitRefSync()` in [`WebUI/electron/adapters/remoteUpdates.ts`](../WebUI/electron/adapters/remoteUpdates.ts)).
 
 **Sources of truth**
 
@@ -56,7 +56,7 @@ Updated `WebUI/electron/subprocesses/comfyUIBackendService.ts`:
 | `comfyui-deps/pyproject.toml` + `uv.lock` | **Tested dependencies** for the pinned ComfyUI line-up |
 | Shipped `WebUI/external/backend-versions.json` → `comfyui-backend.version` | **Bundled ComfyUI git ref** (default install target and ref the shipped lock matches) |
 
-[`resolveBackendVersion`](WebUI/electron/remoteUpdates.ts) may return a **remote** `backend-versions.json` first for UI defaults. **Lock vs flexible** still compares the requested ref to the **local shipped** JSON (via `getBundledComfyUiGitRefSync()`), so if remote moves ahead of the packaged lock, installs use the flexible `requirements.txt` path until a new build refreshes the lock.
+[`resolveBackendVersion`](WebUI/electron/adapters/remoteUpdates.ts) may return a **remote** `backend-versions.json` first for UI defaults. **Lock vs flexible** still compares the requested ref to the **local shipped** JSON (via `getBundledComfyUiGitRefSync()`), so if remote moves ahead of the packaged lock, installs use the flexible `requirements.txt` path until a new build refreshes the lock.
 
 **Installation Flow (two paths):**
 

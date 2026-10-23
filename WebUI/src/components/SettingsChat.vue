@@ -308,7 +308,7 @@ import { useContextSizeField } from '@/assets/js/contextSizeField'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import { useCloudMode } from '@/assets/js/store/cloudMode'
 import { reasoningEfforts, type ReasoningEffort } from '@/types/shared'
-import { sortFavoritesFirst } from '@/assets/js/models/favorites'
+import { useEmbeddingModelPicker } from '@/assets/js/embeddingModelPicker'
 import { useUIStore } from '@/assets/js/store/ui'
 
 const showUploader = ref(false)
@@ -355,23 +355,11 @@ const currentModel = computed(() =>
   textInference.llmModels.find((m) => m.active && m.type === textInference.backend),
 )
 
-const activeEmbeddingModelName = computed(
-  () =>
-    textInference.llmEmbeddingModels
-      .filter((m) => m.type === textInference.backend)
-      .find((m) => m.active)?.name ?? '',
-)
-
-// Same treatment as the chat model picker: favorites float to the top.
-const embeddingModelItems = computed(() =>
-  sortFavoritesFirst(
-    textInference.llmEmbeddingModels.filter((m) => m.type === textInference.backend),
-  ).map((item) => ({
-    label: item.name.split('/').at(-1) ?? item.name,
-    value: item.name,
-    active: item.downloaded,
-  })),
-)
+const { activeName: activeEmbeddingModelName, items: embeddingModelItems } =
+  useEmbeddingModelPicker(
+    () => textInference.llmEmbeddingModels,
+    () => textInference.backend,
+  )
 
 // UI visibility flags from preset
 const enableRAG = computed(() => activeChatPreset.value?.enableRAG ?? false)

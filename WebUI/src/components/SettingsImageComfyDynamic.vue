@@ -177,7 +177,7 @@ function handleImageLoaded(imageUrl: string) {
     settings: {},
   }
 
-  imageGeneration.generatedImages.push(imageItem)
+  imageGeneration.addGalleryItem(imageItem)
   if (mode === 'video') imageGeneration.selectedVideoId = imageItem.id
   else imageGeneration.selectedEditedImageId = imageItem.id
 }

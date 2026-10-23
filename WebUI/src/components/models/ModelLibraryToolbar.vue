@@ -8,7 +8,8 @@ import {
 } from '@heroicons/vue/24/solid'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import CapabilityIcons from '@/components/CapabilityIcons.vue'
+import CapabilityIcons, { type ExtraFilter } from '@/components/CapabilityIcons.vue'
+import VramChipIcon from '@/components/VramChipIcon.vue'
 import DropDownNew from '@/components/DropDownNew.vue'
 import { useModelLibrary } from '@/assets/js/store/modelLibrary'
 import { useI18N } from '@/assets/js/store/i18n'
@@ -35,6 +36,25 @@ function toggleCapability(key: CapabilityKey) {
   else next.add(key)
   library.setFilters({ capabilities: [...next] })
 }
+
+// The size verdict joins the capability row rather than standing beside it: it
+// narrows the list the same way and is read in the same glance. Absent in a
+// category with nothing to judge, as the backend and status dropdowns are.
+const fitFilters = computed<ExtraFilter[]>(() =>
+  library.fitFilterAvailable
+    ? [
+        {
+          key: 'fits',
+          label: i18nState.VRAM_FIT_FILTER,
+          icon: VramChipIcon,
+          active: library.filters.fitsOnly,
+          hint: library.filters.fitsOnly
+            ? i18nState.VRAM_FIT_FILTER_ON
+            : i18nState.VRAM_FIT_FILTER_OFF,
+        },
+      ]
+    : [],
+)
 
 // Both dropdowns offer only what the selected category contains, and a filter
 // with a single possible value is locked to it: choosing it would change nothing
@@ -206,8 +226,10 @@ const statusValue = computed(() =>
     <CapabilityIcons
       mode="filter"
       :active-keys="activeCapabilities"
+      :extras="fitFilters"
       icon-size="size-4"
       @toggle="toggleCapability"
+      @toggle-extra="library.setFilters({ fitsOnly: !library.filters.fitsOnly })"
     />
     <!-- Grouped and named so the dropdown, whose trigger is a label-only button,
          is addressable by what it filters. -->

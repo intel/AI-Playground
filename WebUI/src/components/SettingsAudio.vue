@@ -39,6 +39,7 @@ import { useI18N } from '@/assets/js/store/i18n'
 import { useQwen3TextToSpeech } from '@/assets/js/store/qwen3TextToSpeech'
 import { useTextToSpeech } from '@/assets/js/store/textToSpeech'
 import { useSpeechToText } from '@/assets/js/store/speechToText'
+import { stopSpeaking } from '@/assets/js/speech/speechIO'
 import * as toast from '@/assets/js/toast'
 
 const languages = useI18N().state
@@ -64,6 +65,9 @@ const isSttPreset = computed(() => activeAudioPreset.value?.sttPreset === true)
  */
 function resetPresetSettings() {
   if (isTtsPreset.value) {
+    // Engine defaults changed mid-playback: stop the clip, as the old store-side
+    // reset did, before swapping the voice under it.
+    stopSpeaking()
     textToSpeech.resetToDefaults()
     qwen3Tts.resetToDefaults()
   } else if (isSttPreset.value) {

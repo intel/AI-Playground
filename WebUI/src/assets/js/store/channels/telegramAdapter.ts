@@ -16,12 +16,7 @@ import { reasoningElapsedMsFromParts } from '@/lib/reasoningTimings'
 
 const PARSE_MODE = 'HTML' as const
 
-function sendTelegramReply(text: string): Promise<{
-  success: boolean
-  ts?: string
-  channel?: string
-  error?: string
-}> {
+function sendTelegramReply(text: string) {
   return window.electronAPI.homeAgent.channel.send('telegram', 'reply', {
     text,
     parse_mode: PARSE_MODE,
@@ -245,7 +240,11 @@ export function createTelegramAdapter(): ChannelAdapter {
     kind: 'telegram',
     reply: async (text) => {
       const r = await sendTelegramReply(text)
-      return { success: r.success, error: r.error, ref: r.success ? { draftId: 0 } : undefined }
+      return {
+        success: r.success,
+        error: r.success ? undefined : r.error,
+        ref: r.success ? { draftId: 0 } : undefined,
+      }
     },
     photo: async (imageBase64, caption) => {
       return window.electronAPI.homeAgent.channel.send('telegram', 'photo', {
@@ -286,7 +285,7 @@ export function createTelegramAdapter(): ChannelAdapter {
       })
       return {
         success: r.success,
-        error: r.error,
+        error: r.success ? undefined : r.error,
         ref: r.success && typeof r.messageId === 'number' ? { messageId: r.messageId } : undefined,
       }
     },
@@ -297,7 +296,7 @@ export function createTelegramAdapter(): ChannelAdapter {
         text,
         parse_mode: PARSE_MODE,
       })
-      return { success: r.success, error: r.error }
+      return { success: r.success, error: r.success ? undefined : r.error }
     },
     startTypingHeartbeat,
     createDraftStream,

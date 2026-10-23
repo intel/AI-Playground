@@ -1,56 +1,10 @@
 import { z } from 'zod'
-import { watch } from 'vue'
-import { useImageGenerationPresets, type MediaItem } from '../store/imageGenerationPresets'
-import { useComfyUiPresets } from '../store/comfyUiPresets'
-import { useBackendServices } from '../store/backendServices'
-import { useActivities } from '../store/activities'
-import { useConversations } from '../store/conversations'
-import { useI18N } from '../store/i18n'
+import { repairWorkflowToolInput } from '@/lib/comfyToolRepair'
 import { usePresets, type Preset, type ComfyUiPreset } from '../store/presets'
 import { useTextInference } from '../store/textInference'
-import { usePresetSwitching } from '../store/presetSwitching'
-import { usePromptStore } from '../store/promptArea'
-import { useDeveloperSettings } from '../store/developerSettings'
 import { DEV_PRESET_NAMES, dummyWorkflowsOnly } from '../store/devPresets'
-import { stopChatBackends, returnGpuToChat } from './chatBackends'
-import { comfyRunsWaiting, queueComfyRun } from './mediaPipeline'
-import {
-  DEFAULT_RESOLUTION_CONFIG,
-  getResolutionsFromConfig,
-  getResolutionForConfig,
-  findClosestResolutionInConfig,
-} from '../store/imageGenerationUtils'
-import type { ResolutionConfig, MegapixelOption } from '../store/presets'
-import { isCancellation } from '../errors/appError'
+import { DEFAULT_RESOLUTION_CONFIG, getResolutionsFromConfig } from '../store/imageGenerationUtils'
 import { tool } from 'ai'
-
-/**
- * Idle/stall watchdog window. Instead of a hard cap on total generation time
- * (which killed long-but-healthy renders like LTX image-to-video at ~80%), the
- * timeout is reset every time ComfyUI reports progress (a change to the tracked
- * media items, currentState, or stepText). It only fires when generation makes
- * NO progress for this long — i.e. the backend is genuinely stuck.
- */
-const GENERATION_IDLE_TIMEOUT_MS = 5 * 60_000
-
-// Global defaults as fallback (matching imageGenerationPresets.ts)
-const globalDefaultSettings = {
-  seed: -1,
-  width: 512,
-  height: 512,
-  inferenceSteps: 6,
-  resolution: '704x384',
-  batchSize: 4,
-  negativePrompt: 'nsfw',
-}
-
-// Helper function to get a sensible default megapixel tier from resolution config
-function getDefaultMegapixelLabel(config: ResolutionConfig): string {
-  const labels = config.megapixels.map((m: MegapixelOption) => m.label)
-  // Prefer "1.0" if available (HD quality), otherwise pick middle tier
-  if (labels.includes('1.0')) return '1.0'
-  return labels[Math.floor(labels.length / 2)] ?? '0.5'
-}
 
 // Helper function to get available workflows for the tool
 export function getAvailableWorkflows(): Array<{
@@ -176,568 +130,7 @@ export type ComfyUiToolOutput = z.infer<typeof ComfyUiToolOutputSchema>
 function findFastVariant(preset: Preset): string | null {
   if (!preset.variants || preset.variants.length === 0) return null
   const fastVariant = preset.variants.find((v) => v.name.toLowerCase().includes('fast'))
-  console.log('### findFastVariant', { preset, fastVariant })
   return fastVariant ? fastVariant.name : null
-}
-
-type ComfyGenerationArgs = {
-  workflow?: string
-  variant?: string
-  prompt: string
-  negativePrompt?: string
-  aspectRatio?: string
-  megapixels?: string
-  resolution?: string
-  inferenceSteps?: number
-  seed?: number
-  batchSize?: number
-}
-
-/**
- * Runs one generation for a tool call. ComfyUI serves prompts one at a time and
- * the whole run drives the single global generation store (preset switch, item
- * tracking, the idle watchdog below), so concurrent callers queue rather than
- * interleave — see mediaPipeline.ts.
- */
-export function executeComfyGeneration(
-  args: ComfyGenerationArgs,
-  options: { abortSignal?: AbortSignal } = {},
-): Promise<ComfyUiToolOutput> {
-  return queueComfyRun(() => runComfyGeneration(args, options), options.abortSignal)
-}
-
-async function runComfyGeneration(
-  args: ComfyGenerationArgs,
-  options: { abortSignal?: AbortSignal } = {},
-): Promise<ComfyUiToolOutput> {
-  console.log('[ComfyUI Tool] Starting generation with args:', args)
-
-  const activities = useActivities()
-  const conversations = useConversations()
-  const i18nState = useI18N().state
-  const imageGeneration = useImageGenerationPresets()
-  const comfyUi = useComfyUiPresets()
-  const backendServices = useBackendServices()
-  const presets = usePresets()
-
-  // Surface the whole tool call as a chat activity ("Generating image…") and nest
-  // the image-gen FSM phases under it (via generationParentActivityId) so the chat
-  // status line shows live progress instead of a silent wait.
-  const toolActivityId = activities.begin({
-    category: 'tools',
-    label: i18nState.COM_ACTIVITY_GENERATING_IMAGE,
-    scope: { kind: 'chat', conversationKey: conversations.activeKey },
-  })
-  imageGeneration.generationParentActivityId = toolActivityId
-  let toolActivityEnded = false
-  const finishToolActivity = (state: 'done' | 'failed' = 'done') => {
-    if (toolActivityEnded) return
-    toolActivityEnded = true
-    imageGeneration.generationParentActivityId = null
-    activities.end(toolActivityId, state)
-  }
-
-  // Helper to create error result instead of throwing
-  const createErrorResult = (message: string): ComfyUiToolOutput => {
-    finishToolActivity('failed')
-    return {
-      success: false,
-      message,
-      images: [],
-    }
-  }
-
-  if (!useDeveloperSettings().keepModelsLoaded) {
-    // Wait for any in-flight chat stream (the request that carried this tool
-    // call) to finish before freeing the GPU, so stopping the chat backend
-    // can't reset an open llama.cpp socket mid-stream (=> "network error").
-    // Replaces a fixed 100ms guess; bounded internally so a stuck stream can't
-    // hang generation.
-    await useTextInference().waitForInferenceIdle()
-    await stopChatBackends()
-  }
-
-  // Ensure ComfyUI backend is running - this is unrecoverable
-  const comfyUiService = backendServices.info.find((item) => item.serviceName === 'comfyui-backend')
-  if (!comfyUiService || comfyUiService.status !== 'running') {
-    console.error('[ComfyUI Tool] Backend not running')
-    return createErrorResult('ComfyUI backend is not running. Please start it first.')
-  }
-
-  // Find preset by name - fall back to the user's default image workflow if not
-  // provided (resolved from the enabled create-images presets, else "Draft Image").
-  let preset: Preset | null = null
-  const imageWorkflowNames = getAvailableWorkflows()
-    .filter((w) => w.mediaType !== 'video')
-    .map((w) => w.name)
-  const requestedWorkflow = args.workflow || resolveDefaultImageWorkflow(imageWorkflowNames)
-
-  preset = presets.presets.find((p) => p.name === requestedWorkflow) || null
-  if (!preset || preset.type !== 'comfy') {
-    // Try to find any available ComfyUI preset as fallback
-    console.warn(
-      `[ComfyUI Tool] Preset "${requestedWorkflow}" not found or not a ComfyUI preset, trying fallback`,
-    )
-    preset = presets.presets.find((p) => p.type === 'comfy') || null
-    if (!preset) {
-      return createErrorResult('No ComfyUI presets available')
-    }
-    console.log(`[ComfyUI Tool] Using fallback preset: ${preset.name}`)
-  }
-
-  // Select variant - fall back to first variant or Fast variant if requested variant is invalid
-  let selectedVariant: string | null = null
-  if (preset.variants && preset.variants.length > 0) {
-    if (args.variant) {
-      // Check if the specified variant exists
-      const variantExists = preset.variants.some((v) => v.name === args.variant)
-      if (variantExists) {
-        selectedVariant = args.variant
-      } else {
-        // Fall back to Fast variant or first variant instead of throwing
-        console.warn(
-          `[ComfyUI Tool] Variant "${args.variant}" not found in preset "${preset.name}", falling back to default`,
-        )
-        const fastVariant = findFastVariant(preset)
-        selectedVariant = fastVariant || preset.variants[0].name
-      }
-    } else {
-      // Prefer Fast variant if no variant specified
-      const fastVariant = findFastVariant(preset)
-      selectedVariant = fastVariant || preset.variants[0].name
-    }
-  }
-
-  console.log(`[ComfyUI Tool] Using preset: ${preset.name}, variant: ${selectedVariant || 'none'}`)
-
-  // Get preset with variant applied (important for reading correct settings)
-  // Set variant in store first so getPresetWithVariant can find it
-  if (selectedVariant) {
-    presets.setActiveVariant(preset.name, selectedVariant)
-  }
-  const presetWithVariant = presets.getPresetWithVariant(preset.name)
-  if (!presetWithVariant) {
-    console.error(`[ComfyUI Tool] Failed to get preset "${preset.name}" with variant`)
-    return createErrorResult(`Failed to apply preset "${preset.name}"`)
-  }
-  // Update preset reference to use the variant-applied preset
-  preset = presetWithVariant
-
-  // Helper function to get default value from preset settings (now uses variant-applied preset)
-  const getPresetDefault = (settingName: string): unknown => {
-    if (!preset) return null
-    const setting = preset.settings.find(
-      (s: { settingName?: string }) => 'settingName' in s && s.settingName === settingName,
-    )
-    return setting?.defaultValue ?? null
-  }
-
-  // Get resolution config from preset
-  const comfyPreset = preset as ComfyUiPreset
-  const resolutionConfig = comfyPreset.resolutionConfig ?? DEFAULT_RESOLUTION_CONFIG
-
-  // Resolve resolution from args, finding closest valid match
-  // Priority: 1. aspectRatio and/or megapixels, 2. resolution WxH, 3. preset default
-  let width: number
-  let height: number
-
-  if (args.aspectRatio || args.megapixels) {
-    // Handle aspectRatio and/or megapixels (fill in defaults for missing values)
-    const ar = args.aspectRatio ?? '1/1' // default to square if only MP provided
-    const mp = args.megapixels ?? getDefaultMegapixelLabel(resolutionConfig) // pick sensible default if only AR provided
-
-    // Try exact match first
-    const exactMatch = getResolutionForConfig(resolutionConfig, mp, ar)
-    if (exactMatch) {
-      width = exactMatch.width
-      height = exactMatch.height
-      console.log(`[ComfyUI Tool] Exact resolution match for ${ar} @ ${mp}MP: ${width}x${height}`)
-    } else {
-      // Find closest by aspect ratio - get all resolutions with matching AR, pick closest by MP
-      const allResolutions = getResolutionsFromConfig(resolutionConfig)
-      const matchingAR = allResolutions.filter((r) => r.aspectRatio === ar)
-
-      if (matchingAR.length > 0) {
-        // Find closest megapixel tier
-        const targetMP = parseFloat(mp)
-        const closest = matchingAR.reduce((prev, curr) => {
-          const prevDiff = Math.abs(parseFloat(prev.megapixels) - targetMP)
-          const currDiff = Math.abs(parseFloat(curr.megapixels) - targetMP)
-          return currDiff < prevDiff ? curr : prev
-        })
-        width = closest.width
-        height = closest.height
-        console.log(
-          `[ComfyUI Tool] Closest resolution match for ${ar}: ${width}x${height} (requested ${mp}MP, got ${closest.megapixels}MP)`,
-        )
-      } else {
-        // AR not found, use default
-        const defaultResolution = getPresetDefault('resolution') as string | null
-        if (defaultResolution) {
-          const [dw, dh] = defaultResolution.split('x').map(Number)
-          width = dw || imageGeneration.width
-          height = dh || imageGeneration.height
-        } else {
-          width = imageGeneration.width
-          height = imageGeneration.height
-        }
-        console.log(
-          `[ComfyUI Tool] Aspect ratio ${ar} not found, using default: ${width}x${height}`,
-        )
-      }
-    }
-  } else if (args.resolution) {
-    // Parse resolution WxH and find closest valid match
-    const [w, h] = args.resolution.split('x').map(Number)
-    if (w && h) {
-      // Find closest match from valid resolutions
-      const closestMatch = findClosestResolutionInConfig(resolutionConfig, w, h)
-      if (closestMatch) {
-        width = closestMatch.width
-        height = closestMatch.height
-        console.log(
-          `[ComfyUI Tool] Closest resolution match for ${args.resolution}: ${width}x${height}`,
-        )
-      } else {
-        width = w
-        height = h
-        console.log(`[ComfyUI Tool] No close match found, using requested: ${width}x${height}`)
-      }
-    } else {
-      // Fallback to preset default if parsing fails
-      const defaultResolution = getPresetDefault('resolution') as string | null
-      if (defaultResolution) {
-        const [dw, dh] = defaultResolution.split('x').map(Number)
-        width = dw || imageGeneration.width
-        height = dh || imageGeneration.height
-      } else {
-        width = imageGeneration.width
-        height = imageGeneration.height
-      }
-    }
-  } else {
-    // Use preset default resolution
-    const defaultResolution = getPresetDefault('resolution') as string | null
-    if (defaultResolution) {
-      const [w, h] = defaultResolution.split('x').map(Number)
-      width = w || imageGeneration.width
-      height = h || imageGeneration.height
-    } else {
-      width = imageGeneration.width
-      height = imageGeneration.height
-    }
-  }
-
-  // Set up temporary image tracking, using preset default for batchSize if not provided.
-  // Batching only makes sense for images (cheap alternates); video and 3D are
-  // expensive and a single result is expected, so force batchSize 1 for them
-  // regardless of what the model requested.
-  const presetMediaType = (preset?.mediaType as 'image' | 'video' | 'model3d') || 'image'
-  const requestedBatchSize = args.batchSize ?? (getPresetDefault('batchSize') as number | null) ?? 1
-  const batchSize = presetMediaType === 'image' ? requestedBatchSize : 1
-  const imageIds: string[] = Array.from({ length: batchSize }, () => crypto.randomUUID())
-
-  // Save original values
-  const originalPrompt = imageGeneration.prompt
-  const originalNegativePrompt = imageGeneration.negativePrompt
-  const originalInferenceSteps = imageGeneration.inferenceSteps
-  const originalWidth = imageGeneration.width
-  const originalHeight = imageGeneration.height
-  const originalSeed = imageGeneration.seed
-  const originalBatchSize = imageGeneration.batchSize
-  const originalActivePresetName = presets.activePresetName
-  const originalActiveVariant = originalActivePresetName
-    ? presets.activeVariantName[originalActivePresetName] || null
-    : null
-
-  // Helper to restore state and clean up
-  const restoreState = async () => {
-    imageGeneration.prompt = originalPrompt
-    imageGeneration.negativePrompt = originalNegativePrompt
-    imageGeneration.inferenceSteps = originalInferenceSteps
-    imageGeneration.width = originalWidth
-    imageGeneration.height = originalHeight
-    imageGeneration.seed = originalSeed
-    imageGeneration.batchSize = originalBatchSize
-
-    // Restore original preset using orchestrator
-    if (originalActivePresetName) {
-      const presetSwitching = usePresetSwitching()
-      await presetSwitching.switchPreset(originalActivePresetName, {
-        variant: originalActiveVariant ?? undefined,
-        skipModeSwitch: true,
-        skipLastUsedUpdate: true,
-        skipMemoryAlert: true,
-      })
-    }
-  }
-
-  try {
-    // Set the active preset and variant using the orchestrator
-    // Use the resolved preset name (which might differ from args.workflow if we fell back)
-    const presetSwitching = usePresetSwitching()
-    const switchResult = await presetSwitching.switchPreset(preset.name, {
-      variant: selectedVariant ?? undefined,
-      skipModeSwitch: true, // Tool calls shouldn't change the UI mode
-      skipLastUsedUpdate: true, // Don't update last-used for tool-initiated switches
-      skipMemoryAlert: true,
-    })
-
-    if (!switchResult.success) {
-      console.error(`[ComfyUI Tool] Failed to switch to preset: ${switchResult.error}`)
-      await restoreState()
-      return createErrorResult(`Failed to switch to preset "${preset.name}"`)
-    }
-
-    console.log('[ComfyUI Tool] Ensuring models are available')
-
-    // Ensure required models are available before proceeding
-    await imageGeneration.ensureModelsAreAvailable()
-
-    // Set temporary values, using preset defaults when tool args don't provide values
-    // Always use preset defaults, not saved values
-    imageGeneration.prompt = args.prompt
-    imageGeneration.negativePrompt =
-      args.negativePrompt ??
-      (getPresetDefault('negativePrompt') as string | null) ??
-      globalDefaultSettings.negativePrompt
-    imageGeneration.inferenceSteps =
-      args.inferenceSteps ??
-      (getPresetDefault('inferenceSteps') as number | null) ??
-      globalDefaultSettings.inferenceSteps
-    imageGeneration.width = width
-    imageGeneration.height = height
-    imageGeneration.seed =
-      args.seed ?? (getPresetDefault('seed') as number | null) ?? globalDefaultSettings.seed
-    imageGeneration.batchSize = batchSize
-
-    // Media type from preset (computed above for batch clamping)
-    const mediaType = presetMediaType
-
-    // Create media items in queued state
-    imageIds.forEach((imageId) => {
-      const baseItem = {
-        id: imageId,
-        mode: 'imageGen' as const,
-        state: 'queued' as const,
-        settings: {},
-      }
-
-      if (mediaType === 'video') {
-        imageGeneration.updateImage({
-          ...baseItem,
-          type: 'video',
-          videoUrl: '',
-        })
-      } else if (mediaType === 'model3d') {
-        imageGeneration.updateImage({
-          ...baseItem,
-          type: 'model3d',
-          model3dUrl: '',
-        })
-      } else {
-        imageGeneration.updateImage({
-          ...baseItem,
-          type: 'image',
-          imageUrl: '',
-        })
-      }
-    })
-
-    // Cancelled while the preset was switching or a model downloading — don't
-    // queue a prompt (and pull in a multi-GB model) nobody is waiting for.
-    if (options.abortSignal?.aborted) return createErrorResult('Generation cancelled.')
-
-    console.log('[ComfyUI Tool] Starting generation with imageIds:', imageIds)
-    // Reset progress state before starting (this is done in imageGenerationPresets.generate() but we're calling comfyUi.generate() directly)
-    imageGeneration.currentState = 'no_start'
-    imageGeneration.stepText = '' // Empty string will show "Preparing..." in the UI
-
-    // Start generation
-    await comfyUi.generate(imageIds, 'imageGen')
-
-    console.log('[ComfyUI Tool] Generation started, waiting for completion')
-
-    // Wait for all images to reach a terminal state. Resolves with a structured
-    // error result (rather than hanging) when the generation fails, the backend
-    // stops, items are cancelled, or the watchdog/timeout fires.
-    const result = await new Promise<ComfyUiToolOutput>((resolve) => {
-      let timeout: ReturnType<typeof setTimeout> | null = null
-      let stopWatcher: (() => void) | null = null
-      let stopListeningForAbort: (() => void) | null = null
-
-      const cleanup = () => {
-        if (timeout) {
-          clearTimeout(timeout)
-          timeout = null
-        }
-        if (stopWatcher) {
-          stopWatcher()
-          stopWatcher = null
-        }
-        if (stopListeningForAbort) {
-          stopListeningForAbort()
-          stopListeningForAbort = null
-        }
-      }
-
-      // Cancelling the turn has to reach ComfyUI: it has already accepted the
-      // prompt and will happily load a 30 GB model and render it while nobody
-      // waits for the result. `stop()` clears the queue, interrupts the run and
-      // settles the tracked items.
-      const onAbort = () => {
-        cleanup()
-        void comfyUi.stop()
-        resolve(createErrorResult('Generation cancelled.'))
-      }
-      if (options.abortSignal) {
-        if (options.abortSignal.aborted) {
-          onAbort()
-          return
-        }
-        const signal = options.abortSignal
-        signal.addEventListener('abort', onAbort, { once: true })
-        stopListeningForAbort = () => signal.removeEventListener('abort', onAbort)
-      }
-
-      // (Re)arm the idle watchdog. Called on every progress signal so the timer
-      // only elapses after a true stall, letting slow renders run to completion.
-      const armIdleTimeout = () => {
-        if (timeout) clearTimeout(timeout)
-        timeout = setTimeout(() => {
-          cleanup()
-          resolve(createErrorResult('ComfyUI generation stalled (no progress for 5 minutes)'))
-        }, GENERATION_IDLE_TIMEOUT_MS)
-      }
-
-      const trackedItems = () =>
-        imageGeneration.generatedImages.filter((item) => imageIds.includes(item.id))
-
-      const check = () => {
-        // Failure / cancellation: the generation errored or an item moved to a
-        // terminal non-success state. Don't keep waiting for a 'done' that will
-        // never arrive (this was the source of multi-minute tool-call stalls).
-        const failed =
-          imageGeneration.currentState === 'error' ||
-          trackedItems().some((item) => item.state === 'failed' || item.state === 'stopped')
-        if (failed) {
-          cleanup()
-          resolve(
-            createErrorResult(
-              `ComfyUI generation failed: ${imageGeneration.lastError ?? 'unknown error'}`,
-            ),
-          )
-          return
-        }
-
-        const completedMedia = trackedItems().filter(
-          (item): item is MediaItem =>
-            item.state === 'done' &&
-            ((item.type === 'image' && 'imageUrl' in item && !!item.imageUrl) ||
-              (item.type === 'video' && 'videoUrl' in item && !!item.videoUrl) ||
-              (item.type === 'model3d' && 'model3dUrl' in item && !!item.model3dUrl)),
-        )
-
-        if (completedMedia.length >= batchSize) {
-          cleanup()
-          const results = completedMedia.map((item) => {
-            if (item.type === 'image') {
-              return {
-                id: item.id,
-                type: 'image' as const,
-                imageUrl: item.imageUrl,
-                mode: 'imageGen' as const,
-                settings: item.settings || {},
-              }
-            } else if (item.type === 'video') {
-              return {
-                id: item.id,
-                type: 'video' as const,
-                videoUrl: item.videoUrl,
-                mode: 'imageGen' as const,
-                settings: item.settings || {},
-              }
-            } else {
-              return {
-                id: item.id,
-                type: 'model3d' as const,
-                model3dUrl: item.model3dUrl,
-                mode: 'imageGen' as const,
-                settings: item.settings || {},
-              }
-            }
-          })
-          resolve({ images: results })
-        }
-      }
-
-      armIdleTimeout()
-
-      // Watch the media items, workflow state, and step text so failures surface
-      // immediately and each progress tick re-arms the idle watchdog. Clean the
-      // watcher up as soon as we settle.
-      stopWatcher = watch(
-        () => [
-          imageGeneration.generatedImages,
-          imageGeneration.currentState,
-          imageGeneration.stepText,
-        ],
-        () => {
-          armIdleTimeout()
-          check()
-        },
-        { deep: true },
-      )
-
-      // Check immediately in case the generation already settled.
-      check()
-    })
-
-    console.log('[ComfyUI Tool] Generation completed:', result.success === false ? 'error' : 'ok')
-    return result
-  } catch (error) {
-    console.error('[ComfyUI Tool] Generation error:', error)
-
-    // Reset prompt state on error
-    const promptStore = usePromptStore()
-    promptStore.promptSubmitted = false
-
-    // Clean up queued images if they exist
-    imageIds.forEach((id) => {
-      const existingImage = imageGeneration.generatedImages.find((img) => img.id === id)
-      if (existingImage && existingImage.state === 'queued') {
-        imageGeneration.generatedImages = imageGeneration.generatedImages.filter(
-          (img) => img.id !== id,
-        )
-      }
-    })
-
-    // A user cancelling a required model download is not a tool failure — report
-    // it back to the model as a benign cancellation (the finally still cleans up).
-    if (isCancellation(error)) {
-      return {
-        success: false,
-        message: 'Image generation was cancelled by the user.',
-        images: [],
-      }
-    }
-
-    // Return error result instead of throwing
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    return createErrorResult(`ComfyUI generation failed: ${errorMessage}`)
-  } finally {
-    // Keep the activity alive through cleanup so the post-generation window (which
-    // frees the GPU and restarts the chat backend — several seconds) isn't silent.
-    // Relabel it to reflect what's actually happening before the LLM responds.
-    await restoreState()
-    // Nothing to hand back to while the queue still holds generations: they want
-    // ComfyUI loaded and have no use for the LLM (see comfyRunsWaiting).
-    if (!useDeveloperSettings().keepModelsLoaded && !comfyRunsWaiting()) {
-      activities.update(toolActivityId, { label: i18nState.COM_ACTIVITY_RELOADING_CHAT })
-      await returnGpuToChat(() => comfyUi.free())
-    }
-    finishToolActivity()
-  }
 }
 
 // Tool definition for AI SDK
@@ -746,7 +139,7 @@ async function runComfyGeneration(
 // presets. These are standalone, explicitly-typed helpers on purpose: keeping the
 // heavy `useTextInference()` store type out of `getToolDefinition` (whose inferred
 // shape feeds the ai-SDK `tool()` generics) avoids a type-instantiation blow-up.
-function resolveDefaultImageWorkflow(imageNames: string[]): string {
+export function resolveDefaultImageWorkflow(imageNames: string[]): string {
   return useTextInference().getDefaultWorkflow('comfyUI:image', imageNames) ?? 'Draft Image'
 }
 
@@ -759,20 +152,25 @@ function resolveDefaultImageWorkflow(imageNames: string[]): string {
  * surface as an "unknown" tool card / failed generation.
  */
 export function repairCreateToolInput(rawInput: string): string | null {
+  const data = createToolRepairData()
+  return data ? repairWorkflowToolInput(rawInput, data) : null
+}
+
+/**
+ * The repair data the main-side turn engine needs: shipped with the turn
+ * request (chatIpc `repairData.comfyUI`) so the engine can validate the
+ * model's `workflow` pick and coerce an unknown one to the default before
+ * executing in-process. Null when no workflow is available (no repair
+ * possible — the call fails visibly).
+ */
+export function createToolRepairData(): import('@/lib/comfyToolRepair').WorkflowRepairData | null {
   const workflows = getAvailableWorkflows()
   if (workflows.length === 0) return null
-  let obj: Record<string, unknown>
-  try {
-    const parsed: unknown = JSON.parse(rawInput || '{}')
-    obj = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {}
-  } catch {
-    obj = {}
-  }
-  const names = workflows.map((w) => w.name)
-  if (typeof obj.workflow === 'string' && names.includes(obj.workflow)) return null
   const imageNames = workflows.filter((w) => w.mediaType !== 'video').map((w) => w.name)
-  obj.workflow = resolveDefaultImageWorkflow(imageNames)
-  return JSON.stringify(obj)
+  return {
+    names: workflows.map((w) => w.name),
+    defaultWorkflow: resolveDefaultImageWorkflow(imageNames),
+  }
 }
 
 function resolveDefaultVideoWorkflow(videoNames: string[]): string | null {
@@ -814,7 +212,7 @@ function getToolDefinition() {
         'CRITICAL: Do NOT include resolution, aspect ratio, dimensions, or size information in the prompt text itself. These should ONLY be passed as separate parameters (aspectRatio, megapixels, or resolution).',
       inputSchema: z.object({
         workflow: z
-          .string()
+          .enum([defaultWorkflow] as [string, ...string[]])
           .describe(
             `Workflow name to use for generation. Use ${defaultWorkflow} (default, will automatically use "Fast" variant if available, least resource intensive) unless user specifically requests higher quality or different model.`,
           ),
@@ -922,10 +320,12 @@ function getToolDefinition() {
     }
   }
 
-  // Build workflow enum or string description
+  // Build workflow enum. Fail closed when the catalog is empty: the bootstrap
+  // fallback names only the default, never a free-form string.
   const workflowNames = availableWorkflows.map((w) => w.name)
-  const workflowEnum =
-    workflowNames.length > 0 ? z.enum(workflowNames as [string, ...string[]]) : z.string()
+  const workflowEnum = z.enum(
+    (workflowNames.length > 0 ? workflowNames : [defaultWorkflow]) as [string, ...string[]],
+  )
 
   let workflowDescription = `Workflow name to use for generation. Available options: ${workflowOptions}. `
   workflowDescription += `Use ${defaultWorkflow} (will automatically use "Fast" variant if available, equivalent to '${defaultWorkflowWithVariant}') unless user specifically requests higher quality or different model. `
@@ -993,23 +393,4 @@ export const comfyUI = tool({
     return getToolDefinition().inputSchema
   },
   outputSchema: ComfyUiToolOutputSchema,
-  execute: async (
-    args: {
-      workflow?: string
-      variant?: string
-      prompt: string
-      negativePrompt?: string
-      aspectRatio?: string
-      megapixels?: string
-      resolution?: string
-      inferenceSteps?: number
-      seed?: number
-      batchSize?: number
-    },
-    { abortSignal }: { abortSignal?: AbortSignal },
-  ) => {
-    const result = await executeComfyGeneration(args, { abortSignal })
-    console.log('### comfyUI.execute', args, result)
-    return result
-  },
 })

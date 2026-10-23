@@ -16,5 +16,6 @@
   "contextSize": 131072,
   "maxNewTokens": 32768,
   "requiresToolCalling": true,
+  "requiresAgentic": true,
   "requiredModels": []
 }

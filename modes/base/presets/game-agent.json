@@ -10,6 +10,7 @@
   "agentWorkspace": "games",
   "agentCapabilities": ["media", "web-debug", "game-studio"],
   "requiresToolCalling": true,
+  "requiresAgentic": true,
   "requiresCoding": true,
   "preferredModels": {
     "openVINO": "OpenVINO/Qwen3.5-9B-int4-ov",

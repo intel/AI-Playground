@@ -234,10 +234,10 @@
 
           <div class="flex items-center gap-3">
             <CollapsibleTrigger
-              :disabled="!textInference.aipgToolsEnabled"
+              :disabled="!toolsEnabled"
               class="flex items-center gap-1.5 text-xs"
               :class="
-                textInference.aipgToolsEnabled
+                toolsEnabled
                   ? 'text-muted-foreground cursor-pointer'
                   : 'text-muted-foreground opacity-50 cursor-not-allowed'
               "
@@ -251,7 +251,7 @@
             </CollapsibleTrigger>
             <Checkbox
               id="builtin-tool-speech"
-              :disabled="!textInference.aipgToolsEnabled"
+              :disabled="!toolsEnabled"
               :model-value="isSpeechEnabled"
               @click="toggleSpeech"
             />
@@ -267,13 +267,13 @@
             <div class="flex items-center gap-2 min-w-0">
               <Switch
                 :id="`builtin-tool-${child.name}`"
-                :disabled="!textInference.aipgToolsEnabled"
+                :disabled="!toolsEnabled"
                 :model-value="textInference.isBuiltinToolEnabled(child.name)"
                 @update:model-value="toggleSpeechChild(child.name)"
               />
               <button
                 type="button"
-                :disabled="!textInference.aipgToolsEnabled"
+                :disabled="!toolsEnabled"
                 class="text-xs text-foreground truncate text-left cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                 @click="toggleSpeechChild(child.name)"
               >
@@ -293,9 +293,10 @@
                  the voice, so the toggle follows it being enabled. Stored per chat
                  preset, so it applies to the active one — the assistant auto-plays
                  its reply in the app, the Home Agent answers a voice message with a
-                 voice message. -->
+                 voice message. Nothing auto-plays an agent turn, so the media slice
+                 leaves it out. -->
             <div
-              v-if="child.name === 'synthesizeTextToSpeech'"
+              v-if="child.name === 'synthesizeTextToSpeech' && !isMediaVariant"
               class="flex items-center gap-2 shrink-0"
             >
               <Tooltip>
@@ -561,7 +562,7 @@ const isSpeechEnabled = computed(() => enabledSpeechCount.value > 0)
 
 // Master toggle: turn the whole Speech group on/off (both children follow).
 function toggleSpeech() {
-  if (!textInference.aipgToolsEnabled) return
+  if (!toolsEnabled.value) return
   const target = !isSpeechEnabled.value
   for (const child of speechChildren) {
     textInference.setBuiltinToolEnabled(child.name, target)
@@ -569,7 +570,7 @@ function toggleSpeech() {
 }
 
 function toggleSpeechChild(toolName: string) {
-  if (!textInference.aipgToolsEnabled) return
+  if (!toolsEnabled.value) return
   textInference.setBuiltinToolEnabled(toolName, !textInference.isBuiltinToolEnabled(toolName))
 }
 

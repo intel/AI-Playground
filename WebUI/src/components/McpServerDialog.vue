@@ -106,7 +106,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useMcp } from '@/assets/js/store/mcp'
 import { useErrors } from '@/assets/js/store/errors'
 import * as toast from '@/assets/js/toast'
-import type { McpServerConfig } from '../../electron/subprocesses/mcpServers'
+import type { McpServerConfig } from '@/types/mcpIpc'
 
 const props = defineProps<{
   open: boolean

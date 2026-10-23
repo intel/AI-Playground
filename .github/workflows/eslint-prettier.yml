@@ -14,3 +14,4 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - run: npm run lint:ci
       - run: npm run format:ci
+      - run: npm run typecheck

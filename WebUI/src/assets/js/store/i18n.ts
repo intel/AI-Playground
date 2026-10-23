@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { reactive, ref } from 'vue'
 
 export const useI18N = defineStore('i18n', () => {
   const langName = ref('en-US')

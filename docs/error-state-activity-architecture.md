@@ -106,7 +106,7 @@ Generation is modeled as an explicit FSM across two stores rather than loose fla
 - **Crash detection**: a watch on the ComfyUI service status fails in-flight items if the backend
   leaves `running` unexpectedly (guarded by `backendRestarting` so intentional restarts for
   custom-node installs don't false-positive). The main-process
-  [`electron/subprocesses/service.ts`](../WebUI/electron/subprocesses/service.ts) also reports
+  [`electron/adapters/backends/service.ts`](../WebUI/electron/adapters/backends/service.ts) also reports
   unexpected child exits.
 - `summarizeComfyExecutionError` converts verbose ComfyUI `execution_error` payloads into a concise
   `userMessage` (size mismatch, OOM, file-not-found, …); full detail goes to `technicalMessage`.
@@ -156,9 +156,8 @@ the error sink in shape.
 | Producer | Activity | Category | Scope |
 |---|---|---|---|
 | `textInference.start/completeBackendPreparation` | backend/model load (`preparationMessage`) | `backend` | chat (active conv) |
-| `textInference.prepareRagContext` | "Searching documents…" | `rag` | chat |
-| `openAiCompatibleChat.customFetch` (MCP instructions / tool resolution) | "Preparing tools…" | `tools` | chat |
-| `openAiCompatibleChat.customFetch` (image→base64) | "Reading images…" | `tools` | chat |
+| `openAiCompatibleChat.generate` (begins; ends on `chat-rag` or `finally`) | "Searching documents…" | `rag` | chat |
+| `openAiCompatibleChat.buildTurnExtras` (tool resolution) | "Preparing tools…" | `tools` | chat |
 | `openAiCompatibleChat` stream `onChunk`/`onFinish` | "Processing prompt…" (TTFT) / "Processing results…" (post-tool inter-step) | `inference` | chat |
 | MCP `dynamicTool.execute` | "Running &lt;tool&gt;…" | `tools` | chat |
 | `tools/comfyUi.ts` / `comfyUiImageEdit.ts` | "Generating/Editing image…" | `tools` | chat (parent) |
@@ -189,15 +188,15 @@ chat `inference`/`tools` activities (covers stop / stream errors where `onFinish
 
 ```mermaid
 flowchart TD
-  submit["User submits prompt"] --> prep["textInference.ensureReadyForInference()"]
-  prep -->|"begin"| backend["activity: backend prep (chat)"]
-  prep --> rag["prepareRagContext()"]
-  rag -->|"begin/end"| ragAct["activity: Searching documents (rag)"]
-  rag --> fetch["customFetch()"]
-  fetch -->|"track"| tools["activity: Preparing tools (tools)"]
-  fetch -->|"track (if images)"| imgs["activity: Reading images (tools)"]
-  fetch --> stream["streamText()"]
-  stream -->|"begin"| think["activity: Processing prompt (inference)"]
+  submit["User submits prompt"] --> consent["checkModelAvailability()"]
+  consent -->|"begin"| backend["activity: backend prep (chat)"]
+  consent --> extras["buildTurnExtras()"]
+  extras -->|"track"| tools["activity: Preparing tools (tools)"]
+  extras -->|"begin if rag"| ragAct["activity: Searching documents (rag)"]
+  extras --> send["chat.sendMessage → chat:submitTurn"]
+  send --> engine["turnEngine: GPU admit, then retrieveRagForTurn"]
+  engine -->|"chat-rag ends rag activity"| stream["streamText in main"]
+  stream -->|"begin on start chunk"| think["activity: Processing prompt (inference)"]
   think -->|"first token / tool-call clears"| respond["model streams response"]
   respond -->|"tool-call"| toolexec["tool execute()"]
   toolexec -->|"begin/end"| toolAct["activity: Running tool / Generating image (tools)"]

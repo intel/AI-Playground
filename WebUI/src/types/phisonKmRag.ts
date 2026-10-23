@@ -15,7 +15,7 @@ import { Document } from '@langchain/classic/document'
 // splitDB[startChunkIdx..endChunkIdx].pageContent joined — deriving it on demand
 // (see deriveGroupContent below) keeps mergedGroups tiny (~50 bytes/group) so it can
 // be persisted directly instead of duplicating the full document text a second time.
-// This module holds no Vue/Pinia dependency, so electron/subprocesses/langchainPhisonKm.ts
+// This module holds no Vue/Pinia dependency, so electron/adapters/backends/langchainPhisonKm.ts
 // imports deriveGroupContent from here at runtime rather than duplicating it — there is
 // exactly one implementation of the join, on both sides of the utility-process boundary.
 export type MergedGroup = {
@@ -42,11 +42,20 @@ export type WarmupGroup = {
   content: string
 }
 
+/**
+ * Shared RAG prefix used as the invariant front of every Phison KM system prompt.
+ * Warmup and inference must start with this exact string so the KV cache prefix
+ * can be reused across presets and queries. The preset's own system prompt is
+ * appended after the document context block.
+ */
+export const PHISON_KM_RAG_PREFIX =
+  '/no_think You are a helpful AI assistant. Use the provided document context to answer questions accurately. If the context does not contain relevant information, say so.'
+
 export type WarmupRequest = {
   llmBackendUrl: string
   mergedGroups: WarmupGroup[]
   modelName: string
-  /** The shared RAG prefix string — must match exactly what prepareRagContext uses. */
+  /** Must match `PHISON_KM_RAG_PREFIX` so warmup and inference share a KV prefix. */
   ragSystemPrefix: string
 }
 
@@ -56,14 +65,14 @@ export type PhisonKmIngestConfig = {
 
 /**
  * Separator used to join a merged group's chunks. Grouping-time token accounting
- * in electron/subprocesses/langchainPhisonKm.ts must charge this same string.
+ * in electron/adapters/backends/langchainPhisonKm.ts must charge this same string.
  */
 export const GROUP_SEPARATOR = '\n\n'
 
 /**
  * Derives a merged group's text on demand from the document's splitDB, using the
  * persisted chunk-index boundaries. Must stay a pure join with no other transform —
- * electron/subprocesses/langchainPhisonKm.ts's ingest-time buildMergedGroups relies
+ * electron/adapters/backends/langchainPhisonKm.ts's ingest-time buildMergedGroups relies
  * on the same chunks[start..end] slice producing identical text at query/warmup time.
  */
 export function deriveGroupContent(splitDB: Document[], group: MergedGroup): string {

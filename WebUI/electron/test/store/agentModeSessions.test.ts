@@ -55,6 +55,10 @@ vi.mock('@/assets/js/store/textInference', () => ({
   useTextInference: () => ({ backend: 'llamaCPP', ensureReadyForInference: vi.fn() }),
 }))
 
+vi.mock('@/assets/js/store/models', () => ({
+  useModels: () => ({ checkModelAlreadyLoaded: vi.fn().mockResolvedValue([]) }),
+}))
+
 vi.mock('@/assets/js/store/cloudMode', () => ({
   useCloudMode: () => ({}),
   CLOUD_DEFAULT_MODEL: 'test-model',
@@ -69,7 +73,6 @@ vi.mock('@/assets/js/store/i18n', () => ({
 }))
 
 vi.mock('@/assets/js/tools/agentBridge', () => ({
-  executeAgentTool: vi.fn(),
   getAgentToolSpecs: () => [],
 }))
 
@@ -92,10 +95,9 @@ globalThis.window = {
     agentMode: {
       cancel: vi.fn(async () => {}),
       deleteSession: vi.fn(async () => ({ success: true })),
-      onStreamChunk: vi.fn(),
-      onToolProgress: vi.fn(),
-      onToolImage: vi.fn(),
-      onTurnDone: vi.fn(),
+      // Agent notifications ride the kernel stream; only the executeTool
+      // request stays on the agentMode surface. No kernel API is stubbed, so
+      // the projection stays inert in these tests.
       onExecuteTool: vi.fn(),
     },
     games: { read: gamesRead, create: gamesCreate, list: gamesList },
@@ -185,6 +187,29 @@ describe('agentMode sessions', () => {
 
     expect(switchPreset).not.toHaveBeenCalled()
     expect(store.workspaceDir).toBe('/code/older')
+  })
+
+  it('does not adopt an empty workspaceDir when resuming a placeholder session', async () => {
+    const store = useAgentMode()
+    seedSessions(store)
+    store.workspaceDir = '/code/project'
+    store.sessions = {
+      ...store.sessions,
+      missing: {
+        id: 'missing',
+        workspaceDir: '',
+        title: 'Unavailable session',
+        messages: [],
+        createdAt: 9,
+        updatedAt: 9,
+        presetName: 'Agent',
+      },
+    }
+
+    await store.switchSession('missing')
+
+    expect(store.activeSessionId).toBe('missing')
+    expect(store.workspaceDir).toBe('/code/project')
   })
 
   // Everything archived before sessions recorded a preset would otherwise show

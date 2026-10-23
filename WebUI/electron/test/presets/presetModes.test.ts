@@ -106,6 +106,7 @@ describe('shipped agent presets', () => {
       const chat = preset as ChatPreset
       expect(chat.agentWorkspace, `${file}: no agentWorkspace`).toMatch(/^(pick|games)$/)
       expect(chat.requiresToolCalling, `${file}: agent without tools`).toBe(true)
+      expect(chat.requiresAgentic, `${file}: agent without the agentic gate`).toBe(true)
       expect(presetToMode(preset)).toBe('agent')
     }
   })
@@ -114,6 +115,7 @@ describe('shipped agent presets', () => {
     const gameAgent = agentPresets.find((entry) => entry.preset.name === 'Game Agent')
       ?.preset as ChatPreset
     expect(gameAgent.agentWorkspace).toBe('games')
+    expect(gameAgent.requiresAgentic).toBe(true)
     expect(gameAgent.requiresCoding).toBe(true)
     expect(gameAgent.agentCapabilities).toEqual(
       expect.arrayContaining(['media', 'web-debug', 'game-studio']),
@@ -134,6 +136,7 @@ describe('shipped agent presets', () => {
     const quick = agentPresets.find((entry) => entry.preset.name === 'Quick Coder')
       ?.preset as ChatPreset
     expect(quick.agentWorkspace).toBe('games')
+    expect(quick.requiresAgentic).toBe(true)
     expect(quick.requiresCoding).toBe(true)
     expect(quick.agentCapabilities).toEqual(['game-studio-quick'])
     // Its prompt replaces Pi's own, so an empty one would leave the model with
@@ -151,15 +154,54 @@ describe('shipped agent presets', () => {
         JSON.parse(readFileSync(path.resolve(__dirname, '../../../external/models.json'), 'utf-8')),
       )
     const coding = new Set(models.filter((m) => m.supportsCoding).map((m) => m.name))
+    const agentic = new Set(models.filter((m) => m.supportsAgentic).map((m) => m.name))
     for (const { preset } of agentPresets) {
       const chat = preset as ChatPreset
-      if (!chat.requiresCoding) continue
-      for (const preferred of Object.values(chat.preferredModels ?? {})) {
-        expect(
-          coding,
-          `${chat.name}: preferred model '${preferred}' is filtered out by requiresCoding`,
-        ).toContain(preferred)
+      if (chat.requiresCoding) {
+        for (const preferred of Object.values(chat.preferredModels ?? {})) {
+          expect(
+            coding,
+            `${chat.name}: preferred model '${preferred}' is filtered out by requiresCoding`,
+          ).toContain(preferred)
+        }
       }
+      if (chat.requiresAgentic) {
+        for (const preferred of Object.values(chat.preferredModels ?? {})) {
+          expect(
+            agentic,
+            `${chat.name}: preferred model '${preferred}' is filtered out by requiresAgentic`,
+          ).toContain(preferred)
+        }
+      }
+    }
+  })
+
+  // A missing `supportsCoding` key filters a model out of Game Agent the same way
+  // `false` does, so these stay explicit. Qwen3.5-4B is the other way around.
+  it('keeps coding on models whose flag was dropped beside supportsAgentic', () => {
+    const models = z
+      .array(ModelSchema)
+      .parse(
+        JSON.parse(readFileSync(path.resolve(__dirname, '../../../external/models.json'), 'utf-8')),
+      )
+    const byName = new Map(models.map((model) => [model.name, model]))
+    const stillCoding = [
+      'unsloth/Qwen3-VL-4B-Instruct-GGUF/Qwen3-VL-4B-Instruct-Q5_K_S.gguf',
+      'unsloth/gemma-4-E4B-it-GGUF/gemma-4-E4B-it-UD-Q4_K_XL.gguf',
+      'Qwen/Qwen3-VL-30B-A3B-Instruct-GGUF/Qwen3VL-30B-A3B-Instruct-Q4_K_M.gguf',
+      'OpenVINO/Qwen3-VL-8B-Instruct-int4-ov',
+      'OpenVINO/gemma-4-E4B-it-int4-ov',
+    ]
+    for (const name of stillCoding) {
+      expect(byName.get(name)?.supportsCoding, name).toBe(true)
+    }
+    // Deliberate: small enough for the old e2e pin, marked agentic, not for coding presets.
+    for (const name of [
+      'unsloth/Qwen3.5-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf',
+      'OpenVINO/Qwen3.5-4B-int4-ov',
+    ]) {
+      expect(byName.get(name)?.supportsCoding, name).toBe(false)
+      expect(byName.get(name)?.supportsAgentic, name).toBe(true)
     }
   })
 })

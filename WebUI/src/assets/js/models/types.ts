@@ -5,7 +5,7 @@
 // management view and the pure helpers in `library.ts` never care which catalog
 // a model came from.
 //
-// Imported by the Electron main process too (`electron/pathsManager.ts` uses
+// Imported by the Electron main process too (`electron/kernel/pathsManager.ts` uses
 // MODEL_SCAN_TARGETS), so this file must stay free of Vue/Pinia imports.
 import type { InferenceDefaults } from '@/types/shared'
 
@@ -50,6 +50,12 @@ export type ModelCapabilityValues = {
    */
   supportsCoding?: boolean
   /**
+   * Reliable at multi-turn tool use, as opposed to merely able to emit a tool
+   * call. A judgement like `supportsCoding`: presets with `requiresAgentic` only
+   * list models marked true.
+   */
+  supportsAgentic?: boolean
+  /**
    * Large Mixture-of-Experts model. Puts it on the aiDAPTIV preset list.
    * Hiding it everywhere else is `requiresPhison`, not this flag.
    */
@@ -70,6 +76,7 @@ export const CAPABILITY_KEYS = [
   'maxContextSize',
   'npuSupport',
   'supportsCoding',
+  'supportsAgentic',
   'largeMoe',
 ] as const satisfies readonly (keyof ModelCapabilityValues)[]
 
@@ -80,6 +87,7 @@ export const EDITABLE_CAPABILITY_KEYS = [
   'supportsReasoning',
   'supportsThinkingToggle',
   'supportsCoding',
+  'supportsAgentic',
   'npuSupport',
   'largeMoe',
 ] as const satisfies readonly (keyof ModelCapabilityValues)[]
@@ -180,6 +188,19 @@ export const MODEL_SCAN_TARGETS: readonly ModelScanTarget[] = [
   { pathKey: 'unet', useCase: 'media', serviceBackend: 'comfyui', entryKind: 'file' },
   { pathKey: 'diffusion_models', useCase: 'media', serviceBackend: 'comfyui', entryKind: 'file' },
   { pathKey: 'clip', useCase: 'media', serviceBackend: 'comfyui', entryKind: 'file' },
+  { pathKey: 'clip_vision', useCase: 'media', serviceBackend: 'comfyui', entryKind: 'file' },
+  {
+    pathKey: 'geometry_estimation',
+    useCase: 'media',
+    serviceBackend: 'comfyui',
+    entryKind: 'file',
+  },
+  {
+    pathKey: 'background_removal',
+    useCase: 'media',
+    serviceBackend: 'comfyui',
+    entryKind: 'file',
+  },
   { pathKey: 'vae', useCase: 'media', serviceBackend: 'comfyui', entryKind: 'file' },
   { pathKey: 'lora', useCase: 'media', serviceBackend: 'comfyui', entryKind: 'file' },
   { pathKey: 'controlNet', useCase: 'media', serviceBackend: 'comfyui', entryKind: 'file' },

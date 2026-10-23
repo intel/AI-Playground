@@ -4,6 +4,8 @@ version = "0.1.0"
 requires-python = "==3.12.*"
 dependencies = [
   "Flask",
+  # werkzeug 3.1.9: clears CVE-2026-102598. Transitive via Flask.
+  "werkzeug>=3.1.9",
   "flask-cors",
   "Requests",
   # urllib3 2.8.0: clears GHSA-vxq7-64xx-v4gw, GHSA-8988-9cw3-xx77 and
@@ -12,6 +14,8 @@ dependencies = [
   "python-telegram-bot",
   "slack-bolt",
   "aiohttp",
+  # multidict 6.9.1: clears CVE-2026-104874. Transitive via aiohttp.
+  "multidict>=6.9.1",
   "av",
 ]
 [tool.uv]

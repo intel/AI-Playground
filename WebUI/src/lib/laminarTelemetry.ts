@@ -1,66 +1,14 @@
-import type { Telemetry } from 'ai'
-
-// ── Laminar tracing for chat turns ───────────────────────────────────────────
+// ── Laminar tracing: the renderer's send half ────────────────────────────────
 //
-// Chat runs on the Vercel AI SDK in the renderer, so its traces start here;
-// agent turns run on Pi in the main process and are traced there
-// (electron/laminar.ts).
-//
-// Laminar ships an AI SDK 7 integration, but it cannot run here: `@lmnr-ai/lmnr`
-// is a Node library (it reached for `createRequire` and died on the browser
-// stub), and this page is a browser page with `nodeIntegration` off — which is
-// worth keeping. So only the *callbacks* live in the renderer: AI SDK 7 hands
-// every telemetry event to a registered integration as plain data keyed by
-// `callId`, and Laminar's integration is data-driven too (it keys its spans off
-// `callId` / `stepNumber` and never inspects the model object), so the events
-// can be forwarded to the main process and replayed into the real integration
-// there. The span mapping, the exporter and the project key all stay in main.
+// Chat inference runs in the main process (step 6), so the AI SDK's telemetry
+// events — and the Laminar integration they are replayed into — live there.
+// What still starts here is the renderer's own work: the spans for ComfyUI
+// phases and GPU swaps (laminarSpans.ts), which ride the same IPC channel so
+// they stay ordered against the SDK's events.
 //
 // Off unless a Laminar config sits beside the app's external resources
 // (`laminar.dev.json` / `laminar.localhost.json`) — see AGENTS.md,
 // 'Tracing agent and chat turns (Laminar)'.
-
-/** Events forwarded to main. `onChunk` is left out on purpose (see below). */
-const FORWARDED = [
-  'onStart',
-  'onStepStart',
-  'onLanguageModelCallStart',
-  'onLanguageModelCallEnd',
-  'onToolExecutionStart',
-  'onToolExecutionEnd',
-  'onStepEnd',
-  'onEmbedStart',
-  'onEmbedEnd',
-  'onEnd',
-  'onAbort',
-  'onError',
-] as const satisfies ReadonlyArray<keyof Telemetry>
-
-/**
- * Two events of our own, on the same channel as the SDK's so they stay ordered
- * against them: the turn's backend/thinking setup, and llama.cpp's own timings.
- * The main process turns both into span attributes (electron/laminar.ts).
- */
-const CHAT_CONTEXT_EVENT = 'aipgChatContext'
-const CHAT_TIMINGS_EVENT = 'aipgChatTimings'
-
-/** What the AI SDK's telemetry has no field for, because only this app knows it. */
-export type ChatTraceContext = {
-  /** Chat preset the turn was held with, so both surfaces label a trace the same way. */
-  preset?: string
-  backend?: 'llamaCPP' | 'openVINO' | 'cloud'
-  device?: string
-  deviceName?: string
-  cloudProvider?: string
-  thinking?: boolean
-  reasoningEffort?: string
-  sampling?: { temperature?: number; topP?: number; maxTokens?: number }
-  /**
-   * A nested run inside a tool call of the parent turn (the media specialist),
-   * whose spans belong in the parent's trace rather than in one of their own.
-   */
-  delegated?: boolean
-}
 
 let registered = false
 
@@ -85,53 +33,20 @@ function serializeEvent(event: unknown): string | null {
 }
 
 /**
- * Register the forwarding telemetry integration. Safe to call more than once,
- * and never throws: a tracing problem must not cost the user a chat turn.
+ * Resolve tracing on/off from the config main reads. Safe to call more than
+ * once, and never throws: a tracing problem must not cost the user a turn.
+ * Gates the span events this process still sends (laminarSpans.ts).
  */
 export async function initLaminarTelemetry(): Promise<void> {
   if (registered) return
   try {
     const config = await window.electronAPI.getLaminarConfig()
     if (!config) return
-    const { registerTelemetry } = await import('ai')
-    const integration: Telemetry = Object.fromEntries(
-      FORWARDED.map((name) => [
-        name,
-        (event: unknown) => {
-          // Fire-and-forget: the send must not add latency to a streaming turn,
-          // and a dropped span is not worth surfacing to the user.
-          const payload = serializeEvent(event)
-          if (payload !== null) window.electronAPI.laminarTelemetryEvent(name, payload)
-        },
-      ]),
-      // `Telemetry`'s callbacks are typed per event; the forwarder is uniform
-      // and only ever serializes, so the per-event types buy nothing here.
-    ) as Telemetry
-    registerTelemetry(integration)
     registered = true
-    console.info(`[laminar] chat traces via main to ${config.baseUrl}:${config.httpPort}`)
+    console.info(`[laminar] renderer spans via main to ${config.baseUrl}:${config.httpPort}`)
   } catch (error) {
-    console.warn('[laminar] chat traces disabled:', error)
+    console.warn('[laminar] renderer spans disabled:', error)
   }
-}
-
-/**
- * How the turn about to run is set up. Sent once per turn, before the first
- * span exists; main keeps it as the context every chat span is stamped with.
- */
-export function noteChatTraceContext(context: ChatTraceContext): void {
-  send(CHAT_CONTEXT_EVENT, context)
-}
-
-/**
- * llama.cpp's `timings` for the step that just finished — the only source of a
- * real prefill-vs-generation split and of how much of the prompt its cache
- * served. Send it as the step's final chunk arrives, so it is in main before
- * the LLM span is closed; without it main falls back to the AI SDK's own
- * around-the-call measurements, which every backend has.
- */
-export function noteChatTimings(timings: unknown): void {
-  send(CHAT_TIMINGS_EVENT, timings)
 }
 
 /**

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, type Component } from 'vue'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import {
   CAPABILITIES,
@@ -6,6 +7,16 @@ import {
   type CapabilityFlags,
   type CapabilityKey,
 } from '@/assets/js/capabilities'
+
+/** A toggle that sits in the capability filter row without being a capability. */
+export type ExtraFilter = {
+  key: string
+  label: string
+  icon: Component
+  active: boolean
+  /** Second tooltip line, already phrased for the current state. */
+  hint: string
+}
 
 const props = withDefaults(
   defineProps<{
@@ -18,18 +29,28 @@ const props = withDefaults(
     mode?: 'display' | 'filter'
     /** Currently-active filter keys (filter mode only). */
     activeKeys?: Set<CapabilityKey>
+    /**
+     * Filters that are not a capability of the model but belong in the same row —
+     * the VRAM fit verdict, which is computed rather than declared. Filter mode
+     * only: display mode shows what a model *is*, and these are not that.
+     */
+    extras?: ExtraFilter[]
     iconSize?: string
     delayDuration?: number
   }>(),
   {
     model: null,
     mode: 'display',
+    extras: () => [],
     iconSize: 'size-4',
     delayDuration: 100,
   },
 )
 
-const emit = defineEmits<{ (e: 'toggle', key: CapabilityKey): void }>()
+const emit = defineEmits<{
+  (e: 'toggle', key: CapabilityKey): void
+  (e: 'toggleExtra', key: string): void
+}>()
 
 function has(cap: CapabilityDescriptor): boolean {
   return props.model?.[cap.flag] === true
@@ -38,48 +59,77 @@ function has(cap: CapabilityDescriptor): boolean {
 function isActive(key: CapabilityKey): boolean {
   return props.activeKeys?.has(key) === true
 }
+
+// The two kinds of toggle differ only in where their state comes from, so they
+// are normalised to one shape and rendered by one loop — the row cannot drift
+// into two styles that way.
+const toggles = computed(() => [
+  ...CAPABILITIES.map((cap) => ({
+    key: cap.key as string,
+    label: cap.label,
+    icon: cap.icon,
+    active: isActive(cap.key),
+    hint: isActive(cap.key)
+      ? 'Filtering to models with this capability'
+      : 'Show only models with this capability',
+    extra: false,
+  })),
+  ...props.extras.map((extra) => ({ ...extra, extra: true })),
+])
 </script>
 
 <template>
   <TooltipProvider>
-    <div class="flex items-center gap-0.5">
+    <!-- Display mode shows what the model is, so it lists the capabilities only.
+         Filter mode lists every toggle, extras included, through one branch —
+         same element, same classes, same hit area. -->
+    <div v-if="mode === 'filter'" class="flex items-center gap-0.5">
+      <Tooltip v-for="toggle in toggles" :key="toggle.key" :delay-duration="delayDuration">
+        <TooltipTrigger as-child>
+          <button
+            type="button"
+            :aria-pressed="toggle.active"
+            :aria-label="toggle.label"
+            class="flex items-center justify-center rounded p-0.5 transition-opacity"
+            :class="
+              toggle.active
+                ? 'text-primary opacity-100'
+                : 'text-muted-foreground opacity-40 hover:opacity-100 cursor-pointer'
+            "
+            @click="
+              toggle.extra
+                ? emit('toggleExtra', toggle.key)
+                : emit('toggle', toggle.key as CapabilityKey)
+            "
+          >
+            <component :is="toggle.icon" :class="iconSize" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent class="w-56 bg-card border border-border text-foreground p-2 z-[200]">
+          <p class="text-xs font-semibold">{{ toggle.label }}</p>
+          <p class="text-xs text-muted-foreground">{{ toggle.hint }}</p>
+        </TooltipContent>
+      </Tooltip>
+    </div>
+    <div v-else class="flex items-center gap-0.5">
       <Tooltip v-for="cap in CAPABILITIES" :key="cap.key" :delay-duration="delayDuration">
         <TooltipTrigger as-child>
-          <component
-            :is="mode === 'filter' ? 'button' : 'span'"
-            :type="mode === 'filter' ? 'button' : undefined"
-            :aria-pressed="mode === 'filter' ? isActive(cap.key) : undefined"
+          <span
             :aria-label="cap.label"
             class="flex items-center justify-center rounded p-0.5 transition-opacity"
-            :class="[
-              mode === 'filter'
-                ? isActive(cap.key)
-                  ? 'text-primary opacity-100'
-                  : 'text-muted-foreground opacity-40 hover:opacity-100 cursor-pointer'
-                : has(cap)
-                  ? 'text-foreground opacity-100'
-                  : 'text-muted-foreground opacity-30',
-            ]"
-            @click="mode === 'filter' ? emit('toggle', cap.key) : undefined"
+            :class="has(cap) ? 'text-foreground opacity-100' : 'text-muted-foreground opacity-30'"
           >
             <component :is="cap.icon" :class="iconSize" />
-          </component>
+          </span>
         </TooltipTrigger>
         <TooltipContent class="w-56 bg-card border border-border text-foreground p-2 z-[200]">
           <p class="text-xs font-semibold">{{ cap.label }}</p>
           <p class="text-xs text-muted-foreground">
-            <template v-if="mode === 'filter'">
-              {{
-                isActive(cap.key)
-                  ? 'Filtering to models with this capability'
-                  : 'Show only models with this capability'
-              }}
-            </template>
-            <template v-else>
-              {{
-                has(cap) ? cap.tooltip : `This model does not support ${cap.label.toLowerCase()}.`
-              }}
-            </template>
+            {{
+              has(cap)
+                ? cap.tooltip
+                : (cap.lacksTooltip ?? `This model does not support ${cap.label.toLowerCase()}.`)
+            }}
           </p>
         </TooltipContent>
       </Tooltip>

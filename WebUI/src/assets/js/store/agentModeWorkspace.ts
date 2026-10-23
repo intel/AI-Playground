@@ -49,7 +49,9 @@ export function createWorkspaceAttachments(errors: {
         attachment.name,
         new Uint8Array(attachment.bytes),
       )
-      if (result.success && result.path) saved.push(result.path)
+      // Success always carries the saved path; the old `success && path` guard
+      // was written against the loose envelope and cannot narrow the union.
+      if (result.success) saved.push(result.path)
       else {
         errors.report(new Error(result.error ?? `Failed to attach ${attachment.name}.`), {
           category: 'unknown',

@@ -84,9 +84,6 @@ declare interface ApiServiceInformation {
   ovmsMtpStaleModel?: string
 }
 
-// Declare ComfyUICustomNodeRepoId type
-declare interface ComfyUICustomNodeRepoId {
-  username: string
-  repoName: string
-  gitRef?: string
-}
+// ComfyUICustomNodeRepoId moved to src/types/comfyuiIpc.ts (channel manifest);
+// electron-side code imports it from adapters/backends/comfyuiTools or the
+// src/types module directly.

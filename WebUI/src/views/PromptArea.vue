@@ -98,11 +98,11 @@
               <Button
                 id="stt-record-button"
                 class="bg-primary hover:bg-primary/80 text-primary-foreground rounded-lg px-4 py-2"
-                :disabled="audioRecorder.isTranscribing || speechToText.preparingStt"
+                :disabled="audioRecorder.isTranscribing || preparingStt"
                 @click="handleRecordingClick"
               >
                 <i
-                  v-if="!speechToText.preparingStt && !audioRecorder.isTranscribing"
+                  v-if="!preparingStt && !audioRecorder.isTranscribing"
                   class="svg-icon w-5 h-5 mr-2"
                   :class="audioRecorder.isRecording ? 'i-record-active' : 'i-record'"
                 ></i>
@@ -112,7 +112,7 @@
                   aria-hidden="true"
                 ></span>
                 {{
-                  speechToText.preparingStt
+                  preparingStt
                     ? 'Starting speech service…'
                     : audioRecorder.isTranscribing
                       ? 'Transcribing…'
@@ -151,6 +151,23 @@
                 @click="removeImage(preview.id)"
                 class="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background rounded-full p-0.5 text-muted-foreground hover:text-destructive"
                 title="Remove image"
+              >
+                <XMarkIcon class="size-4" />
+              </button>
+            </div>
+            <div
+              v-for="clip in audioPreview"
+              :key="clip.id"
+              class="self-center flex items-center gap-1 px-1 py-0.5 text-xs bg-primary/20 border border-primary/30 rounded-md group"
+            >
+              <MusicalNoteIcon class="size-4 flex-none" />
+              <span class="truncate max-w-40" :title="clip.part.filename">{{
+                clip.part.filename
+              }}</span>
+              <button
+                @click="removeImage(clip.id)"
+                class="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                title="Remove attachment"
               >
                 <XMarkIcon class="size-4" />
               </button>
@@ -305,7 +322,7 @@
               @click="handleCameraClick"
               title="Capture image from camera"
             >
-              <CameraIcon class="w-5 h-5" />
+              <AcerCameraIcon class="w-5 h-5" />
             </Button>
             <Button
               id="microphone-button"
@@ -316,25 +333,21 @@
               :disabled="
                 (!sttAvailable && !audioRecorder.isRecording) ||
                 audioRecorder.isTranscribing ||
-                speechToText.preparingStt
+                preparingStt
               "
               :title="
-                speechToText.preparingStt
-                  ? 'Starting speech service…'
-                  : sttAvailable
-                    ? ''
-                    : sttUnavailableHint
+                preparingStt ? 'Starting speech service…' : sttAvailable ? '' : sttUnavailableHint
               "
             >
               <i
-                v-if="!audioRecorder.isTranscribing && !speechToText.preparingStt"
+                v-if="!audioRecorder.isTranscribing && !preparingStt"
                 class="svg-icon w-5 h-5"
                 :class="audioRecorder.isRecording ? 'i-record-active' : 'i-record'"
               ></i>
               <span
                 v-else
                 class="svg-icon i-loading w-5 h-5 animate-spin inline-block"
-                :aria-label="speechToText.preparingStt ? 'Starting speech service' : 'Transcribing'"
+                :aria-label="preparingStt ? 'Starting speech service' : 'Transcribing'"
               ></span>
               <div
                 v-if="audioRecorder.isRecording"
@@ -416,14 +429,21 @@ import type { FileUIPart } from 'ai'
 import {
   mapModeToLabel,
   downscaleImageTo1MP,
+  fileToDataUri,
   fitReferenceDataUri,
   imageUrlToDataUri,
+  saveAudioToMediaInput,
   saveImageToMediaInput,
 } from '@/lib/utils.ts'
 import { referencePixelBudget } from '@/lib/referenceImageFit'
 import { useAudioRecorder } from '@/assets/js/store/audioRecorder'
-import { useSpeechToText, type SttReadyResult } from '@/assets/js/store/speechToText'
-import { useTextToSpeech } from '@/assets/js/store/textToSpeech'
+import {
+  pendingVoiceTurn,
+  preparingStt,
+  readyTranscriptionForInput,
+  transcriptionAvailable,
+  type SttReadyResult,
+} from '@/assets/js/speech/speechIO'
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import {
   useImageGenerationPresets,
@@ -438,18 +458,15 @@ import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { useActivities } from '@/assets/js/store/activities'
 import { useErrors } from '@/assets/js/store/errors'
-import {
-  useTextInference,
-  type ValidFileExtension,
-  type IndexedDocument,
-} from '@/assets/js/store/textInference'
+import { useTextInference } from '@/assets/js/store/textInference'
+import type { IndexedDocument, ValidFileExtension } from '@/types/rag'
 import { useI18N } from '@/assets/js/store/i18n'
 import { usePresets, type ChatPreset, type Preset } from '@/assets/js/store/presets'
 import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
 import { useProductMode } from '@/assets/js/store/productMode'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { PlusIcon, PaperClipIcon, XMarkIcon } from '@heroicons/vue/24/outline'
-import { CameraIcon } from '@heroicons/vue/24/solid'
+import { PlusIcon, PaperClipIcon, MusicalNoteIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import AcerCameraIcon from '@/components/AcerCameraIcon.vue'
 import { Label } from '@/components/ui/label'
 import { useDropZone, useEventListener } from '@vueuse/core'
 import * as toast from '@/assets/js/toast'
@@ -463,8 +480,6 @@ import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/compon
 
 const instance = getCurrentInstance()
 const audioRecorder = useAudioRecorder()
-const speechToText = useSpeechToText()
-const textToSpeech = useTextToSpeech()
 const languages = instance?.appContext.config.globalProperties.languages
 const i18nState = useI18N().state
 const prompt = ref('')
@@ -672,7 +687,7 @@ const isSttPreset = computed(() => activeChatPreset.value?.sttPreset === true)
 // disabled when this is false — it used to be `v-if`'d away, so anything that
 // flipped availability (e.g. a transient backend start failure) made the button
 // vanish with no explanation and no way back inside the session.
-const sttAvailable = computed(() => speechToText.available)
+const sttAvailable = computed(() => transcriptionAvailable())
 
 const sttUnavailableHint = computed(() =>
   productModeStore.isNvidiaModeSelected
@@ -703,7 +718,8 @@ audioRecorder.registerRecordingCompleteHandler(async (wavBlob) => {
 audioRecorder.registerTranscriptionCallback((text) => {
   if (isSttPreset.value) return
   prompt.value = text
-  textToSpeech.pendingVoiceTurn = true
+  // Mark this as a voice-originated turn so the reply can be auto-spoken.
+  pendingVoiceTurn.value = true
 })
 
 // Check if images can be attached (vision model selected)
@@ -719,6 +735,12 @@ const canAttachDocuments = computed(() => {
   if (promptStore.getCurrentMode() !== 'chat') return false
   return activeChatPreset.value?.enableRAG === true
 })
+
+// Audio is an attachment for `transcribeAudio` to read, not something the chat
+// backend can be sent, so the control only offers it when that tool is there.
+const canAttachAudio = computed(
+  () => promptStore.getCurrentMode() === 'chat' && openAiCompatibleChat.canTranscribeAttachments,
+)
 
 // Should show image upload button (conditional for ComfyUI presets)
 const shouldShowImageUploadButton = computed(() => {
@@ -741,8 +763,8 @@ const shouldShowImageUploadButton = computed(() => {
   // the model, so any file is useful and no vision model is required.
   if (mode === 'agent') return true
 
-  // For chat mode, use existing logic (vision model + RAG documents)
-  return canAttachImages.value || canAttachDocuments.value
+  // For chat mode, use existing logic (vision model + RAG documents + audio)
+  return canAttachImages.value || canAttachDocuments.value || canAttachAudio.value
 })
 
 const modesWithPresets = computed(() => {
@@ -787,8 +809,16 @@ const emits = defineEmits<{
   (e: 'openSettings'): void
 }>()
 
-const imagePreview = computed(() =>
+const attachmentPreview = computed(() =>
   openAiCompatibleChat.fileInput.map((part, id) => ({ id, url: part.url, part })),
+)
+
+const imagePreview = computed(() =>
+  attachmentPreview.value.filter((item) => !item.part.mediaType?.startsWith('audio/')),
+)
+
+const audioPreview = computed(() =>
+  attachmentPreview.value.filter((item) => item.part.mediaType?.startsWith('audio/')),
 )
 
 function removeImage(index: number) {
@@ -990,12 +1020,9 @@ async function handleRecordingClick() {
   // first use), so transcription is ready when the clip is captured. The External
   // engine needs nothing started.
   try {
-    let ready: SttReadyResult = { downloadPrompted: false }
-    if (speechToText.effectiveSttEngine === 'whisper') {
-      ready = await speechToText.ensureWhisperReady()
-    } else if (speechToText.effectiveSttEngine === 'standalone') {
-      ready = await speechToText.ensureStandaloneReady()
-    }
+    // Ready the selected engine before recording (may prompt a model download on
+    // first use), so transcription is ready when the clip is captured.
+    const ready: SttReadyResult = await readyTranscriptionForInput()
     // This click was spent on the model download popup. Do not roll straight into
     // a recording once the download finishes: the user is not talking yet, so the
     // mic would capture whatever comes next and transcribe it as gibberish. Let
@@ -1074,6 +1101,13 @@ function isImageFile(file: File): boolean {
   return file.type.startsWith('image/')
 }
 
+const AUDIO_ATTACHMENT_UNAVAILABLE =
+  'Audio attachments need the "Transcribe audio" tool. Enable it for this preset to attach a clip.'
+
+function isAudioFile(file: File): boolean {
+  return file.type.startsWith('audio/')
+}
+
 // Check if a file is a valid document
 function isDocumentFile(file: File): boolean {
   const ext = file.name.split('.').pop()?.toLowerCase()
@@ -1094,6 +1128,7 @@ function getAcceptedFileTypes(): string {
   if (mode === 'chat') {
     const types: string[] = []
     if (canAttachImages.value) types.push('image/*')
+    if (canAttachAudio.value) types.push('audio/*')
     if (canAttachDocuments.value) types.push('.txt,.doc,.docx,.md,.pdf')
 
     return types.join(',') || 'none'
@@ -1145,7 +1180,7 @@ async function handleComfyUIImageUpload(imageFiles: File[]) {
         settings: {},
       }
 
-      imageGeneration.generatedImages.push(imageItem)
+      imageGeneration.addGalleryItem(imageItem)
       if (historyMode === 'video') imageGeneration.selectedVideoId = imageItem.id
       else imageGeneration.selectedEditedImageId = imageItem.id
 
@@ -1186,6 +1221,27 @@ async function handleChatImageUpload(imageFiles: File[]) {
   openAiCompatibleChat.fileInput = parts
 }
 
+// Audio rides along with whatever images are already attached — the clip is for
+// `transcribeAudio`, which reads it off the turn rather than from the prompt.
+async function handleChatAudioUpload(audioFiles: File[]) {
+  const parts: FileUIPart[] = []
+  for (const file of audioFiles) {
+    try {
+      const url = await saveAudioToMediaInput(await fileToDataUri(file))
+      parts.push({ type: 'file', mediaType: file.type, url, filename: file.name })
+    } catch (error) {
+      errors.report(error, {
+        category: 'inference',
+        code: 'inference/audio-attach-failed',
+        userMessage: `Could not attach ${file.name}.`,
+      })
+    }
+  }
+  if (parts.length > 0) {
+    openAiCompatibleChat.fileInput = [...openAiCompatibleChat.fileInput, ...parts]
+  }
+}
+
 // Handle image files: ComfyUI upload vs chat/other → fileInput as aipg-media
 async function handleImageFiles(imageFiles: File[]) {
   if (imageFiles.length === 0) return
@@ -1223,12 +1279,15 @@ async function handleFileInput(event: Event) {
   }
 
   const imageFiles: File[] = []
+  const audioFiles: File[] = []
   const documentFiles: File[] = []
 
-  // Separate images from documents
+  // Separate images from audio from documents
   for (const file of files) {
     if (isImageFile(file)) {
       imageFiles.push(file)
+    } else if (isAudioFile(file) && promptStore.getCurrentMode() === 'chat') {
+      audioFiles.push(file)
     } else if (isDocumentFile(file) && promptStore.getCurrentMode() === 'chat') {
       documentFiles.push(file)
     }
@@ -1242,6 +1301,11 @@ async function handleFileInput(event: Event) {
     imageFiles.length = 0
   }
 
+  if (audioFiles.length > 0 && !canAttachAudio.value) {
+    toast.error(AUDIO_ATTACHMENT_UNAVAILABLE)
+    audioFiles.length = 0
+  }
+
   // Validate document attachments
   if (documentFiles.length > 0 && !canAttachDocuments.value) {
     toast.error(
@@ -1253,6 +1317,10 @@ async function handleFileInput(event: Event) {
   // Handle images
   if (imageFiles.length > 0) {
     await handleImageFiles(imageFiles)
+  }
+
+  if (audioFiles.length > 0) {
+    await handleChatAudioUpload(audioFiles)
   }
 
   // Handle documents (add to RAG)
@@ -1320,12 +1388,15 @@ async function onDrop(files: File[] | null) {
   }
 
   const imageFiles: File[] = []
+  const audioFiles: File[] = []
   const documentFiles: File[] = []
 
-  // Separate images from documents
+  // Separate images from audio from documents
   for (const file of files) {
     if (isImageFile(file)) {
       imageFiles.push(file)
+    } else if (isAudioFile(file) && promptStore.getCurrentMode() === 'chat') {
+      audioFiles.push(file)
     } else if (isDocumentFile(file) && promptStore.getCurrentMode() === 'chat') {
       documentFiles.push(file)
     }
@@ -1353,6 +1424,11 @@ async function onDrop(files: File[] | null) {
     imageFiles.length = 0
   }
 
+  if (audioFiles.length > 0 && !canAttachAudio.value) {
+    toast.error(AUDIO_ATTACHMENT_UNAVAILABLE)
+    audioFiles.length = 0
+  }
+
   // Validate document attachments
   if (documentFiles.length > 0 && !canAttachDocuments.value) {
     toast.error(
@@ -1364,6 +1440,10 @@ async function onDrop(files: File[] | null) {
   // Handle images
   if (imageFiles.length > 0) {
     await handleImageFiles(imageFiles)
+  }
+
+  if (audioFiles.length > 0) {
+    await handleChatAudioUpload(audioFiles)
   }
 
   // Handle documents

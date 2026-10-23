@@ -21,16 +21,15 @@
     </div>
     <p v-if="compaction.summary" class="whitespace-pre-wrap opacity-80">{{ compaction.summary }}</p>
   </div>
-  <!-- Media delegation tool: the nested media agent runs in the renderer, so its
-       live steps (mediaAgentRuns, keyed by the bridged toolCallId) and the
-       produced media render inline while the bridged call is still pending. -->
+  <!-- Media delegation tool: the nested specialist runs in main; live steps
+       reach mediaAgentRuns via kernel events (keyed by toolCallId). -->
   <div v-else-if="mediaToolNameOf(part)" class="flex flex-col gap-2">
     <ChatToolDisplay :part="toolPart" :state="toolPart.state" :input="toolPart.input" />
     <MediaAgentTimeline :tool-call-id="toolPart.toolCallId" :fallback-steps="mediaToolSteps" />
     <ChatWorkflowResult
       :images="mediaToolImages"
-      :processing="mediaToolProcessing"
-      :stepText="mediaToolStepText"
+      :phase="mediaToolPhase"
+      :progress="mediaLive.progress"
     />
   </div>
   <div v-else-if="isToolUIPart(part)" class="flex flex-col gap-1">
@@ -55,11 +54,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { isToolUIPart, type UIDataTypes, type UIMessagePart, type UITools } from 'ai'
 import type { DynamicToolUIPart, ToolUIPart } from 'ai'
 import { useAgentMode } from '@/assets/js/store/agentMode'
 import { useMediaAgentRuns } from '@/assets/js/store/mediaAgentRuns'
+import { useArtifactRuns } from '@/assets/js/store/artifactRuns'
 import type { AipgTools } from '@/assets/js/tools/tools'
 import type { MediaItem } from '@/assets/js/store/imageGenerationPresets'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
@@ -79,6 +79,7 @@ const props = defineProps<{ part: UIMessagePart<UIDataTypes, UITools> }>()
 
 const agentMode = useAgentMode()
 const mediaRuns = useMediaAgentRuns()
+const artifactRuns = useArtifactRuns()
 
 // Pi's tool parts (tool-bash, tool-read, …) are not part of AipgTools, but the
 // generic ChatToolDisplay only reads name/state/input/output — cast for reuse.
@@ -138,17 +139,20 @@ const mediaToolSteps = computed<string[] | undefined>(() => {
   return Array.isArray(steps) ? (steps as string[]) : undefined
 })
 
-const mediaRun = computed(() => mediaRuns.run(toolPart.value.toolCallId))
+const mediaLive = computed(() => artifactRuns.viewFor(toolPart.value.toolCallId))
 
-/** Finished media from the tool output, or what the live run has so far. */
+/** Finished media from the tool output, or what the owned runs have so far. */
 const mediaToolImages = computed<MediaItem[]>(() => {
   if (mediaToolItems.value.length) return mediaToolItems.value
-  return mediaRun.value?.steps.flatMap((step) => step.media) ?? []
+  return mediaLive.value.items
 })
 
-const mediaToolProcessing = computed(() => mediaRun.value?.state === 'running')
-
-const mediaToolStepText = computed(() => mediaRuns.activeStepLabel(toolPart.value.toolCallId))
+const mediaToolPhase = computed(() => {
+  const state = toolPart.value.state
+  return state === 'output-available' || state === 'output-error'
+    ? undefined
+    : mediaLive.value.phase
+})
 
 /**
  * Completed tool parts whose output carries a comfy-shaped `images` array,
@@ -177,4 +181,15 @@ const mediaToolItems = computed<MediaItem[]>(() => {
       return false
     })
 })
+
+watch(
+  () => [mediaToolNameOf(props.part), toolPart.value.toolCallId, toolPart.value.state] as const,
+  ([isMedia, id, state]) => {
+    if (!isMedia) return
+    if (state === 'output-available' && toolPart.value.output != null) {
+      mediaRuns.endRun(id, 'done')
+    }
+    if (state === 'output-error') mediaRuns.endRun(id, 'failed')
+  },
+)
 </script>

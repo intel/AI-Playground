@@ -6,7 +6,7 @@ import { useTextInference } from './textInference'
 import { useImageGenerationPresets } from './imageGenerationPresets'
 import { usePromptStore } from './promptArea'
 import { useBackendServices } from './backendServices'
-import { useDialogStore } from './dialogs'
+import { notify, requestVramWarning } from '@/assets/js/permissions/permissions'
 import { useI18N } from './i18n'
 import { useDemoMode } from './demoMode'
 import { useSetupWizard } from './setupWizard'
@@ -36,28 +36,6 @@ const HIGH_MEMORY_PRESETS = new Set([
 /** Presets for video generation (best on discrete GPUs with 16GB+ vRAM) */
 const VIDEO_VRAM_PRESETS = new Set(['LTX-Video', 'Wan2.1-VACE'])
 
-const MEMORY_ALERT_SUPPRESS_PREFIX = 'memoryAlertSuppress_'
-
-function getMemoryAlertSuppressKey(presetName: string): string {
-  return MEMORY_ALERT_SUPPRESS_PREFIX + presetName
-}
-
-function isMemoryAlertSuppressed(presetName: string): boolean {
-  try {
-    return localStorage.getItem(getMemoryAlertSuppressKey(presetName)) === '1'
-  } catch {
-    return false
-  }
-}
-
-function setMemoryAlertSuppressed(presetName: string): void {
-  try {
-    localStorage.setItem(getMemoryAlertSuppressKey(presetName), '1')
-  } catch {
-    // ignore
-  }
-}
-
 export type PresetSwitchOptions = {
   /** Specific variant to select */
   variant?: string
@@ -76,7 +54,6 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
   const presets = usePresets()
   const promptStore = usePromptStore()
   const backendServices = useBackendServices()
-  const dialogStore = useDialogStore()
   const i18nState = useI18N().state
   const demoMode = useDemoMode()
   const setupWizard = useSetupWizard()
@@ -174,7 +151,7 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
         const hasAvailableBackend = chatPreset.backends.some((b) => isBackendAvailable(b))
 
         if (!hasAvailableBackend) {
-          dialogStore.showWarningDialog(i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET, () => {
+          notify(i18nState.SETTINGS_MODEL_REQUIREMENTS_NOT_MET, () => {
             setupWizard.openWizard()
           })
           return { success: false, error: 'Required backend not available' }
@@ -185,26 +162,19 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
         preset.type === 'comfy' &&
         (HIGH_MEMORY_PRESETS.has(presetName) || VIDEO_VRAM_PRESETS.has(presetName))
       const shouldShowMemoryAlert =
-        isGatedMemoryPreset &&
-        !isMemoryAlertSuppressed(presetName) &&
-        !demoMode.enabled &&
-        !options.skipMemoryAlert
+        isGatedMemoryPreset && !demoMode.enabled && !options.skipMemoryAlert
 
       if (shouldShowMemoryAlert) {
         const message = HIGH_MEMORY_PRESETS.has(presetName)
           ? i18nState.MEMORY_ALERT_HIGH_MEMORY
           : i18nState.MEMORY_ALERT_VIDEO_VRAM
-        dialogStore.showWarningDialog(
-          message,
-          (dontShowAgain) => {
-            applyPresetSwitch(preset, presetName, options)
-            if (dontShowAgain) setMemoryAlertSuppressed(presetName)
-            dialogStore.closeWarningDialog()
-            console.log(`[PresetSwitching] Switched to preset (after confirm): ${presetName}`)
-          },
-          { dontShowAgainKey: presetName },
-        )
-        return { success: false }
+        const granted = await requestVramWarning({ presetName, message })
+        if (!granted) {
+          return { success: false }
+        }
+        applyPresetSwitch(preset, presetName, options)
+        console.log(`[PresetSwitching] Switched to preset (after confirm): ${presetName}`)
+        return { success: true }
       }
 
       applyPresetSwitch(preset, presetName, options)

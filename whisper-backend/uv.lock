@@ -27,14 +27,14 @@ name = "accelerate"
 version = "1.15.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "huggingface-hub", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "packaging", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "psutil", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "pyyaml", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "safetensors", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "torch", version = "2.13.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "torch", version = "2.13.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'darwin' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "huggingface-hub" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "psutil" },
+    { name = "pyyaml" },
+    { name = "safetensors" },
+    { name = "torch", version = "2.13.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "torch", version = "2.13.0", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu')" },
     { name = "torch", version = "2.13.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
     { name = "torch", version = "2.13.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "(sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu')" },
     { name = "torch", version = "2.13.0+xpu", source = { registry = "https://download.pytorch.org/whl/xpu" }, marker = "(sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu')" },
@@ -49,28 +49,29 @@ name = "aipg-whisper"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "accelerate", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "flask", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "flask-cors", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "huggingface-hub", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "librosa", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "soundfile", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "transformers", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "urllib3", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "accelerate" },
+    { name = "flask" },
+    { name = "flask-cors" },
+    { name = "huggingface-hub" },
+    { name = "librosa" },
+    { name = "numpy" },
+    { name = "soundfile" },
+    { name = "transformers" },
+    { name = "urllib3" },
+    { name = "werkzeug" },
 ]
 
 [package.optional-dependencies]
 cpu = [
-    { name = "torch", version = "2.13.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "torch", version = "2.13.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra != 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
     { name = "torch", version = "2.13.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
 ]
 cuda = [
-    { name = "torch", version = "2.13.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "torch", version = "2.13.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu')" },
     { name = "torch", version = "2.13.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "(sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu')" },
 ]
 xpu = [
-    { name = "torch", version = "2.13.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "torch", version = "2.13.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu')" },
     { name = "torch", version = "2.13.0+xpu", source = { registry = "https://download.pytorch.org/whl/xpu" }, marker = "(sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu')" },
     { name = "triton-xpu", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
 ]
@@ -92,6 +93,7 @@ requires-dist = [
     { name = "transformers", specifier = ">=5.14.0,<6" },
     { name = "triton-xpu", marker = "(sys_platform == 'linux' and extra == 'xpu') or (sys_platform == 'win32' and extra == 'xpu')", specifier = ">=3.6.0", index = "https://download.pytorch.org/whl/xpu", conflict = { package = "aipg-whisper", extra = "xpu" } },
     { name = "urllib3", specifier = ">=2.8.0" },
+    { name = "werkzeug", specifier = ">=3.1.9" },
 ]
 provides-extras = ["xpu", "cuda", "cpu"]
 
@@ -109,8 +111,8 @@ name = "anyio"
 version = "4.14.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "idna", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "typing-extensions", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "idna" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/61/cc/a381afa6efea9f496eff839d4a6a1aed3bfafc7b3ab4b0d1b243a12573dd/anyio-4.14.2.tar.gz", hash = "sha256:cfa139f3ed1a23ee8f88a145ddb5ac7605b8bbfd8592baacd7ce3d8bb4313c7f", size = 260176, upload-time = "2026-07-12T20:29:07.082Z" }
 wheels = [
@@ -140,7 +142,7 @@ name = "cffi"
 version = "2.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pycparser", marker = "(implementation_name != 'PyPy' and sys_platform == 'darwin') or (implementation_name != 'PyPy' and sys_platform == 'linux') or (implementation_name != 'PyPy' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "pycparser", marker = "implementation_name != 'PyPy' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9e/ef/008a1939e372c06329a3fce4279c02f328488f3526744906eeec3da7ad5f/cffi-2.1.1.tar.gz", hash = "sha256:dd31f52ea1086513bb9df30f8fcee9b8918323ae067a3d5b78bc826a000712be", size = 530807, upload-time = "2026-08-03T21:21:18.939Z" }
 wheels = [
@@ -324,12 +326,12 @@ name = "flask"
 version = "3.1.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "blinker", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "click", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "itsdangerous", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "jinja2", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "markupsafe", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "werkzeug", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "blinker" },
+    { name = "click" },
+    { name = "itsdangerous" },
+    { name = "jinja2" },
+    { name = "markupsafe" },
+    { name = "werkzeug" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/26/00/35d85dcce6c57fdc871f3867d465d780f302a175ea360f62533f12b27e2b/flask-3.1.3.tar.gz", hash = "sha256:0ef0e52b8a9cd932855379197dd8f94047b359ca0a78695144304cb45f87c9eb", size = 759004, upload-time = "2026-02-19T05:00:57.678Z" }
 wheels = [
@@ -341,8 +343,8 @@ name = "flask-cors"
 version = "6.0.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "flask", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "werkzeug", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "flask" },
+    { name = "werkzeug" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/47/03/4e464a50860f9adf08b5c1d3479cb8ea1f12af2aa69535c7042c6e628135/flask_cors-6.0.5.tar.gz", hash = "sha256:30c5031552cd59f620ac0c8211dac45b345d3b2df310e7721879e4f46ef9c601", size = 101386, upload-time = "2026-06-08T20:20:17.765Z" }
 wheels = [
@@ -388,8 +390,8 @@ name = "httpcore"
 version = "1.0.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "certifi", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "h11", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "certifi" },
+    { name = "h11" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/06/94/82699a10bca87a5556c9c59b5963f2d039dbd239f25bc2a63907a05a14cb/httpcore-1.0.9.tar.gz", hash = "sha256:6e34463af53fd2ab5d807f399a9b45ea31c3dfa2276f15a2c3f00afff6e176e8", size = 85484, upload-time = "2025-04-24T22:06:22.219Z" }
 wheels = [
@@ -401,10 +403,10 @@ name = "httpx"
 version = "0.28.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "anyio", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "certifi", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "httpcore", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "idna", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "anyio" },
+    { name = "certifi" },
+    { name = "httpcore" },
+    { name = "idna" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b1/df/48c586a5fe32a0f01324ee087459e112ebb7224f646c0b5023f5e79e9956/httpx-0.28.1.tar.gz", hash = "sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc", size = 141406, upload-time = "2024-12-06T15:37:23.222Z" }
 wheels = [
@@ -416,15 +418,15 @@ name = "huggingface-hub"
 version = "1.29.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "click", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "filelock", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "fsspec", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "hf-xet", marker = "(platform_machine == 'AMD64' and sys_platform == 'darwin') or (platform_machine == 'aarch64' and sys_platform == 'darwin') or (platform_machine == 'amd64' and sys_platform == 'darwin') or (platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'darwin') or (platform_machine == 'AMD64' and sys_platform == 'linux') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'amd64' and sys_platform == 'linux') or (platform_machine == 'arm64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32') or (platform_machine == 'aarch64' and sys_platform == 'win32') or (platform_machine == 'amd64' and sys_platform == 'win32') or (platform_machine == 'arm64' and sys_platform == 'win32') or (platform_machine == 'x86_64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "httpx", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "packaging", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "pyyaml", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "tqdm", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "typing-extensions", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "click" },
+    { name = "filelock" },
+    { name = "fsspec" },
+    { name = "hf-xet", marker = "platform_machine == 'AMD64' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "httpx" },
+    { name = "packaging" },
+    { name = "pyyaml" },
+    { name = "tqdm" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/64/35/42316e8f6908b6d21bc8df017cc6efba94fb5edbf99b64e28dd142325e20/huggingface_hub-1.29.0.tar.gz", hash = "sha256:6ebb385a581435325cf6d5c5b233d5d4bc91175834d99fd65dae14379b36e9ad", size = 963121, upload-time = "2026-08-27T12:18:37.432Z" }
 wheels = [
@@ -541,7 +543,7 @@ name = "jinja2"
 version = "3.1.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "markupsafe", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "markupsafe" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/df/bf/f7da0350254c0ed7c72f3e33cef02e048281fec7ecec5f032d4aac52226b/jinja2-3.1.6.tar.gz", hash = "sha256:0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d", size = 245115, upload-time = "2025-03-05T20:05:02.478Z" }
 wheels = [
@@ -562,7 +564,7 @@ name = "lazy-loader"
 version = "0.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "packaging", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "packaging" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/49/ac/21a1f8aa3777f5658576777ea76bfb124b702c520bbe90edf4ae9915eafa/lazy_loader-0.5.tar.gz", hash = "sha256:717f9179a0dbed357012ddad50a5ad3d5e4d9a0b8712680d4e687f5e6e6ed9b3", size = 15294, upload-time = "2026-03-06T15:45:09.054Z" }
 wheels = [
@@ -574,17 +576,17 @@ name = "librosa"
 version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "decorator", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "joblib", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "lazy-loader", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "msgpack", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "numba", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "pooch", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "scikit-learn", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "scipy", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "soundfile", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "soxr", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "decorator" },
+    { name = "joblib" },
+    { name = "lazy-loader" },
+    { name = "msgpack" },
+    { name = "numba" },
+    { name = "numpy" },
+    { name = "pooch" },
+    { name = "scikit-learn" },
+    { name = "scipy" },
+    { name = "soundfile" },
+    { name = "soxr" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8e/c1/ce66b20953b7370421dd13d22b4e04e401346c824ceacb9f4e722eec84dc/librosa-1.0.0.tar.gz", hash = "sha256:73ed480d4022e436e85dfa6f6b06ff38a259b9210039ac99939cd64854b61a57", size = 377965, upload-time = "2026-08-11T15:37:37.013Z" }
 wheels = [
@@ -608,7 +610,7 @@ name = "markdown-it-py"
 version = "4.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "mdurl", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "mdurl" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/06/ff/7841249c247aa650a76b9ee4bbaeae59370dc8bfd2f6c01f3630c35eb134/markdown_it_py-4.2.0.tar.gz", hash = "sha256:04a21681d6fbb623de53f6f364d352309d4094dd4194040a10fd51833e418d49", size = 82454, upload-time = "2026-05-07T12:08:28.36Z" }
 wheels = [
@@ -708,8 +710,8 @@ name = "numba"
 version = "0.67.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "llvmlite", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "llvmlite" },
+    { name = "numpy" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7a/90/2544f4e3a61e501d6c9a5418fd4b905323222693d54a02cab0106a0af865/numba-0.67.0.tar.gz", hash = "sha256:cd75aa535b33fa05d9d930b1ae8af9f97a2881e96d72dfb38ec9b78284d9f851", size = 2836515, upload-time = "2026-08-11T23:04:00.174Z" }
 wheels = [
@@ -1029,9 +1031,9 @@ name = "pooch"
 version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "packaging", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "platformdirs", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "requests", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "packaging" },
+    { name = "platformdirs" },
+    { name = "requests" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/83/43/85ef45e8b36c6a48546af7b266592dc32d7f67837a6514d111bced6d7d75/pooch-1.9.0.tar.gz", hash = "sha256:de46729579b9857ffd3e741987a2f6d5e0e03219892c167c6578c0091fb511ed", size = 61788, upload-time = "2026-01-30T19:15:09.649Z" }
 wheels = [
@@ -1137,10 +1139,10 @@ name = "requests"
 version = "2.34.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "certifi", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "charset-normalizer", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "idna", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "urllib3", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "certifi" },
+    { name = "charset-normalizer" },
+    { name = "idna" },
+    { name = "urllib3" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ac/c3/e2a2b89f2d3e2179abd6d00ebd70bff6273f37fb3e0cc209f48b39d00cbf/requests-2.34.2.tar.gz", hash = "sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed", size = 142856, upload-time = "2026-05-14T19:25:27.735Z" }
 wheels = [
@@ -1152,8 +1154,8 @@ name = "rich"
 version = "15.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "markdown-it-py", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "pygments", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "markdown-it-py" },
+    { name = "pygments" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c0/8f/0722ca900cc807c13a6a0c696dacf35430f72e0ec571c4275d2371fca3e9/rich-15.0.0.tar.gz", hash = "sha256:edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36", size = 230680, upload-time = "2026-04-12T08:24:00.75Z" }
 wheels = [
@@ -1189,11 +1191,11 @@ name = "scikit-learn"
 version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "joblib", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "narwhals", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "scipy", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "threadpoolctl", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "joblib" },
+    { name = "narwhals" },
+    { name = "numpy" },
+    { name = "scipy" },
+    { name = "threadpoolctl" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/fa/6f/37092bdb25f712817231799fc5674d8e704066a8a70c1d2d40517e18b4ab/scikit_learn-1.9.0.tar.gz", hash = "sha256:8833266989d3a5110178a9fae30783675460724d0e1efb13b14901d2c660c557", size = 7750767, upload-time = "2026-06-02T11:54:32.706Z" }
 wheels = [
@@ -1210,7 +1212,7 @@ name = "scipy"
 version = "1.18.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "numpy" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7e/74/66de6258867beb2ef08f35f9f2ac017a52cacd5081714d239ff1a442d458/scipy-1.18.1.tar.gz", hash = "sha256:52c4b7422442aba924d03ad4019852b08a92e64ea187b933135687bfe2747307", size = 30781235, upload-time = "2026-08-21T23:28:50.599Z" }
 wheels = [
@@ -1249,9 +1251,9 @@ name = "soundfile"
 version = "0.14.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cffi", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "typing-extensions", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "cffi" },
+    { name = "numpy" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d2/db/949331952a6fb1c5b12e9de80fd08747966c2039d1a61db4764fbd3981c2/soundfile-0.14.0.tar.gz", hash = "sha256:ba1c1a2d618bca5c406647c83b89f07cc8810fa506a50622a6993ba130c1de11", size = 47842, upload-time = "2026-06-06T08:58:47.869Z" }
 wheels = [
@@ -1270,7 +1272,7 @@ name = "soxr"
 version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "numpy" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ed/11/27cebce4a108f77afea7c80545115536b45e3f11ebfb914f638fdd9ba847/soxr-1.1.0.tar.gz", hash = "sha256:9f228ae21c78fa9359ca98d8a5e8e91f30639e438e574133dace62c5b5309e44", size = 173067, upload-time = "2026-05-03T00:15:18.214Z" }
 wheels = [
@@ -1286,7 +1288,7 @@ name = "sympy"
 version = "1.14.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "mpmath", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "mpmath" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/83/d3/803453b36afefb7c2bb238361cd4ae6125a569b4db67cd9e79846ba2d68c/sympy-1.14.0.tar.gz", hash = "sha256:d3d3fe8df1e5a0b42f0e7bdf50541697dbe7d23746e894990c030e2b05e72517", size = 7793921, upload-time = "2025-04-27T18:05:01.611Z" }
 wheels = [
@@ -1328,7 +1330,7 @@ name = "tokenizers"
 version = "0.23.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "huggingface-hub", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "huggingface-hub" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c1/60/21f715d9faba5f5407ff759472ade058ec4a507ad62bcea47cb847239a73/tokenizers-0.23.1.tar.gz", hash = "sha256:1feeeadf865a7915adc25445dea30e9933e593c31bb96c277cee36de227c8bfa", size = 365748, upload-time = "2026-04-27T14:43:25.606Z" }
 wheels = [
@@ -1358,13 +1360,13 @@ resolution-markers = [
     "sys_platform == 'darwin'",
 ]
 dependencies = [
-    { name = "filelock", marker = "(sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "fsspec", marker = "(sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "jinja2", marker = "(sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "networkx", marker = "(sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "setuptools", marker = "(sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "sympy", marker = "(sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "typing-extensions", marker = "(sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'darwin' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "filelock", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "fsspec", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "jinja2", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "networkx", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "setuptools", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "sympy", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "typing-extensions", marker = "(sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cpu') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform != 'linux' and sys_platform != 'win32' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
 ]
 wheels = [
     { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.13.0-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:2fe228aba290d14b9f31b049be550dbd469c3fd3013d7a19705b30454da97027", upload-time = "2026-07-08T12:26:18Z" },
@@ -1382,18 +1384,18 @@ resolution-markers = [
 dependencies = [
     { name = "cuda-bindings", marker = "(sys_platform == 'linux' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
     { name = "cuda-toolkit", extra = ["cublas", "cudart", "cufft", "cufile", "cupti", "curand", "cusolver", "cusparse", "nvjitlink", "nvrtc", "nvtx"], marker = "(sys_platform == 'linux' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "filelock", marker = "(sys_platform == 'darwin' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "fsspec", marker = "(sys_platform == 'darwin' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "jinja2", marker = "(sys_platform == 'darwin' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "networkx", marker = "(sys_platform == 'darwin' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "filelock", marker = "(extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu')" },
+    { name = "fsspec", marker = "(extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu')" },
+    { name = "jinja2", marker = "(extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu')" },
+    { name = "networkx", marker = "(extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu')" },
     { name = "nvidia-cudnn-cu13", marker = "(sys_platform == 'linux' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
     { name = "nvidia-cusparselt-cu13", marker = "(sys_platform == 'linux' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
     { name = "nvidia-nccl-cu13", marker = "(sys_platform == 'linux' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
     { name = "nvidia-nvshmem-cu13", marker = "(sys_platform == 'linux' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "setuptools", marker = "(sys_platform == 'darwin' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "sympy", marker = "(sys_platform == 'darwin' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "setuptools", marker = "(extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu')" },
+    { name = "sympy", marker = "(extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu')" },
     { name = "triton", marker = "(sys_platform == 'linux' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "typing-extensions", marker = "(sys_platform == 'darwin' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'linux' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (sys_platform == 'win32' and extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "typing-extensions", marker = "(extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu') or (extra != 'extra-12-aipg-whisper-cpu' and extra != 'extra-12-aipg-whisper-cuda' and extra != 'extra-12-aipg-whisper-xpu')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c4/3a/ed0f4d4d1dcde03bced7aac9a28e800abcdc0cbd06b6775044c9fbd877b7/torch-2.13.0-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:2fe228aba290d14b9f31b049be550dbd469c3fd3013d7a19705b30454da97027", size = 111213045, upload-time = "2026-07-08T16:05:22.997Z" },
@@ -1519,15 +1521,15 @@ name = "transformers"
 version = "5.16.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "huggingface-hub", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "numpy", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "packaging", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "pyyaml", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "regex", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "safetensors", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "tokenizers", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "tqdm", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "typer", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "huggingface-hub" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "pyyaml" },
+    { name = "regex" },
+    { name = "safetensors" },
+    { name = "tokenizers" },
+    { name = "tqdm" },
+    { name = "typer" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ad/2e/ba418680ab901dae269360bb8642485eae04f1af91ee2ebb8bd6f3607305/transformers-5.16.1.tar.gz", hash = "sha256:17b0eac726ddc55e84ac58946063e0c6d37fd000c456b581f050ea0f4e822869", size = 9650542, upload-time = "2026-08-26T14:48:58.789Z" }
 wheels = [
@@ -1560,10 +1562,10 @@ name = "typer"
 version = "0.27.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "annotated-doc", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "annotated-doc" },
     { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "rich", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
-    { name = "shellingham", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "rich" },
+    { name = "shellingham" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ae/40/4a3db7990d1f62a53182aa96eaef57aeb2886a27f90a195bc66713565d31/typer-0.27.1.tar.gz", hash = "sha256:a79bef8469a79c45498e7b814ecf8d603cc7644e9acbd9e19cac0334240b18df", size = 203994, upload-time = "2026-08-03T14:41:03.438Z" }
 wheels = [
@@ -1602,12 +1604,12 @@ wheels = [
 
 [[package]]
 name = "werkzeug"
-version = "3.1.8"
+version = "3.1.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "markupsafe", marker = "sys_platform == 'darwin' or sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-cuda') or (extra == 'extra-12-aipg-whisper-cpu' and extra == 'extra-12-aipg-whisper-xpu') or (extra == 'extra-12-aipg-whisper-cuda' and extra == 'extra-12-aipg-whisper-xpu')" },
+    { name = "markupsafe" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/dd/b2/381be8cfdee792dd117872481b6e378f85c957dd7c5bca38897b08f765fd/werkzeug-3.1.8.tar.gz", hash = "sha256:9bad61a4268dac112f1c5cd4630a56ede601b6ed420300677a869083d70a4c44", size = 875852, upload-time = "2026-04-02T18:49:14.268Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a4/34/4dd12fc8bb7d61c91467ec3efe415ffa7d5456f799954b40c5bbaeae470e/werkzeug-3.1.9.tar.gz", hash = "sha256:55ca7c70a75689be937aa27f8ff4b018f06ff4838fc73045560bf0f5a1291060", size = 940188, upload-time = "2026-09-27T18:33:41.637Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/93/8c/2e650f2afeb7ee576912636c23ddb621c91ac6a98e66dc8d29c3c69446e1/werkzeug-3.1.8-py3-none-any.whl", hash = "sha256:63a77fb8892bf28ebc3178683445222aa500e48ebad5ec77b0ad80f8726b1f50", size = 226459, upload-time = "2026-04-02T18:49:12.72Z" },
+    { url = "https://files.pythonhosted.org/packages/a1/38/df03f564f43cec2684823f3cccae1a652ee7face1cbaa76fb223096e64d7/werkzeug-3.1.9-py3-none-any.whl", hash = "sha256:6392e50c78460ba618e5b21f08a71f59c99ce99cdc6cf6e3dd7e6ccca8754fab", size = 228700, upload-time = "2026-09-27T18:33:39.685Z" },
 ]

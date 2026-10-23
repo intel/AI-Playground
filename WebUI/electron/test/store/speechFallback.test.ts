@@ -46,11 +46,18 @@ vi.mock('@/assets/js/store/models', () => ({
   }),
 }))
 
-const showWarningDialog = vi.fn()
-const showDownloadDialog = vi.fn()
+const requestDownload = vi.fn(async () => {})
+const notify = vi.fn()
 
-vi.mock('@/assets/js/store/dialogs', () => ({
-  useDialogStore: () => ({ showWarningDialog, showDownloadDialog }),
+// The speech stores reach every prompt through the permissions layer now;
+// asserting on it (rather than the dialog store) is what proves no prompt
+// fires on the fallback paths.
+vi.mock('@/assets/js/permissions/permissions', () => ({
+  requestDownload,
+  notify,
+  requestVramWarning: vi.fn(),
+  REMOTE_DOWNLOAD_GRANT: 'download:remote-turns',
+  vramWarningGrantKey: (presetName: string) => `vram-warning:${presetName}`,
 }))
 
 vi.mock('@/assets/js/store/setupWizard', () => ({
@@ -124,8 +131,8 @@ describe('speech-to-text on the external engine', () => {
 
     expect(stt.enabled).toBe(true)
     expect(startTranscriptionServer).not.toHaveBeenCalled()
-    expect(showWarningDialog).not.toHaveBeenCalled()
-    expect(showDownloadDialog).not.toHaveBeenCalled()
+    expect(notify).not.toHaveBeenCalled()
+    expect(requestDownload).not.toHaveBeenCalled()
   })
 
   it('still uses OVMS when the OpenVINO Whisper engine is selected', async () => {

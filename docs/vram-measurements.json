@@ -1,0 +1,268 @@
+{
+  "device": "Intel Arc B390",
+  "os": "windows",
+  "memoryKind": "wddm-shared",
+  "comfyTotalVramMiB": 34361,
+  "usableFraction": 0.9,
+  "sampledAt": "2026-09",
+  "sampler": "PDH GPU Process Memory Shared Usage, process tree",
+  "llamaCppFlags": "--gpu-layers 999 --no-mmap -fa on",
+  "nParallelForEstimate": 1,
+  "comfyIdleMiB": 219.2,
+  "llamaCpp": [
+    {
+      "id": "qwen35-9b-q4km-mmproj",
+      "ctx": 8192,
+      "kvPath": "hybrid",
+      "estimateMiB": 6639,
+      "measuredMiB": 7143
+    },
+    {
+      "id": "qwen35-9b-q4km-mmproj",
+      "ctx": 32000,
+      "kvPath": "hybrid",
+      "estimateMiB": 7383,
+      "measuredMiB": 7935
+    },
+    {
+      "id": "qwen35-9b-q4km-mmproj",
+      "ctx": 131072,
+      "kvPath": "hybrid",
+      "estimateMiB": 10479,
+      "measuredMiB": 11246
+    },
+    {
+      "id": "qwen35-9b-mtp-spec-off",
+      "ctx": 32000,
+      "kvPath": "hybrid",
+      "estimateMiB": 7817,
+      "measuredMiB": 8222
+    },
+    {
+      "id": "qwen35-9b-mtp-draft-mtp",
+      "ctx": 32000,
+      "kvPath": "hybrid+mtp",
+      "note": "After MTP_SPEC_WEIGHT_FRACTION=0.25: +514 MiB / 5.2% under. Extra is ~25% of GGUF, not nextn KV."
+    },
+    {
+      "id": "qwen38-27b-spec-off",
+      "ctx": 8192,
+      "kvPath": "hybrid",
+      "estimateMiB": 18689,
+      "measuredMiB": 19279
+    },
+    {
+      "id": "qwen38-27b-draft-mtp",
+      "ctx": 8192,
+      "kvPath": "hybrid+mtp",
+      "measuredMiB": 23413,
+      "note": "20% under before 0.25×weights MTP term"
+    },
+    {
+      "id": "gemma3-4b-q4km",
+      "ctx": 8192,
+      "kvPath": "swa-period-6",
+      "measuredMiB": 3705,
+      "note": "~1 GiB floor vs estimate after period-6 default"
+    },
+    {
+      "id": "gemma3-4b-q4km",
+      "ctx": 32768,
+      "kvPath": "swa-period-6",
+      "measuredMiB": 4218
+    },
+    {
+      "id": "gemma3-4b-q4km",
+      "ctx": 131072,
+      "kvPath": "swa-period-6",
+      "measuredMiB": 6350
+    },
+    {
+      "id": "gemma4-e4b-q4km",
+      "ctx": 8192,
+      "kvPath": "swa",
+      "estimateMiB": 4938,
+      "measuredMiB": 5515
+    },
+    {
+      "id": "gemma4-e4b-q4km",
+      "ctx": 32768,
+      "kvPath": "swa",
+      "estimateMiB": 5310,
+      "measuredMiB": 5934
+    },
+    {
+      "id": "gemma4-e4b-q4km",
+      "ctx": 131072,
+      "kvPath": "swa",
+      "estimateMiB": 6858,
+      "measuredMiB": 7679
+    },
+    {
+      "id": "llama31-8b-q4km",
+      "ctx": 8192,
+      "kvPath": "gqa",
+      "estimateMiB": 5754,
+      "measuredMiB": 5860
+    },
+    {
+      "id": "llama31-8b-q4km",
+      "ctx": 32768,
+      "kvPath": "gqa",
+      "estimateMiB": 8730,
+      "measuredMiB": 8903
+    },
+    {
+      "id": "llama31-8b-q4km",
+      "ctx": 131072,
+      "kvPath": "gqa",
+      "estimateMiB": 21114,
+      "measuredMiB": 21490
+    },
+    {
+      "id": "lfm25-350m-q4km",
+      "ctx": 131072,
+      "kvPath": "gqa-per-layer",
+      "note": "+348 MiB / 16.5% under after skipping conv layers; was 2× over"
+    },
+    {
+      "id": "gpt-oss-20b-q8",
+      "ctx": 8192,
+      "kvPath": "swa",
+      "estimateMiB": 11698,
+      "measuredMiB": 11902
+    },
+    {
+      "id": "gpt-oss-20b-q8",
+      "ctx": 32768,
+      "kvPath": "swa",
+      "estimateMiB": 11977,
+      "measuredMiB": 12508
+    }
+  ],
+  "sidecars": [
+    {
+      "id": "embed-bge-small",
+      "peakMiB": 47,
+      "useForFit": true
+    },
+    {
+      "id": "whisper-base-int8-ovms",
+      "peakMiB": 133,
+      "peakMiBLater": 56,
+      "useForFit": true,
+      "note": "Use 133 for first-load fit"
+    },
+    {
+      "id": "qwen3-tts-0.6b",
+      "peakMiB": 2662,
+      "useForFit": true,
+      "note": "2.5–2.6 GiB after /api/load"
+    },
+    {
+      "id": "qwen3-tts-1.7b-voicedesign",
+      "peakMiB": 4403,
+      "useForFit": true,
+      "note": "4.3 GiB after /api/load"
+    },
+    {
+      "id": "comfy-sd15-512",
+      "peakMiB": 3379,
+      "useForFit": true,
+      "note": "DreamShaper, 8 steps; 3.3 GiB"
+    },
+    {
+      "id": "comfy-sdxl-1024",
+      "peakMiB": 10752,
+      "useForFit": true,
+      "note": "Juggernaut XL, 8 steps; 10.5 GiB"
+    },
+    {
+      "id": "comfy-flux-klein-4b-fp8-1024",
+      "peakMiB": 12288,
+      "useForFit": true,
+      "note": "4 steps; 12.0 GiB"
+    }
+  ],
+  "video": [
+    {
+      "id": "ltx2b-512x512-f9",
+      "width": 512,
+      "height": 512,
+      "frames": 9,
+      "peakMiB": 12165.7,
+      "useForFit": true
+    },
+    {
+      "id": "ltx2b-512x512-f25",
+      "width": 512,
+      "height": 512,
+      "frames": 25,
+      "peakMiB": 12784,
+      "useForFit": true,
+      "note": "Stacked on f9 cache; close to cold"
+    },
+    {
+      "id": "ltx2b-512x512-f49",
+      "width": 512,
+      "height": 512,
+      "frames": 49,
+      "peakMiB": 14705.3,
+      "useForFit": false,
+      "note": "No /free; may include leftover activations"
+    },
+    {
+      "id": "ltx2b-768x512-f25",
+      "width": 768,
+      "height": 512,
+      "frames": 25,
+      "peakMiB": 14438,
+      "useForFit": true,
+      "note": "Isolated ~14.1 GiB. Stacked sweep was 15040.9; do not use that."
+    },
+    {
+      "id": "ltx23-512x512-f25",
+      "width": 512,
+      "height": 512,
+      "frames": 25,
+      "peakMiB": 28186.3,
+      "restAfterFreeMiB": 27330.6,
+      "useForFit": true
+    },
+    {
+      "id": "ltx23-512x512-f49",
+      "width": 512,
+      "height": 512,
+      "frames": 49,
+      "peakMiB": 29666.8,
+      "restAfterFreeMiB": 27330.6,
+      "useForFit": true
+    },
+    {
+      "id": "ltx23-768x512-f25",
+      "width": 768,
+      "height": 512,
+      "frames": 25,
+      "peakMiB": 29623.2,
+      "restAfterFreeMiB": 27470.8,
+      "useForFit": true,
+      "note": "With /free. Without /free this was 31302 (stacked on 49f)."
+    },
+    {
+      "id": "ltx23-512x512-f105",
+      "width": 512,
+      "height": 512,
+      "frames": 105,
+      "peakMiB": 33093.4,
+      "restAfterFreeMiB": 27366.8,
+      "useForFit": true,
+      "note": "Product default ~24 fps. Exceeds 0.90×34361 (30925 MiB); under Comfy total."
+    }
+  ],
+  "videoScale": {
+    "ltx23WeightsMiB": 27350,
+    "frameExponent": 1.4,
+    "note": "peak ≈ weights + k·W·H·T^α with α≈1.4 at 512². 25→49 frames added ~1.8 GiB on both 2B and 2.3."
+  },
+  "notMeasured": ["qwen3-embedding-0.6b", "wan-14b-i2v", "ovms-llm", "mla-gguf"]
+}

@@ -166,6 +166,47 @@ class TestLoginThrottling(LocalWebChannelTestCase):
         self.assertEqual(self.login("")[0], 401)
 
 
+class TestNonAsciiPasswords(LocalWebChannelTestCase):
+    def test_a_non_ascii_password_logs_in(self):
+        for password in ("café", "päss🔑"):  # nosec B105 - test fixture
+            self.assertEqual(
+                self.channel.set_config({"password": password, "port": str(self.port)}),
+                {"status": "started"},
+            )
+            self.assertEqual(self.login(password)[0], 200)
+            self.assertEqual(
+                self.login(PASSWORD)[0], 401, "the previous password must stop working"
+            )
+
+    def test_normalization_forms_of_the_same_password_match(self):
+        nfd = "cafe\u0301"  # nosec B105 - test fixture
+        nfc = "caf\u00e9"
+        self.assertNotEqual(nfd, nfc)
+        self.assertEqual(
+            self.channel.set_config({"password": nfd, "port": str(self.port)}),
+            {"status": "started"},
+        )
+        self.assertEqual(self.login(nfc)[0], 200)
+
+    def test_a_non_ascii_guess_counts_as_a_failure(self):
+        guess = "café"  # nosec B105 - test fixture
+        status, payload, _, _ = self.request("POST", "/api/login", {"password": guess})
+        self.assertEqual(status, 401)
+        self.assertEqual(json.loads(payload)["error"], "invalid_password")
+        self.assertEqual(self.channel._login_failures["127.0.0.1"][0], 1)
+
+    def test_a_lone_surrogate_guess_is_a_failed_login(self):
+        # A "\ud800" literal makes bandit's report unencodable.
+        status, payload, _, _ = self.request(
+            "POST", "/api/login", {"password": chr(0xD800)}
+        )
+        self.assertEqual(status, 401)
+        self.assertEqual(json.loads(payload)["error"], "invalid_password")
+        self.assertEqual(
+            self.login()[0], 200, "the server must still accept the real password"
+        )
+
+
 class TestRequestBodies(LocalWebChannelTestCase):
     def test_an_oversized_body_is_refused_before_it_is_read(self):
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)

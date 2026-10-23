@@ -48,6 +48,8 @@
         </template>
       </ModelCapabilities>
       <span v-else-if="presetIndicator.model" class="truncate">{{ presetIndicator.model }}</span>
+      <!-- Whether the model plus its context fits the card (llama.cpp only) -->
+      <ModelVramFit v-if="presetIndicator.model" :delay-duration="0" />
       <!-- Capability icons for the active model, only in the Assistant preset -->
       <CapabilityIcons
         v-if="isAssistantPreset && presetIndicator.model && currentModel"
@@ -85,6 +87,7 @@
           </Tooltip>
         </TooltipProvider>
       </template>
+      <template v-if="deviceBadge || (textInference.metricsEnabled && computeChip)">·</template>
       <!-- Selected inference device (GPU / NPU / CPU) as a text badge -->
       <template v-if="deviceBadge">
         <TooltipProvider>
@@ -108,6 +111,41 @@
             >
               <p class="text-sm font-semibold">{{ deviceBadge.name }}</p>
               <p class="mt-1 text-xs text-muted-foreground">{{ deviceBadge.categoryLabel }}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </template>
+      <!-- Live GPU / RAM, gated on the same Metrics checkbox as the chat footer. -->
+      <template v-if="textInference.metricsEnabled && computeChip">
+        <TooltipProvider>
+          <Tooltip :delay-duration="0">
+            <TooltipTrigger as-child>
+              <button
+                type="button"
+                class="flex flex-none items-center cursor-help"
+                :aria-label="computeChip.ariaLabel"
+              >
+                <span class="tabular-nums">{{ computeChip.label }}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent
+              align="start"
+              class="w-72 bg-card border border-border text-foreground p-3 z-[200]"
+            >
+              <p class="text-sm font-semibold">{{ languages.COMPUTE_METRICS_LABEL }}</p>
+              <section
+                v-for="section in computeChip.sections"
+                :key="section.title"
+                class="mt-2 first-of-type:mt-1.5"
+              >
+                <p class="text-xs font-medium text-foreground">{{ section.title }}</p>
+                <dl class="mt-0.5 grid grid-cols-[auto_1fr] gap-x-4 text-xs">
+                  <template v-for="row in section.rows" :key="row.label">
+                    <dt class="text-muted-foreground">{{ row.label }}</dt>
+                    <dd class="text-right tabular-nums text-foreground">{{ row.value }}</dd>
+                  </template>
+                </dl>
+              </section>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -174,9 +212,13 @@ import { AUDIO_CATEGORY, usePresets, type ChatPreset } from '@/assets/js/store/p
 import { useTextToSpeech } from '@/assets/js/store/textToSpeech'
 import { useTheme } from '@/assets/js/store/theme'
 import { useOemBranding } from '@/assets/js/store/oemBranding'
+import { useI18N } from '@/assets/js/store/i18n'
+import { useComputeMetrics } from '@/assets/js/store/computeMetrics'
+import { computeDetailSections, formatMib } from '@/lib/computeMetricsFormat'
 import { Context } from '@/components/ui/context'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import ModelCapabilities from '@/components/ModelCapabilities.vue'
+import ModelVramFit from '@/components/ModelVramFit.vue'
 import CapabilityIcons from '@/components/CapabilityIcons.vue'
 import AgentTokenUsage from '@/components/AgentTokenUsage.vue'
 
@@ -190,6 +232,8 @@ const presetsStore = usePresets()
 const textToSpeech = useTextToSpeech()
 const theme = useTheme()
 const oemBranding = useOemBranding()
+const languages = useI18N().state
+const computeMetrics = useComputeMetrics()
 
 // The backend badge logos ship as light/dark variants; only the `light` theme
 // needs the dark-fill icon, all other themes are dark-background.
@@ -201,9 +245,9 @@ const isAgentMode = computed(() => promptStore.getCurrentMode() === 'agent')
 // Chat, Agent and Audio all run on chat-type presets (Agent Mode is entered by
 // picking an agent preset from the chat list; Audio holds the speech presets), so
 // the preset, backend and device badges read from the same place for all three.
-// Keyed off `userSelectedMode` so a background comfy switch during agentic / Home
-// Agent tool use doesn't flip them to the image-gen indicators.
-const isLlmMode = computed(() => ['chat', 'agent', 'audio'].includes(promptStore.userSelectedMode))
+// Background mode borrowing is gone (media runs no longer switch modes,
+// step 7), so the live mode is the user's context.
+const isLlmMode = computed(() => ['chat', 'agent', 'audio'].includes(promptStore.currentMode))
 
 // Get active chat preset
 const activeChatPreset = computed(() => {
@@ -229,7 +273,7 @@ watch(
 // though there is a persisted last-used preset. Fall back to it (or the first
 // available chat preset) so the indicator isn't blank at launch.
 const fallbackChatPreset = computed<ChatPreset | null>(() => {
-  const inAudioMode = promptStore.userSelectedMode === 'audio'
+  const inAudioMode = promptStore.currentMode === 'audio'
   const candidates = inAudioMode ? presetsStore.audioPresets : presetsStore.chatPresets
   if (candidates.length === 0) return null
   const lastUsed = presetsStore.getLastUsedPreset([inAudioMode ? AUDIO_CATEGORY : 'chat'])
@@ -360,6 +404,27 @@ const deviceBadge = computed(() => {
   }
   // Image / Image Edit / Video modes all run on the ComfyUI backend.
   return selectedDeviceBadgeFor('comfyui-backend')
+})
+
+const computeChip = computed(() => {
+  const snapshot = computeMetrics.latest
+  if (!snapshot) return null
+  // Report the card the active mode's backend was pointed at. Only a GPU selection
+  // names one; on CPU / NPU the lookup falls back to the primary card.
+  const badge = deviceBadge.value
+  const gpu =
+    textInference.backend === 'cloud'
+      ? undefined
+      : computeMetrics.gpuFor(badge?.category === 'gpu' ? badge.name : undefined)
+  const label =
+    gpu?.memUsedMiB != null
+      ? `${formatMib(gpu.memUsedMiB)}${gpu.memTotalMiB != null ? ` / ${formatMib(gpu.memTotalMiB)}` : ''}`
+      : `${formatMib(snapshot.host.memUsedMiB)} / ${formatMib(snapshot.host.memTotalMiB)}`
+  return {
+    label,
+    sections: computeDetailSections(gpu, snapshot.host),
+    ariaLabel: languages.COMPUTE_METRICS_LABEL || 'Compute resources',
+  }
 })
 
 // The tooltip shows the base preset's description — same text as the quick

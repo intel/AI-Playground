@@ -1,40 +1,31 @@
-import { asSchema, type ModelMessage } from 'ai'
+import { asSchema } from 'ai'
 import { z } from 'zod'
-import { comfyUI, executeComfyGeneration } from './comfyUi'
-import { comfyUiImageEdit, executeImageEdit } from './comfyUiImageEdit'
-import { queueMediaRequest } from './mediaPipeline'
-import { mediaAgentHasTools, runMediaAgent } from '../agents/mediaAgent'
+import { comfyUI, getAvailableWorkflows, resolveDefaultImageWorkflow } from './comfyUi'
+import { comfyUiImageEdit } from './comfyUiImageEdit'
+import { synthesizeTextToSpeech } from './synthesizeTextToSpeech'
+import { transcribeAudio } from './transcribeAudio'
+import { mediaAgentHasTools } from '../agents/mediaAgent'
 import { useTextInference } from '../store/textInference'
-import { createChatModel } from '@/lib/chatModel'
 import type { AgentToolSpec } from '@/types/agentIpc'
 
-// ── Agent Mode tool bridge (renderer side) ───────────────────────────────────
+// ── Agent Mode tool specs (renderer side) ────────────────────────────────────
 //
-// The Pi HarnessAgent runs in the Electron main process, but the AIPG media
-// tool implementations live here in the renderer (they orchestrate the Pinia
-// stores driving ComfyUI). This module is the renderer half of the bridge:
-//
-//  - getAgentToolSpecs() serializes the tool contracts (name, description,
-//    JSON-schema input) into AgentToolSpec[] shipped with each turn config.
-//    The main process builds host-executed proxy tools from them and hands
-//    them to the HarnessAgent, which forwards them to Pi as custom tools.
-//  - executeAgentTool() runs the real implementation when the main process
-//    dispatches an 'agentMode:executeTool' request back to the renderer.
-//
-// Path/file handling stays in the main process: for inputs listed in
-// `workspacePathInputs` (editImage's sourceImagePath) main resolves the
-// workspace-relative path and replaces it with a data URI before dispatching,
-// and generated media in results is saved to <workspace>/generated/ there.
+// Pi runs in the Electron main process. Media / generateImage / editImage and
+// the speech tools execute there. This module only serializes the live catalog
+// (name, description, JSON schema, workspacePathInputs) onto the turn config.
+// Renderer execute for Agent Mode is storeTools in agentModeTurn
+// (offer_game_agent), not this file.
 
 const GENERATED_FILES_NOTE =
   '\n\nFILES: Generated media is automatically saved into the "generated/" folder of your ' +
-  'workspace. The tool result lists the workspace-relative paths in "savedFiles".'
+  'workspace. The tool result lists the workspace-relative paths in "savedFiles". The ' +
+  'generator names those files, so a path exists only once a call has reported it — never ' +
+  'guess one, and never create the image file yourself.'
 
 const SOURCE_IMAGE_NOTE =
   '\n\nAGENT MODE: There is no conversation image history here. You MUST pass the image to ' +
-  'edit via the required "sourceImagePath" parameter — a workspace-relative path to an ' +
-  'existing image file (e.g. "generated/AIPG_00001_.png" from a previous generateImage call, ' +
-  'or any image file in the workspace).'
+  'edit via the required "sourceImagePath" parameter — a workspace-relative path an earlier ' +
+  'call reported under "savedFiles", or a file the user attached under "attachments/".'
 
 function editImageInputSchema(): z.ZodTypeAny {
   // The edit tool's zod schema is preset-dependent (workflow enum), so extend
@@ -44,7 +35,8 @@ function editImageInputSchema(): z.ZodTypeAny {
     sourceImagePath: z
       .string()
       .describe(
-        'Workspace-relative path of the source image file to edit (e.g. "generated/AIPG_00001_.png").',
+        'Workspace-relative path of the source image file to edit: one an earlier call ' +
+          'reported under "savedFiles", or a file under "attachments/".',
       ),
   })
 }
@@ -70,13 +62,62 @@ function mediaSpecInputSchema(): z.ZodTypeAny {
       .string()
       .optional()
       .describe(
-        'Workspace-relative path of a source image to transform (e.g. ' +
-          '"generated/AIPG_00001_.png"). Omit for pure text-to-media generation.',
+        'Workspace-relative path of a source image to transform: one an earlier call ' +
+          'reported under "savedFiles", or a file under "attachments/". Omit for pure ' +
+          'text-to-media generation.',
       ),
   })
 }
 
+const TTS_FILES_NOTE =
+  '\n\nFILES: The clip is written into the "generated/" folder of your workspace; the result ' +
+  'gives its workspace-relative path in "savedFilePath". Reference that path in files you write ' +
+  '(e.g. an <audio src="generated/....wav"> on an HTML page).'
+
+const STT_SOURCE_NOTE =
+  '\n\nAGENT MODE: There is no conversation audio history here. Name the file to transcribe with ' +
+  'the required "sourceAudioPath" parameter — a workspace-relative path (e.g. ' +
+  '"attachments/voice-note.m4a").'
+
+function transcribeInputSchema(): z.ZodTypeAny {
+  return z.object({
+    sourceAudioPath: z
+      .string()
+      .describe(
+        'Workspace-relative path of the audio file to transcribe (e.g. "attachments/note.m4a").',
+      ),
+  })
+}
+
+/** The speech tools, per the same per-preset toggles Chat reads. */
+function speechToolSpecs(): AgentToolSpec[] {
+  const textInference = useTextInference()
+  const specs: AgentToolSpec[] = []
+  if (textInference.isBuiltinToolEnabled('synthesizeTextToSpeech')) {
+    specs.push({
+      name: 'synthesizeTextToSpeech',
+      description: (synthesizeTextToSpeech.description ?? '') + TTS_FILES_NOTE,
+      inputSchema: asSchema(synthesizeTextToSpeech.inputSchema).jsonSchema as Record<
+        string,
+        unknown
+      >,
+    })
+  }
+  if (textInference.isBuiltinToolEnabled('transcribeAudio')) {
+    specs.push({
+      name: 'transcribeAudio',
+      description: (transcribeAudio.description ?? '') + STT_SOURCE_NOTE,
+      inputSchema: asSchema(transcribeInputSchema()).jsonSchema as Record<string, unknown>,
+    })
+  }
+  return specs
+}
+
 export function getAgentToolSpecs(): AgentToolSpec[] {
+  return [...mediaToolSpecs(), ...speechToolSpecs()]
+}
+
+function mediaToolSpecs(): AgentToolSpec[] {
   // With tool delegation on (the default), the agent sees a single thin
   // `media` tool backed by the nested media agent (agents/mediaAgent.ts).
   // NOTE: the tool set is part of the Pi session's configKey, so flipping the
@@ -92,11 +133,17 @@ export function getAgentToolSpecs(): AgentToolSpec[] {
       },
     ]
   }
+  const imageWorkflowNames = getAvailableWorkflows()
+    .filter((w) => w.mediaType !== 'video')
+    .map((w) => w.name)
   return [
     {
       name: 'generateImage',
       description: comfyUI.description + GENERATED_FILES_NOTE,
       inputSchema: asSchema(comfyUI.inputSchema).jsonSchema as Record<string, unknown>,
+      // Main executes this in-process and can't see the enabled-workflow list;
+      // the default is what the description already tells the model to use.
+      defaultWorkflow: resolveDefaultImageWorkflow(imageWorkflowNames),
     },
     {
       name: 'editImage',
@@ -105,92 +152,4 @@ export function getAgentToolSpecs(): AgentToolSpec[] {
       workspacePathInputs: ['sourceImagePath'],
     },
   ]
-}
-
-function dataUriMessage(dataUri: string): ModelMessage {
-  const mediaType = /^data:(image\/[a-z+.-]+);/i.exec(dataUri)?.[1] ?? 'image/png'
-  return {
-    role: 'user',
-    content: [{ type: 'file', mediaType, data: dataUri }],
-  }
-}
-
-/**
- * Pi executes tool calls concurrently, and a model illustrating a game asks for
- * all of its art at once — so every bridged call queues on the shared media
- * pipeline (see mediaPipeline.ts) instead of racing the others over the one
- * ComfyUI server and the one generation store.
- */
-export function executeAgentTool(
-  toolName: string,
-  input: Record<string, unknown>,
-  toolCallId?: string,
-  abortSignal?: AbortSignal,
-): Promise<unknown> {
-  return queueMediaRequest(
-    () => runAgentTool(toolName, input, toolCallId, abortSignal),
-    abortSignal,
-  )
-}
-
-async function runAgentTool(
-  toolName: string,
-  input: Record<string, unknown>,
-  toolCallId?: string,
-  abortSignal?: AbortSignal,
-): Promise<unknown> {
-  if (toolName === 'media') {
-    const { request, sourceImagePath } = input
-    // The main process already replaced a provided workspace path with a data
-    // URI (see workspacePathInputs); anything else means "no source image".
-    const sourceImage =
-      typeof sourceImagePath === 'string' && sourceImagePath.startsWith('data:image/')
-        ? sourceImagePath
-        : undefined
-    const result = await runMediaAgent({
-      request: String(request ?? ''),
-      sourceImage,
-      model: createChatModel(),
-      abortSignal,
-      // Matches the tool part rendered in Agent Mode, so the timeline can show
-      // this run's progress while the bridged call blocks.
-      runId: toolCallId,
-    })
-    // Slim the media entries before they enter Pi's context: keep the URLs
-    // (the main process resolves them to save files into <workspace>/generated/)
-    // but drop the bulky per-item settings payloads.
-    return {
-      summary: result.summary,
-      steps: result.steps,
-      success: result.success,
-      message: result.message,
-      images: result.images.map((item) => {
-        const slim: Record<string, string> = { id: item.id, type: item.type }
-        if (item.imageUrl) slim.imageUrl = item.imageUrl
-        if (item.videoUrl) slim.videoUrl = item.videoUrl
-        if (item.model3dUrl) slim.model3dUrl = item.model3dUrl
-        return slim
-      }),
-    }
-  }
-  if (toolName === 'generateImage') {
-    return await executeComfyGeneration(input as Parameters<typeof executeComfyGeneration>[0], {
-      abortSignal,
-    })
-  }
-  if (toolName === 'editImage') {
-    const { sourceImagePath, ...args } = input
-    // The main process already replaced the workspace path with a data URI.
-    if (typeof sourceImagePath !== 'string' || !sourceImagePath.startsWith('data:image/')) {
-      throw new Error('editImage requires a sourceImagePath pointing to an image file.')
-    }
-    // executeImageEdit discovers its source image from conversation messages;
-    // synthesize a single user message carrying the inlined image.
-    return await executeImageEdit(
-      args as Parameters<typeof executeImageEdit>[0],
-      [dataUriMessage(sourceImagePath)],
-      { abortSignal },
-    )
-  }
-  throw new Error(`Unknown agent tool: ${toolName}`)
 }

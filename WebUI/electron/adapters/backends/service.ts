@@ -1,0 +1,1277 @@
+import { ChildProcess } from 'node:child_process'
+import { app, BrowserWindow } from 'electron'
+import * as filesystem from 'fs-extra'
+import fsPromises from 'fs/promises'
+import path from 'node:path'
+import { appLoggerInstance } from '../../observability/logger.ts'
+import { emitServiceUpdate } from '../../kernel/kernelBus.ts'
+import { packagedResourcesRoot } from '../../kernel/aipgRoot.ts'
+import { existingFileOrError, spawnProcessAsync, ProcessError } from '../install/osProcessHelper'
+import {
+  APPLICATION_CONTROL_USER_MESSAGE,
+  applicationControlHint,
+  hintFromError,
+  isApplicationControlBlock,
+  spawnErrorEvidence,
+} from './applicationControl.ts'
+import { fetchInstallArtifact } from '../install/fetchInstallArtifact.ts'
+import { terminateProcessTree, type ProcessSignature } from '../install/processLifecycle.ts'
+import { assert } from 'node:console'
+import { createHash } from 'crypto'
+
+import * as childProcess from 'node:child_process'
+import { promisify } from 'util'
+import {
+  removeBrokenVenv,
+  venvInterpreterPath,
+  venvIsUsable,
+  removeVenvTree,
+} from '../install/uvBasedBackends/venvState.ts'
+import { Arch, getArchPriority, getDeviceArch } from '../hardware/deviceArch.ts'
+import { z } from 'zod'
+import type { LocalSettings } from '../../kernel/localSettings.ts'
+
+const exec = promisify(childProcess.exec)
+const execFileAsync = promisify(childProcess.execFile)
+
+// Type for error details that matches SetupProgress.errorDetails
+export interface ErrorDetails {
+  command?: string
+  exitCode?: number
+  stdout?: string
+  stderr?: string
+  timestamp?: string
+  duration?: number
+  pipFreezeOutput?: string
+  hint?: string
+}
+
+// Helper function to capture pip freeze output using service-specific Python environment
+export async function capturePipFreezeOutput(): Promise<string | undefined> {
+  // pip freeze functionality removed - uv handles Python environments
+  return undefined
+}
+
+export async function createEnhancedErrorDetails(
+  error: unknown,
+  context?: string,
+): Promise<ErrorDetails> {
+  const timestamp = new Date().toISOString()
+
+  // Capture pip freeze output for installation-related errors
+  const pipFreezeOutput: string | undefined = await capturePipFreezeOutput()
+
+  const withHint = (details: ErrorDetails, hint: string | undefined): ErrorDetails =>
+    hint ? { ...details, hint } : details
+
+  if (error instanceof ProcessError) {
+    return withHint(
+      {
+        command: `${error.result.command} ${error.result.args.join(' ')}`,
+        exitCode: error.result.exitCode,
+        stdout: error.result.stdout,
+        stderr: error.result.stderr,
+        timestamp: error.result.timestamp,
+        duration: error.result.duration,
+        pipFreezeOutput,
+      },
+      applicationControlHint({
+        text: `${error.result.stdout}\n${error.result.stderr}`,
+        code: error.result.spawnCode,
+        syscall: error.result.spawnSyscall,
+      }),
+    )
+  }
+
+  if (error instanceof Error) {
+    // Handle regular Error objects
+    const errorDetails: ErrorDetails = {
+      timestamp,
+      pipFreezeOutput,
+    }
+
+    // Extract information based on error message patterns
+    const message = error.message
+
+    // Network/HTTP errors (e.g., "Failed to download Llamacpp: Not Found")
+    if (message.includes('Failed to download') || message.includes('fetch')) {
+      errorDetails.command = context ? `Download from ${context}` : 'Network request'
+
+      // Try to extract HTTP status from message
+      const statusMatch = message.match(
+        /(\d{3})\s*(Not Found|Forbidden|Internal Server Error|Bad Gateway|Service Unavailable)/i,
+      )
+      if (statusMatch) {
+        errorDetails.exitCode = parseInt(statusMatch[1])
+      }
+
+      errorDetails.stderr = message
+    }
+    // PowerShell/extraction errors
+    else if (
+      message.includes('powershell') ||
+      message.includes('Expand-Archive') ||
+      message.includes('extract')
+    ) {
+      errorDetails.command = context ? `PowerShell extraction: ${context}` : 'PowerShell command'
+      errorDetails.stderr = message
+
+      // Try to extract exit code if present
+      const exitCodeMatch = message.match(/exit code (\d+)/i)
+      if (exitCodeMatch) {
+        errorDetails.exitCode = parseInt(exitCodeMatch[1])
+      }
+    }
+    // File system errors
+    else if (
+      message.includes('ENOENT') ||
+      message.includes('EACCES') ||
+      message.includes('EPERM')
+    ) {
+      errorDetails.command = context ? `File operation: ${context}` : 'File system operation'
+      errorDetails.stderr = message
+
+      // Map common file system errors to exit codes
+      if (message.includes('ENOENT'))
+        errorDetails.exitCode = 2 // File not found
+      else if (message.includes('EACCES'))
+        errorDetails.exitCode = 13 // Permission denied
+      else if (message.includes('EPERM')) errorDetails.exitCode = 1 // Operation not permitted
+    }
+    // Git errors
+    else if (message.includes('git') || message.includes('clone') || message.includes('checkout')) {
+      errorDetails.command = context ? `Git operation: ${context}` : 'Git command'
+      errorDetails.stderr = message
+    }
+    // Generic error
+    else {
+      errorDetails.command = context || 'Unknown operation'
+      errorDetails.stderr = message
+    }
+
+    // Add stack trace if available (truncated for readability)
+    if (error.stack) {
+      const stackLines = error.stack.split('\n').slice(0, 5) // First 5 lines
+      errorDetails.stdout = `Stack trace:\n${stackLines.join('\n')}`
+    }
+
+    return withHint(errorDetails, hintFromError(error))
+  }
+
+  // Handle non-Error objects (strings, etc.)
+  return withHint(
+    {
+      command: context || 'Unknown operation',
+      stderr: String(error),
+      timestamp,
+      pipFreezeOutput,
+    },
+    applicationControlHint({ text: String(error) }),
+  )
+}
+
+export const aipgBaseDir = () =>
+  app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../../')
+
+export const aipgResourcesDir = () =>
+  app.isPackaged ? aipgBaseDir() : path.join(aipgBaseDir(), 'build', 'resources')
+
+export const hijacksDir = path.resolve(path.join(aipgBaseDir(), `hijacks/ipex_to_cuda`))
+const hijacksRemote = 'https://github.com/Disty0/ipex_to_cuda.git'
+const hijacksRevision = '7379d6ecbc26a96b1a39f6fc063c61fc8462914f'
+
+const checkHijacksDir = async (): Promise<boolean> => {
+  try {
+    await filesystem.promises.stat(path.join(hijacksDir, '__init__.py'))
+    return true
+  } catch (_e) {
+    // Not a usable checkout — drop whatever is there so the caller re-clones.
+    // A failed removal must not be swallowed by a `return` inside `finally`
+    // (which discards the error entirely): the clone would then fail with a
+    // confusing "already exists" instead of the real cause.
+    await filesystem.promises.rm(hijacksDir, { recursive: true, force: true })
+    return false
+  }
+}
+
+export const installHijacks = async (): Promise<void> => {
+  if (process.platform === 'darwin') return
+  const git = new GitService()
+  if (await checkHijacksDir()) {
+    appLoggerInstance.info('ipex_to_cuda hijacks already cloned, skipping', 'ipex-hijacks')
+  } else {
+    await git.run(['clone', hijacksRemote, hijacksDir])
+    await git.run(['-C', hijacksDir, 'checkout', hijacksRevision], {}, hijacksDir)
+    await patchFile(
+      path.join(hijacksDir, 'hijacks.py'),
+      'device_supports_fp64 = torch.xpu.has_fp64_dtype()',
+      ['torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(True)'],
+    )
+  }
+}
+
+export const patchFile = async (
+  filePath: string,
+  targetLineIncludes: string,
+  unindentedLinesToInsert: string[],
+): Promise<void> => {
+  const targetfilePath = path.normalize(filePath)
+  const targetFileContent = await fsPromises.readFile(targetfilePath, 'utf-8')
+  const targetFileLines = targetFileContent.split(/\r?\n/)
+  const lineAboveSpliceTargetIndex = targetFileLines.findIndex((l) =>
+    l.includes(targetLineIncludes),
+  )
+  if (lineAboveSpliceTargetIndex === -1) {
+    throw new Error(`Failed to find line to patch in ${filePath}`)
+  }
+  const targetIndentation = targetFileLines[lineAboveSpliceTargetIndex].search(/\S/)
+  const linesToSpliceIn = unindentedLinesToInsert.map(
+    (line) => ' '.repeat(targetIndentation) + line,
+  )
+  targetFileLines.splice(lineAboveSpliceTargetIndex + 1, 0, ...linesToSpliceIn)
+  await fsPromises.writeFile(targetfilePath, targetFileLines.join('\n'))
+}
+
+class ServiceCheckError extends Error {
+  readonly component: string
+  readonly stage: string
+
+  constructor(component: string, stage: string = 'all') {
+    super(`Service ${component} check failed at stage ${stage}`)
+    this.name = 'ServiceCheckError'
+    this.component = component
+    this.stage = stage
+  }
+}
+
+export interface GenericService {
+  name: string
+
+  /**
+   * Check first, then repair/install if check fails
+   * @throws any error if repair/install throws
+   */
+  ensureInstalled(): Promise<void>
+
+  /**
+   * @throws ServiceCheckError if check fails
+   */
+  check(): Promise<void>
+
+  /**
+   * Fresh install
+   * @throws any error
+   */
+  install(): Promise<void>
+
+  /**
+   * Repair install
+   * @param checkError error that caused the repair
+   * @throws any error
+   */
+  repair(checkError: ServiceCheckError): Promise<void>
+}
+
+export abstract class GenericServiceImpl implements GenericService {
+  name: string
+
+  readonly appLogger = appLoggerInstance
+  readonly baseDir = aipgBaseDir()
+  readonly buildResourcesDir = aipgResourcesDir()
+
+  constructor(name: string) {
+    this.name = name
+  }
+
+  async ensureInstalled(): Promise<void> {
+    try {
+      await this.check()
+    } catch (e) {
+      if (e instanceof ServiceCheckError) {
+        await this.repair(e)
+      } else {
+        await this.install()
+      }
+    }
+  }
+
+  abstract check(): Promise<void>
+  abstract install(): Promise<void>
+  abstract repair(checkError: ServiceCheckError): Promise<void>
+
+  log(msg: string) {
+    this.appLogger.info(msg, this.name)
+  }
+
+  logError(msg: string) {
+    this.appLogger.error(msg, this.name, true)
+  }
+}
+
+abstract class ExecutableService extends GenericServiceImpl {
+  dir: string
+
+  constructor(name: string, dir: string) {
+    super(name)
+    this.dir = dir
+  }
+
+  abstract getExePath(): string
+
+  async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
+    const exePath = existingFileOrError(this.getExePath())
+    try {
+      return await spawnProcessAsync(
+        exePath,
+        args,
+        (data) => this.log(data),
+        { ...extraEnv, PIP_CONFIG_FILE: process.platform === 'win32' ? 'nul' : '/dev/null' },
+        workDir,
+      )
+    } catch (error) {
+      if (error instanceof ProcessError) {
+        // Log detailed error information
+        this.logError(`Command failed: ${error.result.command} ${error.result.args.join(' ')}`)
+        this.logError(`Exit code: ${error.result.exitCode}`)
+        this.logError(`Duration: ${error.result.duration}ms`)
+        if (error.result.stderr) {
+          this.logError(`STDERR: ${error.result.stderr}`)
+        }
+        if (error.result.stdout) {
+          this.log(`STDOUT: ${error.result.stdout}`)
+        }
+      }
+      throw error
+    }
+  }
+}
+
+export class GitService extends ExecutableService {
+  constructor() {
+    super('git', '')
+    if (process.platform === 'win32') {
+      this.dir = path.resolve(path.join(this.baseDir, 'portable-git'))
+    } else {
+      this.dir = '/usr/bin'
+    }
+  }
+
+  getExePath(): string {
+    if (process.platform === 'win32') {
+      return path.resolve(path.join(this.dir, 'cmd/git.exe'))
+    }
+    return path.resolve(path.join(this.dir, 'git'))
+  }
+
+  async run(args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
+    // Explicitly specify the cert file bundled with portable git,
+    // to avoid being affected by the system git configuration.
+
+    const platformEnv: Partial<Record<NodeJS.Platform, Record<string, string>>> = {
+      win32: {
+        GIT_SSL_CAINFO: path.resolve(path.join(this.dir, 'mingw64/etc/ssl/certs/ca-bundle.crt')),
+      },
+      darwin: {},
+      linux: {},
+    }
+
+    const env = {
+      ...extraEnv,
+      ...(platformEnv[process.platform] ?? {}),
+    }
+    return super.run(args, env, workDir)
+  }
+
+  async check(): Promise<void> {
+    this.log('checking')
+    try {
+      await this.run(['--version'])
+    } catch (e) {
+      this.log(`warning: ${e}`)
+      throw new ServiceCheckError(this.name)
+    }
+  }
+
+  async install(): Promise<void> {
+    if (process.platform !== 'win32') {
+      // On non-Windows we do not bundle a portable git; it must be provided by
+      // the OS. If check() failed and we reach here, git is genuinely missing,
+      // so fail loudly with an actionable message instead of silently skipping
+      // (which previously surfaced as a confusing downstream `git clone` error).
+      throw new Error(
+        'git not found. Install it with your package manager (Ubuntu: sudo apt-get install git) and retry setup.',
+      )
+    }
+    this.log('start installing')
+
+    await this.downloadGitZip()
+    await this.unzipGit()
+
+    // cleanup
+    if (filesystem.existsSync(this.zipPath)) {
+      filesystem.removeSync(this.zipPath)
+    }
+  }
+
+  async repair(checkError: ServiceCheckError): Promise<void> {
+    assert(checkError.component === this.name)
+    // install() throws an actionable error on non-Windows (git is OS-provided).
+    await this.install()
+  }
+
+  readonly remoteUrl =
+    'https://github.com/git-for-windows/git/releases/download/v2.51.2.windows.1/PortableGit-2.51.2-64-bit.7z.exe'
+  readonly sha256 = 'f5764d546ff9a2511b50ec4e20424c5f4669de1695abc3fa4128e7f7d4a7b2cd'
+  readonly zipPath = path.resolve(path.join(this.baseDir, 'portable-git.7z.exe'))
+  readonly unzipExePath = path.resolve(path.join(this.buildResourcesDir, '7zr.exe'))
+
+  private async checkGitZip(): Promise<boolean> {
+    if (!filesystem.existsSync(this.zipPath)) {
+      return false
+    }
+    const sha256sum = await filesystem
+      .readFile(this.zipPath)
+      .then((data) => createHash('sha256').update(data).digest('hex'))
+    return sha256sum === this.sha256
+  }
+
+  private async downloadGitZip(): Promise<void> {
+    this.log('downloading git archive')
+    // Reuse existing zip if checksum matches
+    if (await this.checkGitZip()) {
+      this.log('Using existing git archive')
+      return
+    }
+
+    // Delete existing zip if checksum does not match
+    if (filesystem.existsSync(this.zipPath)) {
+      this.logError('Removing broken git archive')
+      filesystem.removeSync(this.zipPath)
+    }
+
+    // Using electron net for better proxy support
+    const response = await fetchInstallArtifact(this.remoteUrl)
+    if (!response.ok || response.status !== 200 || !response.body) {
+      throw new Error(`Failed to download git: ${response.statusText}`)
+    }
+    const buffer = await response.arrayBuffer()
+    await filesystem.writeFile(this.zipPath, Buffer.from(buffer))
+    if (!(await this.checkGitZip())) {
+      throw new Error(`Checksum mismatch: ${this.zipPath}`)
+    }
+    this.log('git archive successfully downloaded')
+  }
+
+  private async unzipGit(): Promise<void> {
+    try {
+      await exec(`"${this.unzipExePath}" x "${this.zipPath}" -o"${this.dir}"`)
+      this.log('Unzipping git archive successful')
+    } catch (error) {
+      throw new Error(`Unzip error: ${error}`)
+    }
+  }
+}
+
+export const aiBackendServiceDir = () =>
+  path.resolve(
+    app.isPackaged
+      ? path.join(packagedResourcesRoot(), 'service')
+      : path.join(__dirname, '../../../service'),
+  )
+
+/**
+ * Thrown by `assertReadyToStart` when a start is attempted on a backend that is
+ * not provisioned. Distinct from a genuine startup failure: the backend never
+ * ran, so the honest status is 'notInstalled' (grey, "Install") rather than
+ * 'failed' (red, "Repair") — see the catch in `runStartup`.
+ */
+export class ServiceNotInstalledError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ServiceNotInstalledError'
+  }
+}
+
+export interface ApiService {
+  readonly name: string
+  readonly baseUrl: string
+  readonly port: number
+  readonly isRequired: boolean
+  currentStatus: BackendStatus
+  isSetUp: boolean
+  /**
+   * True while an install is being run for this service — see the field on
+   * `LongLivedPythonApiService`.
+   */
+  setUpInProgress: boolean
+
+  selectDevice(deviceId: string): Promise<void>
+  detectDevices(): Promise<void>
+  set_up(): AsyncIterable<SetupProgress>
+  start(): Promise<BackendStatus>
+  stop(): Promise<BackendStatus>
+  updateSettings(settings: ServiceSettings): Promise<void>
+  getInstalledVersion?(): Promise<{ version?: string; releaseTag?: string } | undefined>
+  /**
+   * How to recognise a process of this backend when reaping orphans from a
+   * previous session. Built from absolute paths inside the backend's own install
+   * directory, so a match cannot stray onto an unrelated system process.
+   */
+  orphanSignatures?(): ProcessSignature[]
+  /** Pids this service currently owns, which a sweep must spare. */
+  ownedPids?(): number[]
+  uninstall(): Promise<void>
+  get_info(): ApiServiceInformation
+  ensureBackendReadiness(
+    llmModelName: string,
+    embeddingModelName?: string,
+    contextSize?: number,
+    /** Extra server flags the model asks for; only llama.cpp acts on them. */
+    modelArgs?: string,
+  ): Promise<void>
+}
+
+export abstract class LongLivedPythonApiService implements ApiService {
+  readonly name: BackendServiceName
+  readonly baseUrl: string
+  readonly port: number
+  readonly win: BrowserWindow
+  readonly settings: LocalSettings
+  abstract readonly isRequired: boolean
+  abstract healthEndpointUrl: string
+
+  encapsulatedProcess: ChildProcess | null = null
+
+  readonly baseDir = app.isPackaged ? packagedResourcesRoot() : path.join(__dirname, '../../../')
+  readonly wheelDir = path.join(
+    app.isPackaged ? this.baseDir : path.join(__dirname, '../../external/'),
+  )
+  abstract readonly pythonEnvDir: string
+  abstract readonly serviceDir: string
+  abstract isSetUp: boolean
+  abstract devices: InferenceDevice[]
+
+  desiredStatus: BackendStatus = 'uninitializedStatus'
+  currentStatus: BackendStatus = 'uninitializedStatus'
+
+  // Store last startup error details for persistence
+  private lastStartupErrorDetails: ErrorDetails | null = null
+
+  // Cached installed version for inclusion in service info updates
+  protected cachedInstalledVersion: { version: string; releaseTag?: string } | undefined = undefined
+
+  // False until publishInitialSetupStatus finishes. get_info must not map
+  // uninitializedStatus → notInstalled during that window: isSetUp is still
+  // the constructor default, and a first getServices would open the wizard
+  // on an installed machine while uv sync --check is still running.
+  private initialStatusPublished = false
+
+  // Buffer for capturing startup logs
+  private startupLogBuffer: { stdout: string[]; stderr: string[] } = { stdout: [], stderr: [] }
+  private startupBlockedByApplicationControl = false
+  private isCapturingStartupLogs: boolean = false
+  private startupStartTime: number = 0
+
+  // The in-flight startup promise. Two orchestrators (the main-process
+  // apiServiceRegistry and the renderer backendServices store) call start()
+  // concurrently on the same instance, so the second caller must await the same
+  // startup rather than throwing "Server startup already requested".
+  private startInFlight: Promise<BackendStatus> | null = null
+
+  // True while a set_up() generator is being consumed for this service (set by
+  // the setUpService IPC handler). Installs mutate the service directory and its
+  // venv, so nothing may spawn the backend or launch a second install against it
+  // meanwhile — the auto-start at registry construction can otherwise race an
+  // in-progress install and spawn against a half-written environment.
+  setUpInProgress: boolean = false
+
+  readonly appLogger = appLoggerInstance
+
+  constructor(name: BackendServiceName, port: number, win: BrowserWindow, settings: LocalSettings) {
+    this.win = win
+    this.name = name
+    this.port = port
+    this.baseUrl = `http://127.0.0.1:${port}`
+    this.settings = settings
+  }
+
+  abstract serviceIsSetUp(): Promise<boolean>
+  abstract detectDevices(): Promise<void>
+
+  /**
+   * The venv interpreter this backend runs. Unique to its environment directory,
+   * which is what makes it usable both as the spawn target and as the signature
+   * for finding leftovers of it — the two can never drift apart.
+   */
+  get venvPythonPath(): string {
+    return path.join(
+      this.pythonEnvDir,
+      process.platform === 'win32' ? 'Scripts' : 'bin',
+      process.platform === 'win32' ? 'python.exe' : 'python',
+    )
+  }
+
+  /** The script the long-lived server runs, as it appears on the command line. */
+  protected readonly serverEntryScript: string = 'web_api.py'
+
+  orphanSignatures(): ProcessSignature[] {
+    // Interpreter *and* script: the interpreter alone also matches our own
+    // tooling (uv's setup check, device detection) running out of the same venv.
+    return [[this.venvPythonPath, this.serverEntryScript]]
+  }
+
+  ownedPids(): number[] {
+    const pid = this.encapsulatedProcess?.pid
+    return pid === undefined ? [] : [pid]
+  }
+
+  async selectDevice(deviceId: string): Promise<void> {
+    if (!this.devices.find((d) => d.id === deviceId)) return
+    this.devices = this.devices.map((d) => ({ ...d, selected: d.id === deviceId }))
+    this.updateStatus()
+  }
+
+  updateSettings(settings: ServiceSettings): Promise<void> {
+    this.appLogger.info(
+      `updating settings with ${settings}, but settings are not implemented`,
+      this.name,
+    )
+    return Promise.resolve()
+  }
+
+  /**
+   * Updates the cached installed version by calling getInstalledVersion() if available.
+   * This should be called after setup completes to ensure version is included in serviceInfoUpdate.
+   */
+  protected async updateCachedVersion(): Promise<void> {
+    // Check if this instance has getInstalledVersion method (defined in subclasses)
+    const self = this as ApiService
+    if (typeof self.getInstalledVersion === 'function') {
+      try {
+        const version = await self.getInstalledVersion()
+        if (version && version.version) {
+          this.cachedInstalledVersion = {
+            version: version.version,
+            ...(version.releaseTag && { releaseTag: version.releaseTag }),
+          }
+        } else {
+          this.cachedInstalledVersion = undefined
+        }
+      } catch (error) {
+        this.appLogger.warn(`Failed to get installed version: ${error}`, this.name)
+        this.cachedInstalledVersion = undefined
+      }
+    }
+  }
+
+  /** Drop the recorded startup failure (it describes an environment that is gone). */
+  protected clearLastStartupError(): void {
+    this.lastStartupErrorDetails = null
+  }
+
+  setStatus(status: BackendStatus) {
+    this.currentStatus = status
+    this.updateStatus()
+  }
+
+  updateStatus() {
+    emitServiceUpdate(this.get_info())
+  }
+
+  /**
+   * First kernel-bus publish after the async setup check. A not-installed
+   * backend used to stay silent, so a fresh machine's snapshot had no
+   * `ai-backend` and the renderer poll waited forever on "Verifying backends".
+   */
+  protected async publishInitialSetupStatus(): Promise<void> {
+    try {
+      this.isSetUp = await this.serviceIsSetUp()
+      if (this.isSetUp) {
+        await this.updateCachedVersion()
+      }
+    } catch (error) {
+      this.appLogger.warn(`Initial setup check failed: ${error}`, this.name)
+      this.isSetUp = false
+    }
+    this.initialStatusPublished = true
+    this.setStatus(this.isSetUp ? 'notYetStarted' : 'notInstalled')
+    this.appLogger.info(`Service ${this.name} isSetUp: ${this.isSetUp}`, this.name)
+  }
+
+  get_info(): ApiServiceInformation {
+    if (this.currentStatus === 'uninitializedStatus' && this.initialStatusPublished) {
+      this.currentStatus = this.isSetUp ? 'notYetStarted' : 'notInstalled'
+    }
+    this.appLogger.info(`getting info: current status is ${this.currentStatus}`, this.name)
+    return {
+      serviceName: this.name,
+      status: this.currentStatus,
+      baseUrl: this.baseUrl,
+      port: this.port,
+      isSetUp: this.isSetUp,
+      isRequired: this.isRequired,
+      devices: this.devices,
+      errorDetails: this.lastStartupErrorDetails,
+      installedVersion: this.cachedInstalledVersion,
+    }
+  }
+
+  abstract set_up(): AsyncIterable<SetupProgress>
+
+  /** Path to this service venv's own interpreter. */
+  protected get venvPython(): string {
+    return venvInterpreterPath(this.pythonEnvDir)
+  }
+
+  /**
+   * Whether the service venv's own Python can actually `import <moduleName>`.
+   *
+   * A real import (not `find_spec`) is used deliberately: the failure modes that
+   * matter here are not only "module absent" but also broken native libraries and
+   * import-time initialization errors — e.g. an app reinstall that leaves torch's
+   * dist-info intact while breaking its clone/hardlinked wheel files. `uv sync
+   * --check` still "sees" torch in that state, so the lockfile check passes and
+   * the backend is shown as installed, only to die at first use. Those failures
+   * surface only when the package is executed, which is what this does.
+   *
+   * @param env Process env for the probe — pass the service's venv env so native
+   *   accelerator libraries (XPU/CUDA DLLs living inside the venv) resolve.
+   * @returns false when the venv/python is missing or the import raises for any reason.
+   */
+  protected async venvCanImportModule(
+    moduleName: string,
+    env: Record<string, string | undefined> = {},
+  ): Promise<boolean> {
+    try {
+      await execFileAsync(this.venvPython, ['-c', `import ${moduleName}`], {
+        cwd: this.serviceDir,
+        env: { ...process.env, ...env },
+        timeout: 30000,
+      })
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Stop the service and delete its venv so the install that follows materialises
+   * every package from scratch.
+   *
+   * `uv sync` reconciles against package *metadata*, so re-running it over a venv
+   * whose files are broken but whose dist-info survived (what an interrupted
+   * install or an app reinstall leaves behind) sees the packages as "already
+   * installed" and skips them — leaving the very breakage the reinstall was meant
+   * to fix. This is why uninstall-then-install worked where a plain repair did
+   * not; doing it here makes every entry point (wizard Repair, gear Reinstall,
+   * fresh install) equally effective. Wheels come from uv's cache, so this
+   * re-materialises rather than re-downloads.
+   *
+   * Stopping first matters on Windows: a running (or fake-healthy) process holds
+   * handles on the venv's DLLs and the removal would fail with EPERM. `stop()`
+   * flips the status to 'stopped', so 'installing' is re-asserted afterwards.
+   */
+  protected async prepareCleanPythonEnv(): Promise<void> {
+    await this.stop()
+    this.setStatus('installing')
+    this.appLogger.info(`removing existing ${this.name} venv for a clean install`, this.name)
+    await removeVenvTree(this.pythonEnvDir)
+  }
+
+  /**
+   * Remove the venv when this account cannot use it — no interpreter, not
+   * writable, or `pyvenv.cfg` home pointing at a Python this account cannot
+   * read. Installing into that tree yields an environment that can never boot.
+   * Unlike {@link prepareCleanPythonEnv} this preserves a usable venv, which
+   * matters for backends whose venv holds packages that are not in the lockfile
+   * (ComfyUI custom-node dependencies installed at runtime).
+   */
+  protected async removeUnusablePythonEnv(): Promise<void> {
+    if (!filesystem.existsSync(this.pythonEnvDir) || venvIsUsable(this.pythonEnvDir)) return
+    await this.stop()
+    this.setStatus('installing')
+    this.appLogger.warn(
+      `venv of ${this.name} is not usable by this account — removing it before installing`,
+      this.name,
+    )
+    await removeBrokenVenv(this.pythonEnvDir)
+  }
+
+  async uninstall(): Promise<void> {
+    // Await the teardown: an un-awaited stop() races the removal below, and on
+    // Windows the still-running child holds handles on the venv's DLLs, so the
+    // removal fails with EPERM.
+    await this.stop()
+    this.appLogger.info(`removing python env of ${this.name} service`, this.name)
+    await removeVenvTree(this.pythonEnvDir)
+    this.appLogger.info(`removed python env of ${this.name} service`, this.name)
+    // Without this the service keeps reporting isSetUp: true after its
+    // environment is gone — the wizard row reads as installed and dismiss()
+    // tries to start it. Set before setStatus so the emitted info is consistent.
+    this.isSetUp = false
+    this.setStatus('notInstalled')
+    // Clear startup errors when uninstalling
+    this.lastStartupErrorDetails = null
+  }
+
+  async start(): Promise<BackendStatus> {
+    // An install is rewriting this service's environment right now; spawning
+    // against it would fail in a confusing way (missing/partial packages) and
+    // could hold handles that make the install's own file operations fail.
+    if (this.setUpInProgress) {
+      this.appLogger.info(
+        `start() ignored for ${this.name}: an installation is in progress`,
+        this.name,
+      )
+      return this.currentStatus
+    }
+    if (
+      this.desiredStatus === 'stopped' &&
+      !(this.currentStatus === 'stopped' || this.currentStatus === 'notYetStarted')
+    ) {
+      throw new Error('Server currently stopping. Cannot start it.')
+    }
+    if (this.currentStatus === 'running') {
+      this.lastStartupErrorDetails = null
+      return 'running'
+    }
+    // A startup is already in flight (e.g. the main-process auto-start at boot
+    // racing a renderer-initiated start). This is idempotent, not an error:
+    // await the same in-flight result instead of throwing so it doesn't surface
+    // as a spurious "Server startup already requested" toast.
+    if (this.startInFlight) {
+      this.appLogger.info(
+        `start() called for ${this.name} while a startup is already in progress (status: ${this.currentStatus})`,
+        this.name,
+      )
+      return this.startInFlight
+    }
+
+    this.startInFlight = this.runStartup()
+    try {
+      return await this.startInFlight
+    } finally {
+      this.startInFlight = null
+    }
+  }
+
+  private async runStartup(): Promise<BackendStatus> {
+    this.desiredStatus = 'running'
+    this.setStatus('starting')
+
+    // Initialize startup log capture
+    this.startupLogBuffer = { stdout: [], stderr: [] }
+    this.startupBlockedByApplicationControl = false
+    this.isCapturingStartupLogs = true
+    this.startupStartTime = Date.now()
+
+    try {
+      this.appLogger.info(` trying to start ${this.name} python API`, this.name)
+      // Guard against starting on a half-provisioned environment. Some backends
+      // expose a health endpoint that comes up even when heavy runtime deps are
+      // missing (e.g. the TTS Flask server starts without torch, which is only
+      // imported lazily at model-load time). Without this check listenServerReady
+      // would report "running", runStartup would force isSetUp = true, and the
+      // real failure would surface much later as an opaque ModuleNotFoundError.
+      // Throwing here routes it through the catch below as a clean startup
+      // failure the setup wizard can offer to reinstall.
+      await this.assertReadyToStart()
+      const trackedProcess = await this.spawnAPIProcess()
+      this.encapsulatedProcess = trackedProcess.process
+      this.pipeProcessLogs(trackedProcess.process)
+      if (await this.listenServerReady(trackedProcess.didProcessExitEarlyTracker)) {
+        this.currentStatus = 'running'
+        this.appLogger.info(`started server ${this.name} on ${this.baseUrl}`, this.name)
+        this.isSetUp = true
+        this.lastStartupErrorDetails = null
+        // Stop capturing startup logs on success
+        this.isCapturingStartupLogs = false
+        // Runtime crash detection: once running, a process exit we did not ask
+        // for means the backend died. Flip status to 'failed' and notify the
+        // renderer (serviceInfoUpdate) so in-flight work can be failed instead of
+        // hanging against a dead process. Intentional stop()s set
+        // desiredStatus = 'stopped' first, so those are ignored here.
+        const runningProcess = this.encapsulatedProcess
+        runningProcess?.once('exit', (code, signal) => {
+          if (this.encapsulatedProcess !== runningProcess) return
+          if (this.desiredStatus === 'stopped' || this.currentStatus !== 'running') return
+          this.appLogger.error(
+            `backend ${this.name} exited unexpectedly (code=${code}, signal=${signal})`,
+            this.name,
+          )
+          this.encapsulatedProcess = null
+          this.desiredStatus = 'failed'
+          this.setStatus('failed')
+        })
+      } else {
+        this.currentStatus = 'failed'
+        this.desiredStatus = 'failed'
+        await this.revalidateIsSetUpAfterFailedStart()
+        this.appLogger.error(`server ${this.name} failed to boot`, this.name)
+        this.encapsulatedProcess?.kill()
+
+        // Stop capturing and create enhanced error details with buffered logs
+        this.isCapturingStartupLogs = false
+        const errorDetails = await this.createStartupErrorDetails(
+          `Server ${this.name} failed to boot - health check timeout or early process exit`,
+        )
+        this.lastStartupErrorDetails = errorDetails
+      }
+    } catch (error) {
+      // Nothing was ever spawned: the pre-start check found the backend not
+      // provisioned. Report that (grey / "Install") instead of a startup
+      // failure (red / "Repair") — a half-deleted leftover tree from a previous
+      // uninstall used to surface here as a failed component on a fresh install.
+      if (error instanceof ServiceNotInstalledError) {
+        this.appLogger.info(`not starting ${this.name}: ${error.message}`, this.name)
+        this.currentStatus = 'notInstalled'
+        // Not 'stopped': that value makes the guard at the top of start() reject
+        // the next start() as "currently stopping", so a start right after the
+        // component is installed would fail.
+        this.desiredStatus = 'notInstalled'
+        this.isSetUp = false
+        this.isCapturingStartupLogs = false
+        this.lastStartupErrorDetails = null
+        return this.currentStatus
+      }
+      this.appLogger.error(` failed to start server due to ${error}`, this.name)
+      this.currentStatus = 'failed'
+      this.desiredStatus = 'failed'
+      await this.revalidateIsSetUpAfterFailedStart()
+      this.encapsulatedProcess?.kill()
+      this.encapsulatedProcess = null
+      // Stop capturing and create enhanced error details with buffered logs
+      this.isCapturingStartupLogs = false
+      const errorDetails = await this.createStartupErrorDetails(
+        error instanceof Error ? error.message : String(error),
+      )
+      this.lastStartupErrorDetails = errorDetails
+    } finally {
+      emitServiceUpdate(this.get_info())
+    }
+    return this.currentStatus
+  }
+
+  /**
+   * Re-derive `isSetUp` after a start attempt failed, instead of assuming the
+   * failure means the backend is not installed.
+   *
+   * Most start failures are transient — a busy GPU, a port still held by a dying
+   * process, a health-check timeout while another backend saturates the device.
+   * Claiming "not installed" on those is wrong and sticky: nothing re-checks
+   * provisioning until the next launch, so UI gated on `isSetUp` (the in-chat mic
+   * gates on the STT backends' `isSetUp`) stays switched off for the rest of the
+   * session. The backend's own provisioning check is the authority here; a
+   * genuinely broken environment still reports false. Keeps the current value if
+   * the check itself throws.
+   */
+  private async revalidateIsSetUpAfterFailedStart(): Promise<void> {
+    try {
+      const stillSetUp = await this.serviceIsSetUp()
+      if (stillSetUp !== this.isSetUp) {
+        this.appLogger.info(
+          `re-checked provisioning of ${this.name} after a failed start: isSetUp=${stillSetUp}`,
+          this.name,
+        )
+      }
+      this.isSetUp = stillSetUp
+    } catch (e) {
+      this.appLogger.warn(
+        `could not re-check provisioning of ${this.name} after a failed start: ${e}`,
+        this.name,
+      )
+    }
+  }
+
+  async stop(): Promise<BackendStatus> {
+    this.appLogger.info(
+      `Stopping backend ${this.name}. It was in state ${this.currentStatus}`,
+      this.name,
+    )
+    this.desiredStatus = 'stopped'
+    this.setStatus('stopping')
+
+    const proc = this.encapsulatedProcess
+    if (!proc) {
+      this.setStatus('stopped')
+      return 'stopped'
+    }
+
+    // Reliably tear down the whole process tree. On Windows this is critical:
+    // ChildProcess.kill() only signals the direct child, leaving descendants
+    // (ComfyUI's python, the uv subprocesses spawned by ComfyUI-Manager, …)
+    // running. Orphans keep the port + GPU memory (→ OOM on the next launch)
+    // and handles on the service directory (→ EPERM on reinstall).
+    await terminateProcessTree(proc, { name: this.name, appLogger: this.appLogger })
+
+    this.encapsulatedProcess = null
+    this.setStatus('stopped')
+    return 'stopped'
+  }
+
+  async ensureBackendReadiness(
+    llmModelName: string,
+    embeddingModelName?: string,
+    contextSize?: number,
+    modelArgs?: string,
+  ): Promise<void> {
+    this.appLogger.info(
+      `ensureBackendReadiness called for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}, Context Size: ${contextSize} ?? 'undefined', Model args: ${modelArgs ?? 'none'}`,
+      this.name,
+    )
+  }
+
+  /**
+   * Create enhanced error details for startup failures, including buffered logs
+   */
+  private async createStartupErrorDetails(errorMessage: string): Promise<ErrorDetails> {
+    const timestamp = new Date().toISOString()
+    const duration = Date.now() - this.startupStartTime
+
+    // Get pip freeze output for additional context
+    const pipFreezeOutput: string | undefined = await capturePipFreezeOutput()
+
+    // Combine buffered stdout and stderr
+    const stdout = this.startupLogBuffer.stdout.join('').trim()
+    const stderr = this.startupLogBuffer.stderr.join('').trim()
+
+    const hint = this.startupBlockedByApplicationControl
+      ? APPLICATION_CONTROL_USER_MESSAGE
+      : applicationControlHint({ text: `${stdout}\n${stderr}\n${errorMessage}` })
+
+    return {
+      command: `${this.name} startup`,
+      exitCode: undefined, // Process may not have exited with a specific code
+      stdout: stdout || undefined,
+      stderr: stderr || errorMessage, // Include the error message if no stderr captured
+      timestamp,
+      duration,
+      pipFreezeOutput,
+      ...(hint ? { hint } : {}),
+    }
+  }
+
+  /**
+   * Pre-start environment check, run inside runStartup() before the process is
+   * spawned. A backend's health endpoint can come up on a half-provisioned
+   * environment (e.g. the TTS Flask server boots without torch, which is only
+   * imported lazily at model-load time), which would let listenServerReady
+   * report "running" and force isSetUp = true — masking a broken install until
+   * a much later, opaque runtime error. Verifying the backend is actually set
+   * up first stops the start cleanly instead. serviceIsSetUp() is each backend's
+   * own authoritative provisioning check (the same one used to decide whether to
+   * auto-start at boot), so a false result here means the app already considers
+   * the backend not installed — hence `ServiceNotInstalledError`, which
+   * `runStartup` maps to 'notInstalled' (offer Install) rather than 'failed'
+   * (offer Repair). Subclasses may override to add a more specific message;
+   * throwing a plain Error there keeps the 'failed'/"needs reinstall" outcome,
+   * which is what a broken-but-present environment should report.
+   */
+  protected async assertReadyToStart(): Promise<void> {
+    const ready = venvIsUsable(this.pythonEnvDir) && (await this.serviceIsSetUp())
+    if (!ready) {
+      this.isSetUp = false
+      throw new ServiceNotInstalledError(
+        `The ${this.name} environment is not fully installed. Install this component to finish provisioning it before starting.`,
+      )
+    }
+  }
+
+  abstract spawnAPIProcess(): Promise<{
+    process: ChildProcess
+    didProcessExitEarlyTracker: Promise<boolean>
+  }>
+
+  pipeProcessLogs(process: ChildProcess) {
+    process.stdout!.on('data', (message) => {
+      const messageStr = message.toString()
+
+      // Buffer startup logs if we're in startup phase
+      if (this.isCapturingStartupLogs) {
+        this.startupLogBuffer.stdout.push(messageStr)
+        if (isApplicationControlBlock({ text: messageStr })) {
+          this.startupBlockedByApplicationControl = true
+        }
+      }
+
+      // Continue with normal logging to preserve real-time console output
+      if (messageStr.startsWith('INFO')) {
+        this.appLogger.info(`${messageStr}`, this.name)
+      } else if (messageStr.startsWith('WARN')) {
+        this.appLogger.warn(`${messageStr}`, this.name)
+      } else {
+        this.appLogger.error(`${messageStr}`, this.name)
+      }
+    })
+
+    process.stderr!.on('data', (message) => {
+      const messageStr = message.toString()
+
+      // Buffer startup logs if we're in startup phase
+      if (this.isCapturingStartupLogs) {
+        this.startupLogBuffer.stderr.push(messageStr)
+        if (isApplicationControlBlock({ text: messageStr })) {
+          this.startupBlockedByApplicationControl = true
+        }
+      }
+
+      // Continue with normal logging to preserve real-time console output
+      this.appLogger.error(`${messageStr}`, this.name)
+    })
+
+    process.on('error', (message) => {
+      const messageStr = `backend process ${this.name} exited abruptly due to : ${message}`
+      if (isApplicationControlBlock(spawnErrorEvidence(message))) {
+        this.startupBlockedByApplicationControl = true
+      }
+      // Buffer startup logs if we're in startup phase
+      if (this.isCapturingStartupLogs) {
+        this.startupLogBuffer.stderr.push(messageStr)
+      }
+
+      // Continue with normal logging
+      this.appLogger.error(messageStr, this.name)
+    })
+  }
+
+  async listenServerReady(didProcessExitEarlyTracker: Promise<boolean>): Promise<boolean> {
+    const startTime = performance.now()
+    const processStartupCompletePromise = new Promise<boolean>(async (resolve) => {
+      const queryIntervalMs = 250
+      const startupPeriodMaxMs = 300000
+      while (performance.now() < startTime + startupPeriodMaxMs) {
+        // Check if process has exited before attempting health check
+        const hasExitedEarly = await Promise.race([
+          didProcessExitEarlyTracker,
+          new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 0)),
+        ])
+        if (hasExitedEarly) {
+          this.appLogger.warn(
+            `Process for ${this.name} exited early, aborting health check`,
+            this.name,
+          )
+          resolve(false)
+          return
+        }
+
+        // Verify process is still alive before health check
+        if (!this.encapsulatedProcess || this.encapsulatedProcess.killed) {
+          this.appLogger.warn(
+            `Process for ${this.name} is not alive, aborting health check`,
+            this.name,
+          )
+          resolve(false)
+          return
+        }
+
+        try {
+          const serviceHealthResponse = await fetch(this.healthEndpointUrl)
+          this.appLogger.info(`received response: ${serviceHealthResponse.status}`, this.name)
+          if (serviceHealthResponse.status === 200) {
+            // Double-check process is still alive before accepting success
+            if (!this.encapsulatedProcess || this.encapsulatedProcess.killed) {
+              this.appLogger.warn(
+                `Process for ${this.name} exited after health check succeeded, marking as failed`,
+                this.name,
+              )
+              resolve(false)
+              return
+            }
+            const endTime = performance.now()
+            this.appLogger.info(
+              `${this.name} server startup complete after ${(endTime - startTime) / 1000} seconds`,
+              this.name,
+            )
+            resolve(true)
+            break
+          }
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (e: unknown) {
+          //fetch will simply fail while server not up
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, queryIntervalMs))
+      }
+      if (performance.now() >= startTime + startupPeriodMaxMs) {
+        this.appLogger.warn(
+          `Server ${this.name} did not return healthy response within ${startupPeriodMaxMs / 1000} seconds`,
+          this.name,
+        )
+        resolve(false)
+      }
+    })
+
+    // If process exits early, immediately resolve to false (not ready)
+    // We create a promise that resolves to false immediately if process exits early
+    const processStartupFailedDueToEarlyExit = new Promise<boolean>((resolve) => {
+      didProcessExitEarlyTracker.then((earlyExit) => {
+        if (earlyExit) {
+          this.appLogger.error(`Process for ${this.name} exited early during startup`, this.name)
+          resolve(false)
+        }
+        // If process didn't exit early, this promise never resolves
+        // allowing the health check promise to win the race
+      })
+    })
+
+    return await Promise.race([processStartupFailedDueToEarlyExit, processStartupCompletePromise])
+  }
+}
+
+export type XpuDevice = { id: number; name: string; arch: Arch }
+const XpuSmiDiscoverySchema = z.object({
+  device_list: z.array(
+    z.object({
+      device_id: z.number(),
+      device_name: z.string(),
+      device_type: z.string(),
+      pci_bdf_address: z.string(),
+      pci_device_id: z.string(),
+      uuid: z.string(),
+      vendor_name: z.string(),
+    }),
+  ),
+})
+
+export class DeviceService extends ExecutableService {
+  constructor() {
+    super('device-service', '')
+    this.dir = path.resolve(path.join(this.baseDir, 'device-service'))
+  }
+
+  getExePath(): string {
+    return path.resolve(path.join(this.dir, '/xpu-smi.exe'))
+  }
+
+  async run(_args: string[] = [], extraEnv?: object, workDir?: string): Promise<string> {
+    const env = {
+      ...extraEnv,
+      ONEAPI_DEVICE_SELECTOR: 'level_zero:*',
+    }
+    return super.run(['discovery', '-j'], env, workDir)
+  }
+
+  async check(): Promise<void> {}
+
+  async install(): Promise<void> {}
+
+  async repair(_checkError: ServiceCheckError): Promise<void> {}
+
+  private uuidToChipId(uuid: string): number {
+    return parseInt(uuid.slice(-8, -4), 16)
+  }
+
+  async getDevices(): Promise<XpuDevice[]> {
+    const result = await this.run()
+    const devices: XpuDevice[] = XpuSmiDiscoverySchema.parse(JSON.parse(result)).device_list.map(
+      (d) => {
+        return {
+          id: d.device_id,
+          name: d.device_name,
+          arch: getDeviceArch(this.uuidToChipId(d.uuid)),
+        }
+      },
+    )
+    devices.sort((a, b) => getArchPriority(b.arch) - getArchPriority(a.arch))
+    return devices
+  }
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { usersModifyIcaclsArgs } from '../sharedAcl.ts'
+import { usersModifyIcaclsArgs } from '../kernel/sharedAcl.ts'
 
 describe('usersModifyIcaclsArgs', () => {
   it('grants inheritable modify so files created in the folder inherit it', () => {

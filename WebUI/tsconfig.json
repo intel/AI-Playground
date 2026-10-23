@@ -21,7 +21,8 @@
     "noFallthroughCasesInSwitch": false,
     "paths": {
       "@": ["./src"],
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "electron/*": ["./electron/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "src/**/*.d.ts", "electron", "e2e"],

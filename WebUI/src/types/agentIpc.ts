@@ -1,4 +1,5 @@
 import z from 'zod'
+import { ChatModelConfigSchema, MediaAgentCatalogSchema } from './chatIpc'
 
 const SamplingParamsSchema = z.record(z.string(), z.unknown())
 
@@ -17,7 +18,6 @@ const LocalModelConfigSchema = z.object({
 const CloudModelConfigSchema = z.object({
   source: z.literal('cloud'),
   model: z.string().min(1),
-  proxyBaseUrl: z.string().min(1),
   upstreamBaseUrl: z.string().min(1),
   providerId: z.string().min(1),
   authStyle: z.string().min(1),
@@ -25,7 +25,7 @@ const CloudModelConfigSchema = z.object({
   supportsVision: z.boolean().optional(),
   /**
    * Whether the provider's own catalog declared this model as reasoning. Decides
-   * whether the turn asks for thinking at all (agentMode/piCloudReasoning.ts); a
+   * whether the turn asks for thinking at all (agent/piCloudReasoning.ts); a
    * provider that advertises nothing is assumed capable elsewhere, which is too
    * loose a signal to put request parameters on.
    */
@@ -42,6 +42,8 @@ export const AgentToolSpecSchema = z.object({
   description: z.string(),
   inputSchema: z.record(z.string(), z.unknown()),
   workspacePathInputs: z.array(z.string()).optional(),
+  /** Workflow to run when the model's call names none (generate tool). */
+  defaultWorkflow: z.string().optional(),
 })
 
 export const AgentModeTurnConfigSchema = z.object({
@@ -49,6 +51,12 @@ export const AgentModeTurnConfigSchema = z.object({
   workspaceDir: z.string().min(1),
   modelConfig: AgentModeModelConfigSchema,
   toolSpecs: z.array(AgentToolSpecSchema).optional(),
+  /**
+   * Inner specialist catalog, shipped when the turn has the NL `media` tool.
+   * Main runs those Comfy tools in-process (step 12); the renderer only
+   * resolves which workflows are enabled.
+   */
+  mediaAgent: MediaAgentCatalogSchema.optional(),
   instructions: z.string().optional(),
   /** The agent preset this turn was held with, for labelling its trace. */
   presetName: z.string().optional(),
@@ -56,11 +64,33 @@ export const AgentModeTurnConfigSchema = z.object({
   mcpServerIds: z.array(z.string()).optional(),
   unsandboxed: z.boolean().optional(),
   planningThinkingOnly: z.boolean().optional(),
+  /** Downloaded embedding model for the `rag` capability; absent disables it. */
+  embeddingModel: z.string().optional(),
+  embeddingBackend: z.enum(['llamaCPP', 'openVINO']).optional(),
+  /** Developer setting: skip the GPU swap around in-process media calls. */
+  keepModelsLoaded: z.boolean().optional(),
+  /**
+   * Local backend load facts (step 15). Main occupies as a `text` request then
+   * loads; absent for cloud and for older tests that only exercise the harness.
+   */
+  readiness: ChatModelConfigSchema.shape.readiness,
 })
 
 export type AgentModeModelConfig = z.infer<typeof AgentModeModelConfigSchema>
 export type AgentToolSpec = z.infer<typeof AgentToolSpecSchema>
 export type AgentModeTurnConfig = z.infer<typeof AgentModeTurnConfigSchema>
+
+/**
+ * An `agentMode:executeTool` dispatch: main hands a renderer-implemented tool
+ * call to the window to run, and the renderer answers over `agentMode:toolResult`.
+ */
+export type AgentToolExecuteRequest = {
+  requestId: string
+  /** Model-side tool call id, matching the UI message part (progress keying). */
+  toolCallId: string
+  toolName: string
+  input: Record<string, unknown>
+}
 
 export type AgentCapabilityInfo = {
   id: string

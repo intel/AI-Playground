@@ -4,6 +4,8 @@ version = "3.0.3-beta"
 requires-python = "==3.12.*"
 dependencies = [
   "Flask",
+  # werkzeug 3.1.9: clears CVE-2026-102598. Transitive via Flask / apiflask.
+  "werkzeug>=3.1.9",
   "apiflask",
   "marshmallow-dataclass",
   "psutil",

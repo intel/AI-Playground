@@ -9,7 +9,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { resolveBuildIdentity } from './build/scripts/buildIdentity.mts'
 
 /**
- * Longer than the app's own teardown budget (electron/shutdown.ts), so a normal
+ * Longer than the app's own teardown budget (electron/kernel/shutdown.ts), so a normal
  * quit is waited out rather than cut short.
  */
 const PREVIOUS_APP_EXIT_TIMEOUT_MS = 20_000
@@ -142,7 +142,7 @@ export default defineConfig(({ command, mode }) => {
                 },
               },
               {
-                entry: 'electron/subprocesses/langchain.ts',
+                entry: 'electron/adapters/backends/langchain.ts',
                 vite: {
                   build: {
                     sourcemap: sourcemap ? 'inline' : undefined,
@@ -158,9 +158,14 @@ export default defineConfig(({ command, mode }) => {
           ]),
     ],
     resolve: {
-      alias: {
-        '@': path.resolve(import.meta.dirname, './src'),
-      },
+      alias: [
+        { find: '@', replacement: path.resolve(import.meta.dirname, './src') },
+        // Only the `electron/` prefix — a bare `electron` must stay the npm package.
+        {
+          find: /^electron\//,
+          replacement: `${path.resolve(import.meta.dirname, './electron')}/`,
+        },
+      ],
     },
     server: {
       host: '127.0.0.1',

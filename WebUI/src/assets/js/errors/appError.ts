@@ -125,6 +125,7 @@ export function serializeAppError(error: AppError): SerializedAppError {
     code: error.code,
     category: error.category,
     severity: error.severity,
+    surface: error.surface,
     userMessage: error.userMessage,
     technicalMessage: error.technicalMessage,
     context: error.context,

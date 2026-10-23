@@ -124,7 +124,7 @@ import * as clientAPI from '@/assets/js/clientAPI'
 import { useDropZone } from '@vueuse/core'
 import { ref, computed, watch, onMounted } from 'vue'
 
-import { ValidFileExtension, IndexedDocument } from '@/assets/js/store/textInference'
+import type { IndexedDocument, ValidFileExtension } from '@/types/rag'
 
 const textInference = useTextInference()
 const i18nState = useI18N().state

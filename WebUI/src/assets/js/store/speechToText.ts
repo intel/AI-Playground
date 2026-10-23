@@ -4,7 +4,7 @@ import { acceptHMRUpdate } from 'pinia'
 import { demoAwareStorage } from '../demoAwareStorage'
 import { useBackendServices } from './backendServices'
 import { useModels } from './models'
-import { useDialogStore } from './dialogs'
+import { notify, requestDownload } from '@/assets/js/permissions/permissions'
 import * as toast from '@/assets/js/toast'
 import { useSetupWizard } from './setupWizard'
 import { useProductMode } from './productMode'
@@ -67,7 +67,7 @@ export const useSpeechToText = defineStore(
   () => {
     const enabled = ref(false)
     const initializing = ref(false)
-    /** True while ensureWhisperReady / ensureStandaloneReady runs (model check, download, server start). */
+    /** True while the STT model check, download, or server start is in flight. */
     const preparingStt = ref(false)
     // Which engine the STT preset (and mic transcription) uses. Edited in SettingsStt.
     const selectedSttEngine = ref<SttEngine>('whisper')
@@ -78,7 +78,6 @@ export const useSpeechToText = defineStore(
     const selectedOvmsModel = ref<WhisperOvmsModel>(DEFAULT_WHISPER_OVMS_MODEL)
     const backendServices = useBackendServices()
     const models = useModels()
-    const dialogStore = useDialogStore()
     const setupWizard = useSetupWizard()
     const productMode = useProductMode()
 
@@ -238,12 +237,8 @@ export const useSpeechToText = defineStore(
           const missing = await models.getMissingTranscriptionModel(selectedStandaloneModel.value)
           if (missing.length > 0) {
             downloadPrompted = true
-            await new Promise<void>((resolve, reject) => {
-              dialogStore.showDownloadDialog(
-                missing,
-                () => resolve(),
-                () => reject(new Error('Whisper model download was cancelled')),
-              )
+            await requestDownload(missing).catch(() => {
+              throw new Error('Whisper model download was cancelled')
             })
           }
         }
@@ -344,16 +339,16 @@ export const useSpeechToText = defineStore(
           const missing = await models.getMissingTranscriptionModel(model)
           if (missing.length > 0) {
             downloadPrompted = true
-            await new Promise<void>((resolve, reject) => {
-              dialogStore.showDownloadDialog(
-                missing,
-                () => resolve(),
-                () => reject(new Error('Whisper model download was cancelled')),
-              )
+            await requestDownload(missing).catch(() => {
+              throw new Error('Whisper model download was cancelled')
             })
           }
         }
 
+        // Always ask for the selected model rather than skipping when *some* server
+        // is up: the model is picked per launch, so a server left running with the
+        // previously selected model would otherwise keep serving it. The backend
+        // no-ops when the running model already matches and restarts when it doesn't.
         await backendServices.startTranscriptionServer(model)
         return { downloadPrompted }
       } finally {
@@ -402,7 +397,6 @@ export const useSpeechToText = defineStore(
 
       return null
     }
-
     /**
      * Ensures the transcription server is running when STT is enabled.
      * This method checks if the server is already running and starts it if needed.
@@ -524,7 +518,7 @@ export const useSpeechToText = defineStore(
             toast.success('Speech To Text enabled (using fallback transcription endpoint)')
             return
           }
-          dialogStore.showWarningDialog(
+          notify(
             'OpenVINO backend is required for Speech To Text. Please install it first, or configure a fallback transcription endpoint in Settings.',
             () => {
               setupWizard.openWizard()
@@ -541,23 +535,21 @@ export const useSpeechToText = defineStore(
           // Show download dialog
           const missingModels = await models.getMissingTranscriptionModel(model)
           if (missingModels.length > 0) {
-            dialogStore.showDownloadDialog(
-              missingModels,
-              async () => {
-                // Model downloaded, start transcription server
-                try {
-                  await backendServices.startTranscriptionServer(model)
-                  enabled.value = true
-                  toast.success('Speech To Text enabled')
-                } catch (error) {
-                  toast.error(`Failed to start transcription server: ${error}`)
-                }
-              },
-              () => {
-                // Download failed or cancelled
-                toast.warning('Speech To Text requires the whisper model')
-              },
-            )
+            try {
+              await requestDownload(missingModels)
+            } catch {
+              // Download failed or cancelled
+              toast.warning('Speech To Text requires the whisper model')
+              return
+            }
+            // Model downloaded, start transcription server
+            try {
+              await backendServices.startTranscriptionServer(model)
+              enabled.value = true
+              toast.success('Speech To Text enabled')
+            } catch (error) {
+              toast.error(`Failed to start transcription server: ${error}`)
+            }
             return
           }
         }

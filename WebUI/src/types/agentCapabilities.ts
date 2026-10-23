@@ -1,4 +1,4 @@
-export const DEFAULT_CAPABILITY_IDS = ['media', 'web-debug'] as const
+export const DEFAULT_CAPABILITY_IDS = ['media', 'web-debug', 'rag'] as const
 
 export const MCP_CAPABILITY_PREFIX = 'mcp:'
 
@@ -12,6 +12,14 @@ export const GAME_STUDIO_QUICK_ID = 'game-studio-quick'
  * answers it (`storeTools` in agentModeTurn.ts).
  */
 export const OFFER_GAME_AGENT_TOOL = 'offerGameAgent'
+
+/**
+ * Renderer-side name of the internal dispatch the rag capability sends before
+ * first use: the renderer checks whether the session's embedding model is on
+ * disk and, when it is not, prompts for the download via the shared dialog
+ * (`storeTools` in agentModeTurn.ts). Not a model-facing tool.
+ */
+export const RAG_PREPARE_EMBEDDING_MODEL = 'ragPrepareEmbeddingModel'
 
 export function mcpCapabilityId(serverId: string): string {
   return `${MCP_CAPABILITY_PREFIX}${serverId}`

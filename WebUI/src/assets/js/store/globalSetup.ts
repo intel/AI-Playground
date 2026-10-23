@@ -39,7 +39,7 @@ export const useGlobalSetup = defineStore('globalSetup', () => {
   }
 
   async function initSetup() {
-    const setupData = await window.electronAPI.getInitSetting()
+    const setupData = (await window.electronAPI.getInitSetting())!
 
     modelsStore.initPaths(setupData.modelPaths)
     models.value = setupData.modelLists

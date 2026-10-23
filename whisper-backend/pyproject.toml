@@ -4,6 +4,8 @@ version = "0.1.0"
 requires-python = "==3.12.*"
 dependencies = [
   "Flask",
+  # werkzeug 3.1.9: clears CVE-2026-102598. Transitive via Flask.
+  "werkzeug>=3.1.9",
   "flask-cors",
   "soundfile",
   "numpy",

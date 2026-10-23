@@ -56,6 +56,7 @@ export type SerializedAppError = {
   code: string
   category: ErrorCategory
   severity: ErrorSeverity
+  surface: ErrorSurface
   userMessage: string
   technicalMessage: string
   context: AppErrorContext

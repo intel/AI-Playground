@@ -149,7 +149,7 @@ import { EllipsisHorizontalIcon } from '@heroicons/vue/24/outline'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import * as toast from '@/assets/js/toast'
 import McpServerDialog from '@/components/McpServerDialog.vue'
-import type { McpServerConfig } from '../../electron/subprocesses/mcpServers'
+import type { McpServerConfig } from '@/types/mcpIpc'
 
 const mcp = useMcp()
 const textInference = useTextInference()

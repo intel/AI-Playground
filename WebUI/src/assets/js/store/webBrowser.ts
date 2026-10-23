@@ -3,7 +3,7 @@ import { ref } from 'vue'
 
 // Thin renderer-side wrapper over the `webBrowser:*` Electron IPC channels.
 // The actual browser window lives in the main process
-// (electron/subprocesses/webBrowserManager.ts); this store mirrors its state so
+// (electron/adapters/webBrowserManager.ts); this store mirrors its state so
 // the UI can show a "Show window" affordance while the chat LLM browses in the
 // background. Deliberately has no store dependencies.
 export const useWebBrowser = defineStore('webBrowser', () => {
