@@ -92,7 +92,9 @@
         <div>
           <div class="flex justify-between pr-4 items-center gap-4">
             <div class="flex items-center gap-2">
-              <Label class="whitespace-nowrap">{{ languages.SETTINGS_BASIC_TTS_ENDPOINT_LABEL || 'Text to Speech endpoint' }}</Label>
+              <Label class="whitespace-nowrap">{{
+                languages.SETTINGS_BASIC_TTS_ENDPOINT_LABEL || 'Text to Speech endpoint'
+              }}</Label>
               <TooltipProvider :delay-duration="200">
                 <Tooltip>
                   <TooltipTrigger as-child>
@@ -116,7 +118,9 @@
         <div class="border-t border-white/10 pt-4">
           <div class="flex justify-between pr-4 items-center gap-4">
             <div class="flex items-center gap-2">
-              <Label class="whitespace-nowrap">{{ languages.SETTINGS_BASIC_STT_ENDPOINT_LABEL || 'Speech to Text endpoint' }}</Label>
+              <Label class="whitespace-nowrap">{{
+                languages.SETTINGS_BASIC_STT_ENDPOINT_LABEL || 'Speech to Text endpoint'
+              }}</Label>
               <TooltipProvider :delay-duration="200">
                 <Tooltip>
                   <TooltipTrigger as-child>
