@@ -544,10 +544,10 @@
   "ARCADE_MANAGE_DONE": "Bitti",
   "ARCADE_MANAGE_FAILED": "{arcade} güncellenemedi.",
   "HOME_AGENT_LAN_INSECURE_STORAGE": "Kullanılabilir bir işletim sistemi anahtarlığı yok. LAN chat parolası şifrelenmez, **diskte gizlenir**.\n\nŞifreli depolama için bir anahtarlık daemon'ı (GNOME Keyring veya KWallet) kurup çalıştırın.\n\nBu parolanın korunmadığını kabul ediyorsanız devam edin.",
-  "SETUP_WIZARD_INSTALLATION_IN_PROGRESS": "Installation in progress",
-  "SETUP_WIZARD_GROUP_TOGGLE_OFF": "Toggle off to disable every optional component in this group",
-  "SETUP_WIZARD_GROUP_TOGGLE_ON": "Toggle on to enable every optional component in this group",
-  "SETTINGS_BASIC_EXTERNAL_SPEECH_ENDPOINTS": "External speech endpoints",
-  "SETTINGS_BASIC_TTS_ENDPOINT_LABEL": "Text to Speech endpoint",
-  "SETTINGS_BASIC_STT_ENDPOINT_LABEL": "Speech to Text endpoint"
+  "SETUP_WIZARD_INSTALLATION_IN_PROGRESS": "Kurulum devam ediyor",
+  "SETUP_WIZARD_GROUP_TOGGLE_OFF": "Bu gruptaki tüm isteğe bağlı bileşenleri devre dışı bırakmak için kapatın",
+  "SETUP_WIZARD_GROUP_TOGGLE_ON": "Bu gruptaki tüm isteğe bağlı bileşenleri etkinleştirmek için açın",
+  "SETTINGS_BASIC_EXTERNAL_SPEECH_ENDPOINTS": "Harici konuşma uç noktaları",
+  "SETTINGS_BASIC_TTS_ENDPOINT_LABEL": "Metinden konuşmaya uç noktası",
+  "SETTINGS_BASIC_STT_ENDPOINT_LABEL": "Konuşmadan metne uç noktası"
 }
