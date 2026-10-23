@@ -13,6 +13,9 @@ dependencies = [
   # urllib3 2.8.0: clears GHSA-vxq7-64xx-v4gw, GHSA-8988-9cw3-xx77 and
   # GHSA-gh4c-6fx4-qh6g. Transitive via Requests (urllib3<3).
   "urllib3>=2.8.0",
+  # certifi 2026.10.19: clears GHSA-6q48-6c7w-9gw2 (emSign roots with compromised
+  # intermediate CA keys). Transitive via Requests / huggingface_hub.
+  "certifi>=2026.10.19",
   "setuptools>=83.0.0",
   "huggingface_hub",
 ]

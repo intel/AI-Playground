@@ -65,6 +65,12 @@ export function llmServerBaseUrl(backend: LocalLlmBackend): string | undefined {
   return service?.get_info().baseUrl || undefined
 }
 
+/** Whether the live OVMS launch armed the model's MTP draft graph. */
+export function llmServerMtpArmed(backend: LocalLlmBackend): boolean {
+  const service = lookup?.(SERVICE_NAME[backend]) as LlmServiceShape | undefined
+  return service?.get_info().ovmsMtpArmed === true
+}
+
 export function llmServerSnapshot(backend: LocalLlmBackend): LlmServerSnapshot {
   const service = lookup?.(SERVICE_NAME[backend]) as LlmServiceShape | undefined
   if (!service) return {}

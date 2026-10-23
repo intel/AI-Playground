@@ -286,40 +286,16 @@ describe('sandboxed access', () => {
     expect(outside).toMatchObject({ isError: true })
   })
 
-  // just-bash cannot mount the virtual filesystem into its Python runtime on
-  // Windows: the generated script's opening `os.chdir('/host/workspace')` fails
-  // with `PermissionError` before any user code runs, so python3 is unusable
-  // there and the workspace instructions stop advertising it. When these tests
-  // start passing on Windows, drop the skip and the carve-out in
-  // piWorkspaceRuntime's `hasEmulatedPython`.
-  const itWithSandboxPython = it.skipIf(process.platform === 'win32')
+  // The bundled CPython is flagged by binary CVE scanners, so the interpreters stay off.
+  it.each(['python3 -c "print(6 * 7)"', 'js-exec -c "console.log(6 * 7)"'])(
+    'has no script interpreter: %s',
+    async (command) => {
+      const result = await invoke(toolOf(access, 'bash'), { command })
 
-  itWithSandboxPython('runs python inside the sandbox', async () => {
-    const result = await invoke(toolOf(access, 'bash'), {
-      command: 'python3 -c "print(6 * 7)"',
-    })
-
-    expect(resultText(result)).toContain('42')
-  })
-
-  // The emulated shell used to lose the indentation of continued lines inside a
-  // quoted argument, so a multi-line `python3 -c` died with an IndentationError and
-  // only a heredoc worked — the workspace instructions warned models about it.
-  // just-bash 3.4.2 fixed that, so both forms are asserted here to keep the warning
-  // gone: if `-c` ever regresses, this fails rather than models silently flailing.
-  itWithSandboxPython('runs a multi-line python script, quoted or from a heredoc', async () => {
-    const script = ['for value in [1, 2]:', '    print(value * 2)'].join('\n')
-
-    const inline = await invoke(toolOf(access, 'bash'), {
-      command: `python3 -c "${script}"`,
-    })
-    expect(resultText(inline)).toContain('4')
-
-    const heredoc = await invoke(toolOf(access, 'bash'), {
-      command: `python3 <<'PY'\n${script}\nPY`,
-    })
-    expect(resultText(heredoc)).toContain('4')
-  })
+      expect(resultText(result)).not.toContain('42')
+      expect(result).toMatchObject({ isError: true })
+    },
+  )
 
   it('lists workspace entries through the virtual filesystem', async () => {
     fs.writeFileSync(path.join(workspace, 'a.txt'), 'a')

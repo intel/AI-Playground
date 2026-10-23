@@ -10,6 +10,17 @@ export const OVMS_MTP_DRAFT_PATH = '.'
 
 /** Same draft length as llama.cpp's Qwen 3.6 `--spec-draft-n-max 2`. */
 export const OVMS_MTP_ASSISTANT_TOKENS = 2
+export const OVMS_MTP_ASSISTANT_TOKENS_MIN = 1
+export const OVMS_MTP_ASSISTANT_TOKENS_MAX = 16
+
+/** A user-tuned or persisted draft length, bounded to what OVMS can use. */
+export function normalizeNumAssistantTokens(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return OVMS_MTP_ASSISTANT_TOKENS
+  return Math.min(
+    OVMS_MTP_ASSISTANT_TOKENS_MAX,
+    Math.max(OVMS_MTP_ASSISTANT_TOKENS_MIN, Math.round(value)),
+  )
+}
 
 const STALE_NOTICE_PREFIX = 'aipg.ovmsMtpStaleNotice.'
 
@@ -47,10 +58,16 @@ export function ovmsMtpLaunchArgs(draftModelPath: string | null): string[] {
   return ['--draft_model_path', draftModelPath, '--enable_prefix_caching', 'false']
 }
 
-/** Request fields for a launch that did or did not pass `--draft_model_path`. */
-export function ovmsMtpRequestFields(mtpArmed: boolean): Record<string, number> {
-  if (!mtpArmed) return {}
-  return { num_assistant_tokens: OVMS_MTP_ASSISTANT_TOKENS }
+/**
+ * Request fields for a model that supports MTP. Main removes them when the
+ * launch could not arm the draft graph.
+ */
+export function ovmsMtpRequestFields(
+  mtpSupported: boolean,
+  numAssistantTokens: number = OVMS_MTP_ASSISTANT_TOKENS,
+): Record<string, number> {
+  if (!mtpSupported) return {}
+  return { num_assistant_tokens: normalizeNumAssistantTokens(numAssistantTokens) }
 }
 
 export function ovmsMtpStaleNoticeKey(modelRepoId: string): string {

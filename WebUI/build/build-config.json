@@ -123,7 +123,7 @@
     {
       "from": ".",
       "to": ".",
-      "filter": ["package.json"]
+      "filter": ["package.json", "!**/node_modules/just-bash/vendor/cpython-emscripten/**"]
     }
   ],
   "win": {

@@ -121,6 +121,21 @@
         <SettingsRow :label="`Temperature: ${textInference.temperature.toFixed(1)}`">
           <Slider v-model="textInference.temperature" :min="0" :max="2" :step="0.1" />
         </SettingsRow>
+        <SettingsRow
+          v-if="textInference.modelSupportsMtp"
+          label="Draft tokens (MTP)"
+          label-for="chat-mtp-assistant-tokens"
+        >
+          <input
+            id="chat-mtp-assistant-tokens"
+            type="number"
+            v-model.number="textInference.numAssistantTokens"
+            :min="OVMS_MTP_ASSISTANT_TOKENS_MIN"
+            :max="OVMS_MTP_ASSISTANT_TOKENS_MAX"
+            step="1"
+            class="rounded-sm text-foreground text-center h-[30px] w-20 leading-[30px] p-0 bg-transparent border border-border"
+          />
+        </SettingsRow>
         <SettingsRow v-if="showRetrievalModeToggle" :label="languages.RAG_RETRIEVAL_MODE">
           <div class="flex flex-col gap-1">
             <div
@@ -310,6 +325,7 @@ import { useCloudMode } from '@/assets/js/store/cloudMode'
 import { reasoningEfforts, type ReasoningEffort } from '@/types/shared'
 import { useEmbeddingModelPicker } from '@/assets/js/embeddingModelPicker'
 import { useUIStore } from '@/assets/js/store/ui'
+import { OVMS_MTP_ASSISTANT_TOKENS_MAX, OVMS_MTP_ASSISTANT_TOKENS_MIN } from '@/lib/ovmsMtp'
 
 const showUploader = ref(false)
 const processing = ref(false)

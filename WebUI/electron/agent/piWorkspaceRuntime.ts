@@ -253,22 +253,6 @@ export type WorkspaceInstructionsOptions = {
   baseUrl: string | null
   /** Whether the shell is the real host shell rather than the emulated one. */
   unsandboxed: boolean
-  /**
-   * Whether the emulated shell's `python3` works. Defaults to the host's
-   * answer; an explicit value is for tests.
-   */
-  emulatedPython?: boolean
-}
-
-/**
- * The emulated shell's `python3` runs against a mount of the virtual
- * filesystem that just-bash fails to set up on Windows: every invocation dies
- * on startup with `PermissionError: '/host/workspace'`, before the script runs.
- * Offering it there would only cost the model turns it cannot recover, so the
- * prompt keeps quiet about it. Everything else in the emulated shell works.
- */
-function hasEmulatedPython(): boolean {
-  return process.platform !== 'win32'
 }
 
 /**
@@ -279,7 +263,6 @@ function hasEmulatedPython(): boolean {
  */
 export function buildWorkspaceInstructions(options: WorkspaceInstructionsOptions): string {
   const { cwd, workspaceDir, baseUrl, unsandboxed } = options
-  const python = options.emulatedPython ?? hasEmulatedPython()
   const lines = ['You are working inside a project workspace.']
   lines.push(
     unsandboxed
@@ -295,23 +278,16 @@ export function buildWorkspaceInstructions(options: WorkspaceInstructionsOptions
       ? '- Your bash tool is a real shell in that folder: node, npm/npx, python3, git and curl' +
           ' work, and network access is live. You may install dependencies and run builds or' +
           ' test suites. Prefer short, non-interactive commands.'
-      : '- Your bash tool is an emulated shell with the usual file/text utilities' +
-          `${python ? ', python3' : ''} and a JavaScript interpreter (\`js-exec -c "…"\`, not` +
-          ' `node`) for scripting. It has no network and no node/npm, so you cannot install' +
-          ' packages, and you never need to start a web server — one is already running (see' +
-          ' below).',
+      : '- Your bash tool is an emulated shell with the usual file/text utilities only. It has' +
+          ' no script interpreter (no python3, node or js-exec), no network and no npm, so you' +
+          ' cannot run scripts or install packages — do the work with the file tools. You never' +
+          ' need to start a web server — one is already running (see below).',
   )
   if (!unsandboxed) {
     lines.push(
       '- Nothing in that shell reaches the internet: there is no curl or wget. Read web pages' +
         ' with the browser tool instead.',
     )
-    if (!python) {
-      lines.push(
-        '- There is no python3 in this shell. Script with `js-exec` instead, or do the work with' +
-          ' the file tools.',
-      )
-    }
   }
   if (baseUrl) {
     lines.push(
