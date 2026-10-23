@@ -180,7 +180,7 @@ export class PathsManager {
     }
     return this.modelPaths
   }
-  private initModelPaths(modelPaths: ModelPaths) {
+  private initModelPaths(modelPaths: Record<string, string>) {
     const baseDir = modelPathResolveBaseDir()
     // Initialize base paths
     Object.keys(this.modelPaths).forEach((key) => {
