@@ -5,7 +5,6 @@ export const useI18N = defineStore('i18n', () => {
   const langName = ref('en-US')
   const currentLanguageName = ref('English')
   const state = reactive<StringKV>({})
-  let override: string | null = null
 
   // locale naming reference:
   // https://source.chromium.org/chromium/chromium/src/+/main:ui/base/l10n/l10n_util.cc
@@ -25,38 +24,44 @@ export const useI18N = defineStore('i18n', () => {
     { value: 'zh-TW', name: '繁體中文' },
   ])
 
-  window.electronAPI.getLocaleSettings().then((settings) => {
-    override = settings.languageOverride
-    if (override && languageOptions.value.some((l) => l.value === override)) {
-      langName.value = override
-      switchLanguage(langName.value)
-      return
-    }
-    const locale = settings.locale
-    console.debug('system locale:', locale)
-    if (locale) {
-      if (languageOptions.value.find((item) => item.value === locale)) {
-        // use the locale directly if it's supported
-        langName.value = locale
-      } else if (locale.includes('-')) {
-        // fallback if the locale contains '-'
-        const lang = locale.split('-')[0]
-        langName.value =
-          languageOptions.value.find((item) => item.value.includes(lang))?.value || 'en-US'
-      } else {
-        // fallback to en-US
-        langName.value = 'en-US'
-      }
-    }
-  })
-
   async function init() {
-    if (override && languageOptions.value.some((l) => l.value === override)) {
-      langName.value = override
+    // Resolve the display language exactly once, in priority order:
+    //   1. languageOverride from the app settings (explicit deployment choice)
+    //   2. the user's stored choice (e.g. from the setup wizard)
+    //   3. the OS locale reported by the main process
+    //   4. en-US fallback
+    // Previously a module-scope getLocaleSettings().then() raced with init():
+    // when it resolved after init(), it overwrote the wizard's stored choice
+    // with the OS locale, so the wizard selection never took effect.
+    let languageOverride: string | null = null
+    let osLocale = ''
+    try {
+      const settings = await window.electronAPI.getLocaleSettings()
+      languageOverride = settings.languageOverride
+      osLocale = settings.locale || ''
+    } catch {
+      console.debug('getLocaleSettings() failed, using stored/OS defaults')
+    }
+
+    if (languageOverride && languageOptions.value.some((l) => l.value === languageOverride)) {
+      langName.value = languageOverride
     } else {
-      const locale = localStorage.getItem('locale')
-      if (locale) {
-        langName.value = locale
+      const stored = localStorage.getItem('locale')
+      if (stored && languageOptions.value.some((l) => l.value === stored)) {
+        langName.value = stored
+      } else if (osLocale) {
+        if (languageOptions.value.find((item) => item.value === osLocale)) {
+          // use the locale directly if it's supported
+          langName.value = osLocale
+        } else if (osLocale.includes('-')) {
+          // fallback if the locale contains '-'
+          const lang = osLocale.split('-')[0]
+          langName.value =
+            languageOptions.value.find((item) => item.value.includes(lang))?.value || 'en-US'
+        } else {
+          // fallback to en-US
+          langName.value = 'en-US'
+        }
       }
     }
     console.debug('init i18n:', langName.value)

@@ -565,5 +565,11 @@
   "ARCADE_MANAGE_SHOW_GAME": "Show {game} in {arcade}",
   "ARCADE_MANAGE_DONE": "Done",
   "ARCADE_MANAGE_FAILED": "Could not update {arcade}.",
-  "HOME_AGENT_LAN_INSECURE_STORAGE": "No OS keyring is available. The LAN chat password would be **obfuscated on disk**, not encrypted.\n\nInstall and run a keyring daemon (GNOME Keyring or KWallet) for encrypted storage.\n\nContinue only if you accept that this password is not protected."
+  "HOME_AGENT_LAN_INSECURE_STORAGE": "No OS keyring is available. The LAN chat password would be **obfuscated on disk**, not encrypted.\n\nInstall and run a keyring daemon (GNOME Keyring or KWallet) for encrypted storage.\n\nContinue only if you accept that this password is not protected.",
+  "SETUP_WIZARD_INSTALLATION_IN_PROGRESS": "Installation in progress",
+  "SETUP_WIZARD_GROUP_TOGGLE_OFF": "Toggle off to disable every optional component in this group",
+  "SETUP_WIZARD_GROUP_TOGGLE_ON": "Toggle on to enable every optional component in this group",
+  "SETTINGS_BASIC_EXTERNAL_SPEECH_ENDPOINTS": "External speech endpoints",
+  "SETTINGS_BASIC_TTS_ENDPOINT_LABEL": "Text to Speech endpoint",
+  "SETTINGS_BASIC_STT_ENDPOINT_LABEL": "Speech to Text endpoint"
 }

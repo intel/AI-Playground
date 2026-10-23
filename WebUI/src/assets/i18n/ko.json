@@ -565,5 +565,11 @@
   "ARCADE_MANAGE_SHOW_GAME": "{arcade}에 {game} 표시",
   "ARCADE_MANAGE_DONE": "완료",
   "ARCADE_MANAGE_FAILED": "{arcade}를 업데이트할 수 없습니다.",
-  "HOME_AGENT_LAN_INSECURE_STORAGE": "OS 키링을 사용할 수 없습니다. LAN chat 비밀번호는 암호화되지 않고 **디스크에서 난독화**됩니다.\n\n암호화된 저장을 위해 키링 데몬(GNOME Keyring 또는 KWallet)을 설치하고 실행하세요.\n\n이 비밀번호가 보호되지 않는다는 점을 이해한 경우에만 계속하세요."
+  "HOME_AGENT_LAN_INSECURE_STORAGE": "OS 키링을 사용할 수 없습니다. LAN chat 비밀번호는 암호화되지 않고 **디스크에서 난독화**됩니다.\n\n암호화된 저장을 위해 키링 데몬(GNOME Keyring 또는 KWallet)을 설치하고 실행하세요.\n\n이 비밀번호가 보호되지 않는다는 점을 이해한 경우에만 계속하세요.",
+  "SETUP_WIZARD_INSTALLATION_IN_PROGRESS": "설치 진행 중",
+  "SETUP_WIZARD_GROUP_TOGGLE_OFF": "끄면 이 그룹의 모든 선택 구성 요소가 비활성화됩니다",
+  "SETUP_WIZARD_GROUP_TOGGLE_ON": "켜면 이 그룹의 모든 선택 구성 요소가 활성화됩니다",
+  "SETTINGS_BASIC_EXTERNAL_SPEECH_ENDPOINTS": "외부 음성 엔드포인트",
+  "SETTINGS_BASIC_TTS_ENDPOINT_LABEL": "텍스트 음성 변환 엔드포인트",
+  "SETTINGS_BASIC_STT_ENDPOINT_LABEL": "음성 텍스트 변환 엔드포인트"
 }

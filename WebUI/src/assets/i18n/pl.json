@@ -565,5 +565,11 @@
   "ARCADE_MANAGE_SHOW_GAME": "Pokaż {game} w {arcade}",
   "ARCADE_MANAGE_DONE": "Gotowe",
   "ARCADE_MANAGE_FAILED": "Nie udało się zaktualizować {arcade}.",
-  "HOME_AGENT_LAN_INSECURE_STORAGE": "Brak dostępnego systemowego pęku kluczy. Hasło LAN chat zostałoby **zaciemnione na dysku**, a nie zaszyfrowane.\n\nZainstaluj i uruchom demona pęku kluczy (GNOME Keyring lub KWallet), aby przechowywać dane w postaci zaszyfrowanej.\n\nKontynuuj tylko wtedy, gdy akceptujesz, że to hasło nie jest chronione."
+  "HOME_AGENT_LAN_INSECURE_STORAGE": "Brak dostępnego systemowego pęku kluczy. Hasło LAN chat zostałoby **zaciemnione na dysku**, a nie zaszyfrowane.\n\nZainstaluj i uruchom demona pęku kluczy (GNOME Keyring lub KWallet), aby przechowywać dane w postaci zaszyfrowanej.\n\nKontynuuj tylko wtedy, gdy akceptujesz, że to hasło nie jest chronione.",
+  "SETUP_WIZARD_INSTALLATION_IN_PROGRESS": "Instalacja w toku",
+  "SETUP_WIZARD_GROUP_TOGGLE_OFF": "Wyłącz, aby dezaktywować wszystkie opcjonalne komponenty w tej grupie",
+  "SETUP_WIZARD_GROUP_TOGGLE_ON": "Włącz, aby aktywować wszystkie opcjonalne komponenty w tej grupie",
+  "SETTINGS_BASIC_EXTERNAL_SPEECH_ENDPOINTS": "Zewnętrzne punkty końcowe mowy",
+  "SETTINGS_BASIC_TTS_ENDPOINT_LABEL": "Punkt końcowy zamiany tekstu na mowę",
+  "SETTINGS_BASIC_STT_ENDPOINT_LABEL": "Punkt końcowy zamiany mowy na tekst"
 }

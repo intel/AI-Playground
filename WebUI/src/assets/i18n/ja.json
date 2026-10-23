@@ -565,5 +565,11 @@
   "ARCADE_MANAGE_SHOW_GAME": "{game} を {arcade} に表示",
   "ARCADE_MANAGE_DONE": "完了",
   "ARCADE_MANAGE_FAILED": "{arcade} を更新できませんでした。",
-  "HOME_AGENT_LAN_INSECURE_STORAGE": "OS のキーリングが利用できません。LAN chat のパスワードは暗号化されず、**ディスク上で難読化**されます。\n\n暗号化して保存するには、キーリングデーモン（GNOME Keyring または KWallet）をインストールして実行してください。\n\nこのパスワードが保護されないことを承知したうえで続行してください。"
+  "HOME_AGENT_LAN_INSECURE_STORAGE": "OS のキーリングが利用できません。LAN chat のパスワードは暗号化されず、**ディスク上で難読化**されます。\n\n暗号化して保存するには、キーリングデーモン（GNOME Keyring または KWallet）をインストールして実行してください。\n\nこのパスワードが保護されないことを承知したうえで続行してください。",
+  "SETUP_WIZARD_INSTALLATION_IN_PROGRESS": "インストール中",
+  "SETUP_WIZARD_GROUP_TOGGLE_OFF": "オフにすると、このグループのすべてのオプションコンポーネントが無効になります",
+  "SETUP_WIZARD_GROUP_TOGGLE_ON": "オンにすると、このグループのすべてのオプションコンポーネントが有効になります",
+  "SETTINGS_BASIC_EXTERNAL_SPEECH_ENDPOINTS": "外部音声エンドポイント",
+  "SETTINGS_BASIC_TTS_ENDPOINT_LABEL": "テキスト読み上げエンドポイント",
+  "SETTINGS_BASIC_STT_ENDPOINT_LABEL": "音声テキスト変換エンドポイント"
 }

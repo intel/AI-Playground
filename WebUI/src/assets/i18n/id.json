@@ -565,5 +565,11 @@
   "ARCADE_MANAGE_SHOW_GAME": "Tampilkan {game} di {arcade}",
   "ARCADE_MANAGE_DONE": "Selesai",
   "ARCADE_MANAGE_FAILED": "Tidak dapat memperbarui {arcade}.",
-  "HOME_AGENT_LAN_INSECURE_STORAGE": "Tidak ada keyring OS yang tersedia. Kata sandi LAN chat akan **diobfuskasi di disk**, bukan dienkripsi.\n\nPasang dan jalankan daemon keyring (GNOME Keyring atau KWallet) untuk penyimpanan terenkripsi.\n\nLanjutkan hanya jika Anda menerima bahwa kata sandi ini tidak dilindungi."
+  "HOME_AGENT_LAN_INSECURE_STORAGE": "Tidak ada keyring OS yang tersedia. Kata sandi LAN chat akan **diobfuskasi di disk**, bukan dienkripsi.\n\nPasang dan jalankan daemon keyring (GNOME Keyring atau KWallet) untuk penyimpanan terenkripsi.\n\nLanjutkan hanya jika Anda menerima bahwa kata sandi ini tidak dilindungi.",
+  "SETUP_WIZARD_INSTALLATION_IN_PROGRESS": "Instalasi sedang berlangsung",
+  "SETUP_WIZARD_GROUP_TOGGLE_OFF": "Nonaktifkan untuk menonaktifkan semua komponen opsional dalam grup ini",
+  "SETUP_WIZARD_GROUP_TOGGLE_ON": "Aktifkan untuk mengaktifkan semua komponen opsional dalam grup ini",
+  "SETTINGS_BASIC_EXTERNAL_SPEECH_ENDPOINTS": "Endpoint suara eksternal",
+  "SETTINGS_BASIC_TTS_ENDPOINT_LABEL": "Endpoint teks ke suara",
+  "SETTINGS_BASIC_STT_ENDPOINT_LABEL": "Endpoint suara ke teks"
 }
