@@ -136,8 +136,8 @@
   --svg: url('@/assets/svg/pen.svg');
 }
 
-.i-easer {
-  --svg: url('@/assets/svg/easer.svg');
+.i-eraser {
+  --svg: url('@/assets/svg/eraser.svg');
 }
 
 .i-broom {
