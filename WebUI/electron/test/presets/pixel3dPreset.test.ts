@@ -20,11 +20,11 @@ describe('Pixel3D-Trellis preset', () => {
   it('exposes only the final SaveGLB as an output node', () => {
     const outputs = Object.values(preset.comfyUiApiWorkflow).filter((node) =>
       ['SaveGLB', 'Save3DAdvanced', 'PreviewImage', 'Preview3DAdvanced', 'MaskPreview'].includes(
-        node.class_type,
+        node.class_type as string,
       ),
     )
 
-    expect(outputs.map((node) => node.class_type)).toEqual(['SaveGLB'])
+    expect(outputs.map((node) => node.class_type as string)).toEqual(['SaveGLB'])
   })
 
   it('has a configured model directory for every required model type', () => {
@@ -36,11 +36,11 @@ describe('Pixel3D-Trellis preset', () => {
   })
 
   it('points every loader at the downloaded model path', () => {
-    const loaderNames = new Set(
+    const loaderNames = new Set<string>(
       Object.values(preset.comfyUiApiWorkflow).flatMap((node) =>
         Object.entries(node.inputs ?? {})
           .filter(([name, value]) => name.endsWith('_name') && typeof value === 'string')
-          .map(([, value]) => value),
+          .map(([, value]) => value as string),
       ),
     )
 

@@ -477,11 +477,11 @@ function startRun(payload: ArtifactRunPayload): Promise<ArtifactRunResult> {
 
 // ── The drive pass ───────────────────────────────────────────────────────────
 
-async function installMissingRequirements(run: ActiveRun, preset: ComfyUiPreset): Promise<void> {
-  const service = runnerDeps!.getComfyService()
-  if (!service) throw new Error('ComfyUI backend service not found')
-  await service.setPresetParameters(preset.requiredComfyUiParameters ?? [])
-
+async function installMissingRequirements(
+  run: ActiveRun,
+  preset: ComfyUiPreset,
+  service: RunnerComfyService,
+): Promise<void> {
   const missingCustomNodes = (preset.requiredCustomNodes ?? []).filter(
     (node) => !isCustomNodeInstalled(parseCustomNodeSpec(node), service.serviceDir),
   )
@@ -749,7 +749,11 @@ async function driveRun(run: ActiveRun, deps: ArtifactRunnerDeps): Promise<void>
     return
   }
 
-  await installMissingRequirements(run, run.payload.preset)
+  const comfyService = deps.getComfyService()
+  if (!comfyService) throw new Error('ComfyUI backend service not found')
+  // Launch flags must be in place before the install phase can restart the backend.
+  await comfyService.setPresetParameters(run.payload.preset.requiredComfyUiParameters ?? [])
+  await installMissingRequirements(run, run.payload.preset, comfyService)
   if (run.settled) return
 
   const baseUrl = await startBackendAndWait(run)
