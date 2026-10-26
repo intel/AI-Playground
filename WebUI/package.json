@@ -102,7 +102,7 @@
     "adm-zip": "^0.6.1",
     "autoprefixer": "^10.5.0",
     "cross-env": "^10.1.0",
-    "electron": "^44.4.3",
+    "electron": "^44.9.3",
     "electron-builder": "^26.15.5",
     "electron-builder-squirrel-windows": "^26.15.5",
     "eslint": "^10.5.0",
