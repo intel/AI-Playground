@@ -34,9 +34,11 @@ index-strategy = "unsafe-best-match"
 # 2.13 Linux breakage was a driver-version mismatch, not a code bug — the cu130 /
 # xpu wheels require a recent NVIDIA / Intel GPU driver on Linux. Ensure the target
 # driver floor is met before deploying. Keep in sync with pyproject.toml.
-required-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux'"]
+required-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux' and platform_machine == 'x86_64'"]
 prerelease = "if-necessary-or-explicit"
-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux'"]
+# Linux is x86_64 only: the xpu torch index has no aarch64 wheels, and uv >= 0.12.14 fails
+# the whole resolution when any one platform/extra fork has no installable torch.
+environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux' and platform_machine == 'x86_64'"]
 conflicts = [
   [
     { extra = "xpu" },
