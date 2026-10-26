@@ -102,7 +102,7 @@
     "adm-zip": "^0.6.1",
     "autoprefixer": "^10.5.0",
     "cross-env": "^10.1.0",
-    "electron": "^44.4.3",
+    "electron": "^44.9.3",
     "electron-builder": "^26.15.5",
     "electron-builder-squirrel-windows": "^26.15.5",
     "eslint": "^10.5.0",
@@ -116,7 +116,7 @@
     "vite": "^8.2.4",
     "vite-plugin-electron": "^1.1.2",
     "vite-plugin-electron-renderer": "^1.0.0",
-    "vitest": "^4.1.9",
+    "vitest": "^4.1.12",
     "vue-tsc": "^3.3.5"
   },
   "overrides": {
