@@ -128,7 +128,10 @@
       "@browserbasehq/stagehand": "^3.4.0",
       "openai": "^6.37.0"
     },
-    "@ai-sdk/provider-utils": "^5.0.5"
+    "@ai-sdk/provider-utils": "^5.0.5",
+    "@earendil-works/pi-coding-agent": {
+      "undici": "8.12.3"
+    }
   },
   "debug": {
     "env": {
