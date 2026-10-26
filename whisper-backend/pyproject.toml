@@ -22,6 +22,12 @@ dependencies = [
   # certifi 2026.10.19: clears GHSA-6q48-6c7w-9gw2 (emSign roots with compromised
   # intermediate CA keys). Transitive via requests / huggingface_hub.
   "certifi>=2026.10.19",
+  # filelock 4.2.1: clears GHSA-v4x8-3wr5-3wq8, GHSA-9vhv-jxww-xfm5 and
+  # GHSA-567q-5qvw-pf92. Transitive via torch / huggingface_hub / transformers.
+  "filelock>=4.2.1",
+  # setuptools 84.1.0: clears GHSA-xmj3-9gf7-h52w (path escape via
+  # namespace_packages.txt in legacy wheel installs).
+  "setuptools>=84.1.0",
 ]
 
 # torch ships from a different index per accelerator, so it lives in mutually

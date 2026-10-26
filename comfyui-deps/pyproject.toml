@@ -27,7 +27,9 @@ dependencies = [
   "comfyui-workflow-templates==0.11.48",
   "diffusers>=0.38.0",
   "einops",
-  "filelock",
+  # filelock 4.2.1: clears GHSA-v4x8-3wr5-3wq8, GHSA-9vhv-jxww-xfm5 and
+  # GHSA-567q-5qvw-pf92.
+  "filelock>=4.2.1",
   "ftfy",
   "fvcore",
   "gguf>=0.13.0",
@@ -82,10 +84,10 @@ dependencies = [
   "scipy",
   "segment-anything>=1.0",
   "sentencepiece",
-  # setuptools 83.0.0: clears CVE-2026-59890 (MANIFEST.in exclusion bypass via
-  # Unicode NFC/NFD collision). Floor the transitive pin so the no-accelerator
-  # resolution doesn't fall back to the vulnerable 81.x.
-  "setuptools>=83.0.0",
+  # setuptools 84.1.0: clears GHSA-xmj3-9gf7-h52w (path escape via
+  # namespace_packages.txt in legacy wheel installs); 83.0.0 cleared CVE-2026-59890.
+  # Floor the transitive pin so the no-accelerator resolution doesn't fall back.
+  "setuptools>=84.1.0",
   "simpleeval>=1.0.0",
   "soxr<1.0.0",
   "spandrel",
