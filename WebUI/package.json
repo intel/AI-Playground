@@ -84,7 +84,7 @@
     "vee-validate": "^5.0.0-beta.1",
     "vue": "^3.5.38",
     "word-extractor": "^1.0.4",
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@emnapi/core": "1.11.3",
