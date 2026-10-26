@@ -570,8 +570,8 @@ function clearPickerTimers() {
 
 function openPicker(mode: ModeType) {
   clearPickerTimers()
-  // Suppressed during the guided demo so it doesn't collide with the demo help popover.
-  if (demoMode.enabled) return
+  // Suppressed only while a demo tour is on screen, so it doesn't collide with its popover.
+  if (demoMode.tourOpen) return
   if (openPickerMode.value === mode) return
   pickerOpenTimer = window.setTimeout(() => {
     pickerOpenTimer = null
@@ -619,7 +619,7 @@ function onPickerOpenChange(mode: ModeType, open: boolean) {
     closePicker()
     return
   }
-  if (lastPickerPointerType !== 'mouse' && !demoMode.enabled) openPickerMode.value = mode
+  if (lastPickerPointerType !== 'mouse' && !demoMode.tourOpen) openPickerMode.value = mode
 }
 
 async function selectPresetFromPicker(mode: ModeType, preset: Preset) {
@@ -670,6 +670,13 @@ async function selectPresetFromPicker(mode: ModeType, preset: Preset) {
 }
 const demoMode = useDemoMode()
 const productModeStore = useProductMode()
+
+watch(
+  () => demoMode.tourOpen,
+  (open) => {
+    if (open) closePicker()
+  },
+)
 
 // Get active chat preset
 const activeChatPreset = computed(() => {
