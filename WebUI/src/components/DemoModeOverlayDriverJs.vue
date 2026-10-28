@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { driver, type DriveStep } from 'driver.js'
+import { driver, type Driver, type DriveStep } from 'driver.js'
 import 'driver.js/dist/driver.css'
 import { useDemoMode, type DemoButtonId } from '@/assets/js/store/demoMode'
 import { TOUR_STEPS, TOUR_STEPS_ALTERNATIVE, type TourStep } from '@/assets/js/help/tourSteps'
@@ -34,6 +34,21 @@ function isStepEnabled(step: TourStep): boolean {
   return !mode || enabledModes.value.includes(mode)
 }
 
+// The full tour and a first-time mini tour can be on screen together, and driver.js
+// skips onDestroyed for a tour that never highlighted a step, so re-check isActive().
+const openTours = new Set<Driver>()
+
+function syncTourOpen() {
+  for (const tour of openTours) if (!tour.isActive()) openTours.delete(tour)
+  demoMode.setTourOpen(openTours.size > 0)
+}
+
+function driveTour(tour: Driver) {
+  openTours.add(tour)
+  tour.drive()
+  syncTourOpen()
+}
+
 function startTour() {
   const filteredSteps = TOUR_STEPS.filter(isStepEnabled)
   const driverObj = driver({
@@ -41,6 +56,7 @@ function startTour() {
     showButtons: ['next', 'previous', 'close'],
     doneBtnText: 'Got it!',
     popoverOffset: 20,
+    onDestroyed: syncTourOpen,
     steps: filteredSteps.map((step) => ({
       element: step.id,
       popover: {
@@ -51,7 +67,7 @@ function startTour() {
       },
     })),
   })
-  driverObj.drive()
+  driveTour(driverObj)
 }
 
 function startMiniTour(driverSteps: DriveStep[]) {
@@ -73,9 +89,10 @@ function startMiniTour(driverSteps: DriveStep[]) {
         requestAnimationFrame(() => d.refresh())
       })
     },
+    onDestroyed: syncTourOpen,
     steps: driverSteps,
   })
-  miniDriver.drive()
+  driveTour(miniDriver)
 }
 
 const firstTimeHelpConfig: Record<DemoButtonId, { stepId: string; highlightElement: string }> = {

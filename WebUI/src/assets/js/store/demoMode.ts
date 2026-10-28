@@ -68,6 +68,7 @@ export const useDemoMode = defineStore('demoMode', () => {
     createInitialVisitedState(FALLBACK_NOTIFICATION_DOT_BUTTONS, FALLBACK_ENABLED_MODES),
   )
   const showResetDialog = ref(false)
+  const tourOpen = ref(false)
 
   const notificationDotButtonIds = computed<DemoButtonId[]>(
     () =>
@@ -85,6 +86,10 @@ export const useDemoMode = defineStore('demoMode', () => {
 
   function registerDriverJs(ref: DriverJsComponent) {
     driverJsRef = ref
+  }
+
+  function setTourOpen(open: boolean) {
+    tourOpen.value = open
   }
 
   function triggerFirstTimeHelp(buttonId: DemoButtonId): boolean {
@@ -237,8 +242,10 @@ export const useDemoMode = defineStore('demoMode', () => {
     notificationDotButtonIds,
     showDemoToggle,
     showResetDialog,
+    tourOpen,
     isVisited,
     registerDriverJs,
+    setTourOpen,
     triggerFirstTimeHelp,
     applyExplicitDefaults,
     verifyPasscode,

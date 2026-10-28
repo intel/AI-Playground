@@ -27,13 +27,16 @@ dependencies = [
   "comfyui-workflow-templates==0.11.48",
   "diffusers>=0.38.0",
   "einops",
-  "filelock",
+  # filelock 4.2.1: clears GHSA-v4x8-3wr5-3wq8, GHSA-9vhv-jxww-xfm5 and
+  # GHSA-567q-5qvw-pf92.
+  "filelock>=4.2.1",
   "ftfy",
   "fvcore",
   "gguf>=0.13.0",
-  # gitpython 3.1.62: clears GHSA-59cr-6r3x-644w (3.1.58 cleared GHSA-9rj7-rf2p-w77r,
-  # GHSA-4gmw-gg2m-w46p, GHSA-hh9p-6wh2-4mfc, GHSA-wvpp-8hx9-p66j and GHSA-jm78-9fvv-mhgr).
-  "gitpython>=3.1.62",
+  # gitpython 3.2.1: clears GHSA-83vg-56qc-22m7 (3.1.62 cleared GHSA-59cr-6r3x-644w; 3.1.58
+  # cleared GHSA-9rj7-rf2p-w77r, GHSA-4gmw-gg2m-w46p, GHSA-hh9p-6wh2-4mfc, GHSA-wvpp-8hx9-p66j
+  # and GHSA-jm78-9fvv-mhgr).
+  "gitpython>=3.2.1",
   # h2 4.4.1: clears PYSEC-2026-3628. Transitive via matrix-nio (allows h2<5);
   # floor it directly so the resolver can't fall back to the vulnerable 4.3.0.
   "h2>=4.4.1",
@@ -81,10 +84,10 @@ dependencies = [
   "scipy",
   "segment-anything>=1.0",
   "sentencepiece",
-  # setuptools 83.0.0: clears CVE-2026-59890 (MANIFEST.in exclusion bypass via
-  # Unicode NFC/NFD collision). Floor the transitive pin so the no-accelerator
-  # resolution doesn't fall back to the vulnerable 81.x.
-  "setuptools>=83.0.0",
+  # setuptools 84.1.0: clears GHSA-xmj3-9gf7-h52w (path escape via
+  # namespace_packages.txt in legacy wheel installs); 83.0.0 cleared CVE-2026-59890.
+  # Floor the transitive pin so the no-accelerator resolution doesn't fall back.
+  "setuptools>=84.1.0",
   "simpleeval>=1.0.0",
   "soxr<1.0.0",
   "spandrel",
@@ -141,9 +144,11 @@ index-strategy = "unsafe-best-match"
 # 2.13 Linux breakage was a driver-version mismatch, not a code bug — the cu130 /
 # xpu wheels require a recent NVIDIA / Intel GPU driver on Linux. Ensure the target
 # driver floor is met before deploying.
-required-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux'"]
+required-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux' and platform_machine == 'x86_64'"]
 prerelease = "if-necessary-or-explicit"
-environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux'"]
+# Linux is x86_64 only: the xpu torch index has no aarch64 wheels, and uv >= 0.12.14 fails
+# the whole resolution when any one platform/extra fork has no installable torch.
+environments = ["sys_platform == 'win32'", "sys_platform == 'darwin'", "sys_platform == 'linux' and platform_machine == 'x86_64'"]
 conflicts = [
   [
     { extra = "xpu" },
