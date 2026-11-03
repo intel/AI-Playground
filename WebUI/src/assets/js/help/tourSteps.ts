@@ -104,9 +104,9 @@ export const TOUR_STEPS_ALTERNATIVE: TourStep[] = [
       "Select this gear icon to see a list of application-level settings, from to language options, installation manager, and speech mode. You'll find important application settings here. Click here and select the Theme menu to give AI Playground different looks.",
   },
   {
-    id: '#show-history-button',
-    title: 'History Panel',
+    id: '#sessions-panel',
+    title: 'Sessions',
     descr:
-      "The History Panel keeps track of all that you've generated. History will show you the latest content from each mode you used. Use this to scroll back through and revisit previous discussion and content generated from AI Playground.",
+      'Everything you do happens in a Session, whichever presets you use. Press + to start a new Session, click one to pick up where you left off, and rename or delete it from its menu.',
   },
 ]

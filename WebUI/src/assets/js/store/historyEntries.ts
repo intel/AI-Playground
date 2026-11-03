@@ -67,7 +67,8 @@ export type MediaEntry = EntryBase & {
   media: MediaItem
 }
 
-export type HistoryEntry = ConversationEntry | AgentEntry | MediaEntry
+/** A row of the retired history list over the old records; Sessions replaced it in the panel. */
+export type RecordRow = ConversationEntry | AgentEntry | MediaEntry
 
 export type HistoryFilter = 'current' | 'all'
 
@@ -262,11 +263,11 @@ export function collectToolMediaUrls(transcripts: UIMessage[][]): Set<string> {
  * A thread nothing was ever sent to. Hydration always keeps one, so it is
  * chrome for "what the next send goes into", not a record of past work.
  */
-export function isEmptyDraft(entry: HistoryEntry): boolean {
+export function isEmptyDraft(entry: RecordRow): boolean {
   return entry.kind === 'conversation' && entry.messages.length === 0
 }
 
-export function matchesFilter(entry: HistoryEntry, context: FilterContext): boolean {
+export function matchesFilter(entry: RecordRow, context: FilterContext): boolean {
   // A tool's output is already on the card of the turn that produced it.
   if (entry.kind === 'media' && entry.origin === 'tool') return false
   if (isEmptyDraft(entry) && entry.id !== context.activeConversationId) return false
@@ -287,7 +288,7 @@ export function matchesFilter(entry: HistoryEntry, context: FilterContext): bool
 }
 
 /** One of the Task's Task Sessions, whatever state its run ended in. */
-export function matchesTask(entry: HistoryEntry, taskId: string): boolean {
+export function matchesTask(entry: RecordRow, taskId: string): boolean {
   return entry.kind === 'agent' && entry.taskId === taskId
 }
 
@@ -296,7 +297,7 @@ export function matchesTask(entry: HistoryEntry, taskId: string): boolean {
  * selection, so under All a selected image, transcript and agent session would
  * otherwise all be marked active while only one of them is showing.
  */
-export function entryRuntimeShown(entry: HistoryEntry, currentMode: ModeType): boolean {
+export function entryRuntimeShown(entry: RecordRow, currentMode: ModeType): boolean {
   switch (entry.kind) {
     // Chat and Audio render the same transcript view.
     case 'conversation':
@@ -309,7 +310,7 @@ export function entryRuntimeShown(entry: HistoryEntry, currentMode: ModeType): b
 }
 
 /** Title, preset, prompt, and the first thing the user said. */
-export function entryHaystack(entry: HistoryEntry): string {
+export function entryHaystack(entry: RecordRow): string {
   const parts = [entry.title, entry.presetName ?? '']
   if (entry.kind === 'media') {
     const settings = mediaSettings(entry.media)
@@ -321,13 +322,13 @@ export function entryHaystack(entry: HistoryEntry): string {
   return parts.join(' ').toLowerCase()
 }
 
-export function searchEntries(entries: HistoryEntry[], query: string): HistoryEntry[] {
+export function searchEntries(entries: RecordRow[], query: string): RecordRow[] {
   const needle = query.trim().toLowerCase()
   if (!needle) return entries
   return entries.filter((entry) => entryHaystack(entry).includes(needle))
 }
 
-export function sortEntries(entries: HistoryEntry[]): HistoryEntry[] {
+export function sortEntries(entries: RecordRow[]): RecordRow[] {
   return [...entries].sort((a, b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id))
 }
 

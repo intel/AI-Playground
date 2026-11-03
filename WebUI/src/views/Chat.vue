@@ -12,10 +12,7 @@
     class="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-6 relative"
   >
     <!-- eslint-disable vue/require-v-for-key -->
-    <!-- pt-20 reserves space for the fixed "Show History" button (App.vue) so short
-         chats don't sit under it. For long chats this padding just scrolls out of
-         view, so no JS overflow detection is needed. -->
-    <div class="w-full max-w-4xl mx-auto flex flex-col gap-6 pt-20">
+    <div class="w-full max-w-4xl mx-auto flex flex-col gap-6">
       <template v-for="(message, i) in activeConversation">
         <!-- eslint-enable -->
         <div v-if="message.role === 'user'" class="flex items-start gap-3">

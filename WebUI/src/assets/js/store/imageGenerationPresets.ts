@@ -28,7 +28,6 @@ export {
   OPTIONAL_MODEL_NONE,
   requiredModelToComfyUIName,
 } from '@/lib/comfyWorkflow'
-import { useUIStore } from './ui'
 import type { PresetRequirementsData } from './dialogs'
 import { getMissingComfyuiBackendModels } from './imageGenerationUtils'
 import { requestDownload } from '@/assets/js/permissions/permissions'
@@ -112,7 +111,6 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
   const presetsStore = usePresets()
   const comfyUi = useComfyUiPresets()
   const backendServices = useBackendServices()
-  const uiStore = useUIStore()
   const errors = useErrors()
   const i18n = useI18N()
   const i18nState = i18n.state
@@ -1149,11 +1147,6 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
     lastError.value = null
     // Drop abandoned placeholders from a previous cancelled/failed run
     generatedImages.value = generatedImages.value.filter((item) => item.state === 'done')
-    // Auto-open history view for batch generation
-    if (batchSize.value > 1) {
-      uiStore.openHistory()
-    }
-
     const inferenceBackendService = backendToService[backend.value]
     await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)
     await backendServices.updateLastUsedBackend(inferenceBackendService)

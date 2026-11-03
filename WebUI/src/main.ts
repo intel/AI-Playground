@@ -7,6 +7,7 @@ import { useI18N } from './assets/js/store/i18n'
 import { useErrors } from './assets/js/store/errors'
 import { usePromptStore } from './assets/js/store/promptArea'
 import { useConversations } from './assets/js/store/conversations'
+import { useSessions } from './assets/js/store/sessions'
 import { useAgentMode } from './assets/js/store/agentMode'
 import { useAgentTasks } from './assets/js/store/agentTasks'
 import { useImageGenerationPresets } from './assets/js/store/imageGenerationPresets'
@@ -91,6 +92,9 @@ startPermissionsAdapter()
 // half-hydrated map. This is also where the one-shot localStorage migration
 // runs on a legacy boot.
 await useConversations().init()
+
+// The Sessions panel lists what is on disk from first paint, with a Session open.
+await useSessions().init()
 
 // Same for agent-session records (step 8): the Sessions panel and a resumed
 // agent turn read a fully hydrated map. Instantiating the store here is safe —

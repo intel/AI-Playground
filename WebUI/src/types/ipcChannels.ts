@@ -35,6 +35,7 @@ import type {
 } from './permissionsIpc'
 import type { RagDocumentSection } from './ragDocumentIpc'
 import type { BackendLaunchSettings, BackendVersionWire } from './preferencesIpc'
+import type { SessionDocument, SessionSummary } from './sessionIpc'
 import type { SpeechSynthesisRequest } from './speechIpc'
 import type { ChannelMessageOwner, NotificationConfig } from './notificationsIpc'
 import type {
@@ -197,6 +198,41 @@ export const CHANNELS = {
     kind: 'invoke',
     owner: 'main',
     args: [] as unknown as readonly [string[]],
+    result: null as unknown as IpcMutationResult,
+  },
+  /** Every Session of the active root (demo or real), newest first. */
+  'sessions:list': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as const,
+    result: null as unknown as IpcOkWith<{ sessions: SessionSummary[] }>,
+  },
+  /** Create a Session and lay out its Session Folder. */
+  'sessions:create': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as const,
+    result: null as unknown as IpcOkWith<{ session: SessionSummary }>,
+  },
+  /** One Session's row plus its display timeline. */
+  'sessions:open': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string],
+    result: null as unknown as IpcOkWith<{ session: SessionDocument }>,
+  },
+  /** Give a Session a user-chosen title. */
+  'sessions:rename': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string, string],
+    result: null as unknown as IpcOkWith<{ session: SessionSummary }>,
+  },
+  /** Delete a Session and its whole Session Folder. */
+  'sessions:delete': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string],
     result: null as unknown as IpcMutationResult,
   },
   /** All preference sections at once; the file is small, so every store picks its own. */

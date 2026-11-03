@@ -19,7 +19,7 @@ export type HelpTopicId =
   | 'advanced-settings-sidebar'
   | 'app-settings-button'
   | 'app-settings-sidebar'
-  | 'show-history-button'
+  | 'sessions-panel'
   | 'preset-selector'
 
 export type HelpTopic = {
@@ -94,9 +94,9 @@ export const HELP_TOPICS: Record<HelpTopicId, HelpTopic> = {
     title: 'App settings panel',
     body: 'Configure backends, appearance, and global features from this sidebar.',
   },
-  'show-history-button': {
-    title: 'History',
-    body: 'Reopen past chat and generation history across modes.',
+  'sessions-panel': {
+    title: 'Sessions',
+    body: 'Each Session is one piece of work in any mix of presets. Press + for a new Session, click a row to open it, and use its menu to rename or delete it.',
   },
   'preset-selector': {
     title: 'Presets',

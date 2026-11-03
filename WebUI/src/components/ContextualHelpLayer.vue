@@ -311,7 +311,7 @@ body.aipg-help-mode #camera-button,
 body.aipg-help-mode #microphone-button,
 body.aipg-help-mode #advanced-settings-button,
 body.aipg-help-mode #app-settings-button,
-body.aipg-help-mode #show-history-button,
+body.aipg-help-mode #sessions-panel,
 body.aipg-help-mode #app-settings-sidebar,
 body.aipg-help-mode #advanced-settings-sidebar {
   cursor: help;

@@ -265,6 +265,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     answer: (payload: ChatAnswerPayload) => invoke('chat:answer', cloneForIpc(payload)),
     onAsk: (callback: (payload: ChatAskPayload) => void) => onPush('chat:ask', callback),
   },
+  sessions: {
+    list: () => invoke('sessions:list'),
+    create: () => invoke('sessions:create'),
+    open: (id: string) => invoke('sessions:open', id),
+    rename: (id: string, title: string) => invoke('sessions:rename', id, title),
+    delete: (id: string) => invoke('sessions:delete', id),
+  },
   conversations: {
     bootstrap: () => invoke('conversations:bootstrap'),
     migrate: (payload: unknown) => invoke('conversations:migrate', cloneForIpc(payload)),

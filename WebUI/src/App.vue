@@ -165,37 +165,8 @@
       'border-t border-border': theme.active === 'dark',
     }"
   >
-    <SideModalHistory
-      id="history-panel"
-      :isVisible="uiStore.showHistory"
-      @close="uiStore.closeHistory()"
-      @conversation-selected="chatRef?.scrollToBottom"
-    />
-
-    <SideModalAppSettings :isVisible="showAppSettings" @close="showAppSettings = false" />
-
-    <div class="flex-1 flex flex-col relative justify-center-safe min-h-0 overflow-y-auto">
-      <div class="fixed top-18 left-4 z-5 flex flex-col gap-2">
-        <button
-          id="show-history-button"
-          v-show="!uiStore.leftPanel"
-          @click="openHistory"
-          class="text-foreground px-3 py-1.5 bg-card border border-border shadow-sm hover:bg-muted rounded-lg text-sm"
-        >
-          {{
-            promptStore.getCurrentMode() === 'agent'
-              ? languages.COM_SHOW_SESSIONS
-              : languages.COM_SHOW_HISTORY
-          }}
-        </button>
-      </div>
-      <div
-        class="fixed left-4 z-5 flex items-center gap-3"
-        :class="{
-          'bottom-4': !footerExpanded,
-          'bottom-27': footerExpanded,
-        }"
-      >
+    <SessionsPanel>
+      <template #footer>
         <div id="app-settings-button" class="relative">
           <button
             @click="openAppSettings"
@@ -210,7 +181,12 @@
             title="Developer Tools"
           ></button>
         </DemoModeBlocker>
-      </div>
+      </template>
+    </SessionsPanel>
+
+    <SideModalAppSettings :isVisible="showAppSettings" @close="showAppSettings = false" />
+
+    <div class="flex-1 flex flex-col relative justify-center-safe min-h-0 overflow-y-auto">
       <!-- The Audio mode renders its turns (synthesized audio, transcripts) as chat
            messages, so it shares this view with the Chat mode. -->
       <Chat
@@ -360,7 +336,7 @@ import WorkflowResult from '@/views/WorkflowResult.vue'
 import Chat from '@/views/Chat.vue'
 import AgentMode from '@/views/AgentMode.vue'
 import { computed, ref, watch } from 'vue'
-import SideModalHistory from '@/components/SideModalHistory.vue'
+import SessionsPanel from '@/components/SessionsPanel.vue'
 import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
@@ -555,10 +531,6 @@ function openDevTools() {
 
 function handleAutoHideFooter() {
   footerExpanded.value = false
-}
-
-function openHistory() {
-  uiStore.openHistory()
 }
 
 function openSpecificSettings() {

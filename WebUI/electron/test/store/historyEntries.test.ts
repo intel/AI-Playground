@@ -21,7 +21,7 @@ import {
   sortEntries,
   type AgentEntry,
   type ConversationEntry,
-  type HistoryEntry,
+  type RecordRow,
   type MediaEntry,
 } from '@/assets/js/store/historyEntries'
 
@@ -184,7 +184,7 @@ describe('collectToolMediaUrls', () => {
 })
 
 describe('matchesFilter', () => {
-  const current = (entry: HistoryEntry, currentMode: ModeType, agentPresetName = '') =>
+  const current = (entry: RecordRow, currentMode: ModeType, agentPresetName = '') =>
     matchesFilter(entry, { filter: 'current', currentMode, agentPresetName })
 
   it('lists only the current mode, and never a Home Agent thread', () => {
@@ -205,7 +205,7 @@ describe('matchesFilter', () => {
   })
 
   it('shows every kind under All, minus media a transcript already carries', () => {
-    const all = (entry: HistoryEntry) =>
+    const all = (entry: RecordRow) =>
       matchesFilter(entry, { filter: 'all', currentMode: 'chat', agentPresetName: 'Agent' })
     expect(all(conversation({ threadKind: 'homeAgent' }))).toBe(true)
     expect(all(agent())).toBe(true)
@@ -214,7 +214,7 @@ describe('matchesFilter', () => {
   })
 
   it('swaps the current-mode list for the remote one while a remote thread is open', () => {
-    const remote = (entry: HistoryEntry) =>
+    const remote = (entry: RecordRow) =>
       matchesFilter(entry, { filter: 'current', currentMode: 'chat', threadScope: 'homeAgent' })
     expect(remote(conversation({ threadKind: 'homeAgent' }))).toBe(true)
     expect(remote(conversation())).toBe(false)

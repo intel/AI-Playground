@@ -33,7 +33,7 @@ import {
   sortEntries,
   type AgentEntry,
   type ConversationEntry,
-  type HistoryEntry,
+  type RecordRow,
   type HistoryFilter,
   type MediaEntry,
   type SessionDownload,
@@ -174,7 +174,7 @@ export const useHistorySessions = defineStore('historySessions', () => {
     )
   })
 
-  const entries = computed<HistoryEntry[]>(() =>
+  const entries = computed<RecordRow[]>(() =>
     sortEntries([...conversationEntries.value, ...agentEntries.value, ...mediaEntries.value]),
   )
 
@@ -220,12 +220,12 @@ export const useHistorySessions = defineStore('historySessions', () => {
   })
 
   /** A Task Session row's "From task" marker; hidden while a Task filter would repeat it. */
-  function taskMarker(entry: HistoryEntry): TaskRef | null {
+  function taskMarker(entry: RecordRow): TaskRef | null {
     if (entry.kind !== 'agent' || !tasksAvailable.value || taskFilter.value) return null
     return liveTask(entry.taskId)
   }
 
-  function discardHeldAnswer(entry: HistoryEntry): void {
+  function discardHeldAnswer(entry: RecordRow): void {
     if (entry.kind === 'agent') agentMode.discardHeldAnswer(entry.id)
   }
 
@@ -253,7 +253,7 @@ export const useHistorySessions = defineStore('historySessions', () => {
     },
   )
 
-  const matchingEntries = computed<HistoryEntry[]>(() => {
+  const matchingEntries = computed<RecordRow[]>(() => {
     const task = taskFilter.value
     const filtered = entries.value.filter((entry) =>
       task
@@ -274,11 +274,11 @@ export const useHistorySessions = defineStore('historySessions', () => {
    * sits above the dated list instead of in the middle of Today, where its
    * mint time would put it.
    */
-  const pinnedDraft = computed<HistoryEntry | null>(
+  const pinnedDraft = computed<RecordRow | null>(
     () => matchingEntries.value.find(isEmptyDraft) ?? null,
   )
 
-  const visibleEntries = computed<HistoryEntry[]>(() =>
+  const visibleEntries = computed<RecordRow[]>(() =>
     matchingEntries.value.filter((entry) => !isEmptyDraft(entry)),
   )
 
@@ -294,7 +294,7 @@ export const useHistorySessions = defineStore('historySessions', () => {
     else imageGeneration.selectedGeneratedImageId = id
   }
 
-  function isActive(entry: HistoryEntry): boolean {
+  function isActive(entry: RecordRow): boolean {
     if (!entryRuntimeShown(entry, currentMode.value)) return false
     switch (entry.kind) {
       case 'conversation':
@@ -322,7 +322,7 @@ export const useHistorySessions = defineStore('historySessions', () => {
    * gap — `switchSession` only moves the preset when it differs from the
    * remembered agent one, which stays Game Agent while Image Gen is showing.
    */
-  async function select(entry: HistoryEntry): Promise<void> {
+  async function select(entry: RecordRow): Promise<void> {
     if (entry.kind === 'conversation') {
       await wakeConversation(entry)
       conversations.activeKey = entry.id
@@ -378,7 +378,7 @@ export const useHistorySessions = defineStore('historySessions', () => {
     if (isWorkflowMode(mode)) setSelectedMediaId(mode, 'new')
   }
 
-  async function remove(entry: HistoryEntry): Promise<void> {
+  async function remove(entry: RecordRow): Promise<void> {
     switch (entry.kind) {
       case 'conversation':
         conversations.deleteConversation(entry.id)
@@ -392,11 +392,11 @@ export const useHistorySessions = defineStore('historySessions', () => {
   }
 
   /** Only a transcript carries a user-set title; the others are named by what they produced. */
-  function canRename(entry: HistoryEntry): boolean {
+  function canRename(entry: RecordRow): boolean {
     return entry.kind === 'conversation' && entry.messages.length > 0
   }
 
-  function rename(entry: HistoryEntry, title: string): void {
+  function rename(entry: RecordRow, title: string): void {
     if (entry.kind !== 'conversation') return
     conversations.renameConversationTitle(entry.id, title)
   }

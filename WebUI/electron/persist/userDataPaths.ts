@@ -172,3 +172,9 @@ export const getChannelMessageMapFile = () => path.join(aipgUserDataRoot(), 'cha
 /** Demo-mode channel message map, wiped on exit like demo conversations (§6.1). */
 export const getChannelMessageMapDemoFile = () =>
   getChannelMessageMapFile().replace(/\.json$/, '-demo.json')
+
+/** One Session Folder per Session (ADR-0003): `session.json`, the Session History and `files/`. */
+export const getSessionsDir = () => path.join(aipgUserDataRoot(), 'sessions')
+
+/** Demo-mode Sessions, wiped on startup and exit like demo conversations (§6.1). */
+export const getSessionsDemoDir = () => path.join(aipgUserDataRoot(), 'sessions-demo')

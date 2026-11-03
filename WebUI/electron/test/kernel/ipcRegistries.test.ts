@@ -3,8 +3,10 @@ import type {
   ConversationsInvokeName,
   InvokeHandlerMap,
   MainInvokeChannelName,
+  SessionsInvokeName,
 } from '../../kernel/ipcRegistries'
 import type { buildConversationsRegistry } from '../../kernel/registries/conversations'
+import type { buildSessionsRegistry } from '../../kernel/registries/sessions'
 
 // Compile-time registry proofs (#301 batch A): vue-tsc enforces every
 // assertion here (an expectTypeOf mismatch is a type error), while vitest
@@ -20,6 +22,15 @@ describe('per-owner handler registries', () => {
       | 'conversations:delete'
       | 'conversations:saveLastMainKey'
     >()
+  })
+
+  it('extracts exactly the five sessions channels and builds a registry for them', () => {
+    expectTypeOf<SessionsInvokeName>().toEqualTypeOf<
+      'sessions:list' | 'sessions:create' | 'sessions:open' | 'sessions:rename' | 'sessions:delete'
+    >()
+    expectTypeOf<
+      keyof ReturnType<typeof buildSessionsRegistry>
+    >().toEqualTypeOf<SessionsInvokeName>()
   })
 
   it('keeps homeAgent-owned rows out of the main-side names', () => {
