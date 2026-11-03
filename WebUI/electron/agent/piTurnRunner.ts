@@ -44,6 +44,7 @@ import {
 import { agentRunIdentity } from './agentRunIdentity.ts'
 import { reportAgentTurnEnd, type AgentTurnEnd } from './agentTurnOutcome.ts'
 import { trackAgentTurnInSession } from '../session/sessionAgentTurns.ts'
+import { takeSessionUpdate } from '../session/sessionUpdate.ts'
 import { noteAnswerTurn } from './notifier.ts'
 import { downloadedMissingReadinessModels } from './agentModelConsent.ts'
 import { setAgentRunIdentity } from '../observability/laminarAttributes.ts'
@@ -342,6 +343,22 @@ const USAGE_SAMPLE_EVENTS = new Set([
   'compaction_end',
 ])
 
+/** The Session Update rides on the user message only: the system prompt is the KV-cache prefix. */
+async function withSessionUpdate(prompt: string, config: AgentModeTurnConfig): Promise<string> {
+  if (!config.sessionRef) return prompt
+  try {
+    const update = await takeSessionUpdate(config.sessionRef, {
+      key: config.sessionId,
+      ownPreset: config.presetName,
+      workspaceDir: config.workspaceDir,
+    })
+    return update ? `${update}\n\n${prompt}` : prompt
+  } catch (error) {
+    logger.warn(`no Session Update for this turn: ${briefly(error)}`, LOG_SOURCE)
+    return prompt
+  }
+}
+
 export async function startAgentTurn(
   turnId: string,
   prompt: string,
@@ -467,7 +484,7 @@ export async function startAgentTurn(
         const failure = modelCallError(current.session)
         if (failure) throw new Error(failure)
       }
-      await current.session.prompt(prompt)
+      await current.session.prompt(await withSessionUpdate(prompt, config))
       failIfModelErrored()
       // A session that plans first has only been asked for the plan so far; the
       // build is a second request, sent from here rather than by the user.

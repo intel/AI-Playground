@@ -226,3 +226,66 @@ describe('the Agent preset in a Session', () => {
     stop()
   }, 30000)
 })
+
+function userTexts(body: Body | undefined): string[] {
+  return (body?.messages ?? [])
+    .filter((message) => message.role === 'user')
+    .map((message) =>
+      typeof message.content === 'string' ? message.content : JSON.stringify(message.content),
+    )
+}
+
+describe('the Session Update and session_history for an agent preset', () => {
+  async function sessionWithCastle() {
+    const session = await sessions.createSession()
+    await history.appendHistoryEntry(session.id, {
+      preset: 'Draft Image',
+      kind: 'image',
+      prompt: 'a castle',
+      status: 'completed',
+      artifacts: [{ path: 'files/castle.png', mediaType: 'image' }],
+    })
+    return session
+  }
+
+  it('prepends what it missed to the user message, never the system prompt', async () => {
+    const session = await sessionWithCastle()
+
+    await manager.startAgentTurn('t1', 'describe that image', await agentConfig(session.id))
+
+    const body = bodies[0]
+    expect(body.messages?.[0].role).toBe('system')
+    expect(JSON.stringify(body.messages?.[0].content)).not.toContain('a castle')
+    const user = userTexts(body).at(-1)!
+    expect(user).toMatch(/Draft Image: \\?"a castle\\?" → castle\.png/)
+    expect(user.indexOf('a castle')).toBeLessThan(user.indexOf('describe that image'))
+    expect(await history.readHistoryEntries(session.id)).toContainEqual(
+      expect.objectContaining({ preset: 'Agent', prompt: 'describe that image' }),
+    )
+  }, 30000)
+
+  it('sends no update when nothing happened since its last turn', async () => {
+    const session = await sessionWithCastle()
+    await manager.startAgentTurn('t1', 'describe that image', await agentConfig(session.id))
+    bodies = []
+
+    await manager.startAgentTurn('t2', 'and now?', await agentConfig(session.id))
+
+    const users = userTexts(bodies[0])
+    expect(users.at(-1)).not.toContain('Session Update')
+    expect(users.filter((text) => text.includes('Session Update'))).toHaveLength(1)
+  }, 30000)
+
+  it('offers session_history, which answers from the Session History', async () => {
+    const session = await sessionWithCastle()
+    toolCall = { name: 'session_history', args: { action: 'list' } }
+
+    await manager.startAgentTurn('t1', 'what happened here?', await agentConfig(session.id))
+
+    const offered = (bodies[0] as { tools?: Array<{ function?: { name?: string } }> }).tools ?? []
+    expect(offered.map((tool) => tool.function?.name)).toContain('session_history')
+    const toolMessages = (bodies.at(-1)?.messages ?? []).filter((m) => m.role === 'tool')
+    expect(JSON.stringify(toolMessages)).toContain('a castle')
+    expect(JSON.stringify(toolMessages)).toContain('Draft Image')
+  }, 30000)
+})

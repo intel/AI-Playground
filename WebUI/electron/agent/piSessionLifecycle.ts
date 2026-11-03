@@ -32,6 +32,7 @@ import { setMediaSpecialistTurn } from './capabilities/mediaDelegation.ts'
 import { piAgentDir, piSessionDir, loadSessionFilePath, savePointer } from './piSessionStore.ts'
 import { compactionSettingsForWindow } from './piCompaction.ts'
 import { sessionPaths } from '../session/sessions.ts'
+import { buildSessionHistoryTool } from './sessionHistoryTool.ts'
 import {
   copySamplingParams,
   ensureModelRuntime,
@@ -71,6 +72,8 @@ function configKeyOf(config: AgentModeTurnConfig): string {
     // embedding model or backend has to rebuild.
     config.embeddingModel ?? '',
     config.embeddingBackend ?? '',
+    // Decides whether session_history is among the frozen tools.
+    config.sessionRef ?? '',
   ])
 }
 
@@ -329,7 +332,12 @@ async function createSession(config: AgentModeTurnConfig): Promise<ActiveSession
     // piToolOperations.ts, so its builtins are switched off entirely. Capability
     // tools arrive through their extensions, not here.
     noTools: 'builtin',
-    customTools: access.definitions,
+    customTools: [
+      ...access.definitions,
+      ...(config.sessionRef
+        ? [await buildSessionHistoryTool(config.sessionRef, workspaceDir)]
+        : []),
+    ],
     resourceLoader,
   })
 
