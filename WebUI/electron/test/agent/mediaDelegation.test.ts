@@ -119,6 +119,7 @@ describe('mediaDelegation (in-process media tool)', () => {
         images: [{ id: '1', type: 'image', imageUrl: 'aipg-media://castle.png' }],
       }),
       workspaceDir,
+      undefined,
     )
   })
 

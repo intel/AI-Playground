@@ -71,6 +71,11 @@ export type HistoryEntry = z.infer<typeof HistoryEntrySchema>
 export type HistoryEntryKind = z.infer<typeof HistoryEntryKindSchema>
 export type ArtifactMediaType = z.infer<typeof ArtifactMediaTypeSchema>
 
+export type HistoryArtifact = HistoryEntry['artifacts'][number]
+
+/** A Session's Harness Session for one agent preset, and the workspace it runs in. */
+export type HarnessSessionRef = { harnessSessionId: string; workspaceDir: string }
+
 /** A settled Text-to-Speech / Speech-to-Text turn the renderer hands the Session module. */
 export const AudioTurnRequestSchema = z.object({
   sessionId: z.string(),

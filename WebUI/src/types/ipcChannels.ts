@@ -38,6 +38,7 @@ import type { BackendLaunchSettings, BackendVersionWire } from './preferencesIpc
 import type {
   AudioTurnRequest,
   SessionArtifact,
+  HarnessSessionRef,
   SessionDocument,
   SessionSummary,
 } from './sessionIpc'
@@ -239,6 +240,20 @@ export const CHANNELS = {
     kind: 'invoke',
     owner: 'main',
     args: [] as unknown as readonly [string],
+    result: null as unknown as IpcMutationResult,
+  },
+  /** The Session's Harness Session for an agent preset (minted on first use) and its workspace. */
+  'sessions:harnessSession': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string, string],
+    result: null as unknown as IpcOkWith<{ harness: HarnessSessionRef }>,
+  },
+  /** Save settled display messages into a Session's timeline, replacing ones with the same id. */
+  'sessions:saveTimelineMessages': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string, unknown[]],
     result: null as unknown as IpcMutationResult,
   },
   /** Settle a Text-to-Speech / Speech-to-Text turn: audio into files/, a History Entry, the timeline. */

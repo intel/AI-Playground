@@ -34,86 +34,24 @@
         </template>
         <template v-else>
           <p class="text-sm">
-            The agent works on files in a workspace folder — it can write code, run shell commands,
-            debug web pages and generate media.
+            The agent works on files in this Session's folder — it can write code, run shell
+            commands, debug web pages and generate media.
           </p>
           <p v-if="agentMode.workspaceDir" class="text-xs break-all">
             Workspace: <span class="text-foreground/80">{{ agentMode.workspaceDir }}</span>
           </p>
-          <Button v-else variant="secondary" @click="agentMode.pickWorkspaceFolder()">
-            Select a workspace folder…
-          </Button>
-          <p class="text-xs">Configure workspace, model and tools in {{ settingsLabel }}.</p>
+          <p class="text-xs">Configure model and tools in {{ settingsLabel }}.</p>
         </template>
       </div>
 
-      <!-- Messages -->
-      <!-- eslint-disable vue/require-v-for-key -->
-      <template v-for="message in agentMode.messages">
-        <!-- eslint-enable -->
-        <div v-if="message.role === 'user'" class="flex items-start gap-3">
-          <UserCircleIcon class="size-6 text-foreground/90" />
-          <div class="flex flex-col gap-2 max-w-4/5 bg-muted rounded-md px-4 py-3">
-            <MarkdownRenderer :content="messageText(message)" />
-            <span
-              v-if="originOf(message)"
-              role="note"
-              :aria-label="withChannel(languages.AGENT_ANSWER_VIA_LABEL, originOf(message)!)"
-              class="self-end inline-flex items-center gap-1 text-xs text-muted-foreground"
-            >
-              <DevicePhoneMobileIcon class="size-3.5" aria-hidden="true" />
-              {{ withChannel(languages.AGENT_ANSWER_VIA, originOf(message)!) }}
-            </span>
-          </div>
-          <span
-            v-if="isQueuedMessage(message)"
-            role="status"
-            class="self-center inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-          >
-            <ClockIcon class="size-3.5" aria-hidden="true" />
-            {{ languages.AGENT_TURN_QUEUED }}
-          </span>
-          <div
-            v-else-if="isNotRunMessage(message)"
-            class="self-center flex items-center gap-2 text-xs text-muted-foreground"
-          >
-            <span
-              role="status"
-              class="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5"
-            >
-              <ExclamationCircleIcon class="size-3.5" aria-hidden="true" />
-              {{ languages.AGENT_TURN_NOT_RUN }}
-            </span>
-            <Button
-              v-if="agentMode.canResendNotRun && message.id === agentMode.messages.at(-1)?.id"
-              variant="secondary"
-              size="sm"
-              class="h-6 px-2 text-xs"
-              @click="agentMode.resendNotRun()"
-            >
-              <ArrowPathIcon class="size-3.5" aria-hidden="true" />
-              {{ languages.AGENT_TURN_RESEND }}
-            </Button>
-          </div>
-        </div>
-        <div v-else-if="message.role === 'assistant'" class="flex items-start gap-3">
-          <img src="../assets/svg/ai-icon.svg" class="size-6" />
-          <div class="flex flex-col gap-3 w-full max-w-4/5">
-            <template v-for="segment in segmentsOf(message)" :key="segment.key">
-              <AgentMessagePart v-if="segment.kind === 'part'" :part="asPart(segment.part)" />
-              <!-- A finished stretch of thinking and tool calls, folded away so
-                   the answer and the media it produced stay in view. -->
-              <AgentActivitySummary v-else :summary="segment.summary">
-                <AgentMessagePart
-                  v-for="(part, index) in segment.parts"
-                  :key="index"
-                  :part="asPart(part)"
-                />
-              </AgentActivitySummary>
-            </template>
-          </div>
-        </div>
-      </template>
+      <AgentTurnBlock
+        :messages="agentMode.messages"
+        :live="agentMode.processing"
+        :queued-message-id="queuedMessageId"
+        :not-run-message-id="agentMode.notRunMessages[agentMode.openSessionId]"
+        :can-resend="agentMode.canResendNotRun"
+        @resend="agentMode.resendNotRun()"
+      />
 
       <!-- A tool can put a question to the user mid-turn (Quick Coder offering to
            hand the game to Game Agent). Same card as Chat, keyed by the session. -->
@@ -170,46 +108,26 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import type { UIDataTypes, UIMessagePart, UITools, UIMessage } from 'ai'
 import { useAgentMode } from '@/assets/js/store/agentMode'
 import { useAgentTasks } from '@/assets/js/store/agentTasks'
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
-import AgentMessagePart from '@/components/AgentMessagePart.vue'
-import AgentActivitySummary from '@/components/AgentActivitySummary.vue'
+import AgentTurnBlock from '@/components/AgentTurnBlock.vue'
 import ChatConfirmation from '@/components/ChatConfirmation.vue'
 import GameBar from '@/components/GameBar.vue'
 import ScrollToBottomButton from '@/components/ScrollToBottomButton.vue'
-import {
-  busyLabelOf,
-  compactionOutputOf,
-  groupTranscriptParts,
-  isReasoningPart,
-  showsGeneratedMedia,
-  toolPartNameOf,
-  type TranscriptSegment,
-} from '@/lib/agentTranscript'
+import { busyLabelOf } from '@/lib/agentTranscript'
 import { agentEmptyStateKind } from '@/lib/presetModes'
 import { useStickToBottom } from '@/lib/useStickToBottom'
 import { useMediaAgentRuns } from '@/assets/js/store/mediaAgentRuns'
 import { ensureMediaAgentEventWiring } from '@/assets/js/agents/mediaAgent'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useModeSettingsLabel } from '@/assets/js/modeSettingsLabel'
-import type { AgentMessageMetadata } from '@/assets/js/store/agentMode'
 import { getDescriptor } from '@/assets/js/store/channels/channelRegistry'
 import type { ChannelKind } from '@/assets/js/store/channels/types'
 import { fillTemplate } from '@/lib/notificationLabel'
-import {
-  ArrowPathIcon,
-  ChatBubbleLeftEllipsisIcon,
-  ClockIcon,
-  DevicePhoneMobileIcon,
-  ExclamationCircleIcon,
-  UserCircleIcon,
-  XMarkIcon,
-} from '@heroicons/vue/24/outline'
+import { ChatBubbleLeftEllipsisIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 
 const agentMode = useAgentMode()
 const agentTasks = useAgentTasks()
@@ -227,21 +145,11 @@ const isGameAgent = computed(() => agentMode.agentWorkspaceKind === 'games')
 const emptyStateKind = computed(() => agentEmptyStateKind(agentMode.activeAgentPreset?.name))
 
 /** The sent message of a turn still waiting in the Turn Queue. */
-function isQueuedMessage(message: UIMessage): boolean {
-  if (agentMode.turnState !== 'queued') return false
-  const lastUser = agentMode.messages.findLast((entry) => entry.role === 'user')
-  return lastUser?.id === message.id
-}
-
-/** A message whose turn never ran before the app last quit. */
-function isNotRunMessage(message: UIMessage): boolean {
-  return agentMode.notRunMessages[agentMode.openSessionId] === message.id
-}
-
-/** The channel a message arrived on as an Answer, or undefined for one typed here. */
-function originOf(message: UIMessage): ChannelKind | undefined {
-  return (message.metadata as AgentMessageMetadata | undefined)?.origin
-}
+const queuedMessageId = computed(() =>
+  agentMode.turnState === 'queued'
+    ? agentMode.messages.findLast((entry) => entry.role === 'user')?.id
+    : undefined,
+)
 
 function withChannel(template: string, channel: ChannelKind): string {
   const name = getDescriptor(channel)?.displayName ?? channel
@@ -249,52 +157,6 @@ function withChannel(template: string, channel: ChannelKind): string {
 }
 
 const heldAnswer = computed(() => agentMode.heldAnswers[agentMode.openSessionId])
-
-function messageText(message: UIMessage): string {
-  return (
-    message.parts
-      ?.filter((p): p is { type: 'text'; text: string } => p.type === 'text')
-      .map((p) => p.text)
-      .join('\n\n') ?? ''
-  )
-}
-
-// The AI SDK grows a part by mutating it, so the same object reference would
-// leave AgentMessagePart showing whatever the part held when it mounted — the
-// hazard ChatToolDisplay works around by taking `state`/`input` as their own
-// props. A copy per render generalizes that: every mutated field (streaming
-// text, tool state, output) arrives as a changed prop.
-function asPart(part: unknown): UIMessagePart<UIDataTypes, UITools> {
-  return { ...(part as object) } as UIMessagePart<UIDataTypes, UITools>
-}
-
-// ── Folding finished work ────────────────────────────────────────────────────
-//
-// Reasoning blocks and tool cards are what the agent did, not what it produced,
-// and a single request makes dozens of them. Once the turn is over they collapse
-// into one summary line; a part carrying something to look at stays out of the
-// fold.
-function segmentsOf(message: UIMessage): TranscriptSegment[] {
-  // `step-start` is the SDK's step bookkeeping and renders nothing, so it is
-  // dropped rather than left to split a run of foldable parts in two.
-  const parts = (message.parts ?? []).filter((part) => part.type !== 'step-start')
-  return groupTranscriptParts(parts, {
-    messageId: message.id,
-    live: agentMode.processing && message.id === agentMode.messages.at(-1)?.id,
-    foldable: isFoldable,
-  })
-}
-
-function isFoldable(part: unknown): boolean {
-  if (isReasoningPart(part)) return true
-  if (toolPartNameOf(part) === undefined) return false
-  // Compaction is its own notice, media tools render what they generated, and a
-  // browser screenshot is only ever visible here — none of it is noise.
-  if (compactionOutputOf(part)) return false
-  if (showsGeneratedMedia(part)) return false
-  const toolCallId = (part as { toolCallId?: string }).toolCallId
-  return !(toolCallId && agentMode.toolImages[toolCallId]?.length)
-}
 
 const busyLabel = computed<string>(() =>
   busyLabelOf(agentMode.messages.at(-1)?.parts ?? [], (toolCallId) =>

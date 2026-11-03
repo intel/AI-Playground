@@ -235,6 +235,9 @@ import {
   wipeDemoSessions,
 } from './session/sessions'
 import { deleteArtifact, listAllArtifacts, missingArtifactUrls } from './session/sessionArtifacts'
+import { cleanUpHarnessSessionsOnDelete, harnessSessionFor } from './session/sessionHarness'
+import { upsertTimelineMessages } from './session/sessionTimeline'
+import { setAppMediaPathResolver } from './agent/piCustomTools'
 import { readSessionSettings, writePresetSettings } from './session/sessionSettings'
 import { buildAgentModeRegistry } from './kernel/registries/agentMode'
 import { buildChatRegistry } from './kernel/registries/chat'
@@ -1319,6 +1322,11 @@ function wireConversations(settings: LocalSettings): void {
 function wireSessions(settings: LocalSettings): void {
   setSessionDeps({ isDemoMode: () => settings.isDemoModeEnabled })
   if (settings.isDemoModeEnabled) void wipeDemoSessions()
+  cleanUpHarnessSessionsOnDelete(async (harnessSessionId) => {
+    await deleteAgentSessionRecord(harnessSessionId)
+    await deleteAgentSession(harnessSessionId)
+  })
+  setAppMediaPathResolver(getLocalPathFromAipgMediaUrl)
 }
 
 /** Same demo discipline for agent-session records (step 8, §6.1). */
@@ -1814,6 +1822,8 @@ function initEventHandle() {
       openSession,
       renameSession,
       deleteSession,
+      harnessSessionFor,
+      upsertTimelineMessages,
       recordAudioTurn,
       listAllArtifacts,
       missingArtifactUrls,

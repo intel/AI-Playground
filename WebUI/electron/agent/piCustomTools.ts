@@ -8,6 +8,7 @@ import { appLoggerInstance } from '../observability/logger.ts'
 import { emitAgentToolImage } from '../kernel/kernelBus.ts'
 import { typedSend } from '../kernel/typedIpc.ts'
 import { noteGeneratedMedia } from './generatedMedia.ts'
+import { sessionMediaUrl } from '@/lib/comfyWorkflow'
 import { agentTurns } from './piAgentState.ts'
 import { isWaitingOnUser, onUserWaitChange, whileRendererAnswers } from '../kernel/userWait.ts'
 
@@ -70,11 +71,13 @@ function mediaUrlOf(item: Record<string, unknown>): unknown {
   return item.imageUrl ?? item.videoUrl ?? item.model3dUrl
 }
 
-/** Where `saveGeneratedMediaToWorkspace` puts an app-folder media URL's copy. */
+/** Where `saveGeneratedMediaToWorkspace` puts a media URL's file in the workspace. */
 function workspacePathForMediaUrl(url: unknown): string | undefined {
   if (typeof url !== 'string' || !url.startsWith('aipg-media://')) return undefined
-  const filename = path.basename(decodeURIComponent(new URL(url).pathname))
-  return filename ? path.posix.join('generated', filename) : undefined
+  const parsed = new URL(url)
+  const filename = path.basename(decodeURIComponent(parsed.pathname))
+  if (!filename) return undefined
+  return parsed.host === 'sessions' ? filename : path.posix.join('generated', filename)
 }
 
 /**
@@ -280,44 +283,106 @@ export function workspaceFileToDataUri(workspaceDir: string, relativePath: strin
   return `data:${mime};base64,${fs.readFileSync(fullPath).toString('base64')}`
 }
 
+/** The workspace is a Session's `files/` folder: media lands at its root, served from there. */
+export type SessionMediaTarget = { sessionRef: string }
+
+let appMediaPath: ((url: string) => string | null) | null = null
+
+/** How an app-folder media URL maps to its file, so a Session's copy can move it out. */
+export function setAppMediaPathResolver(resolve: ((url: string) => string | null) | null): void {
+  appMediaPath = resolve
+}
+
+const MEDIA_URL_KEYS = ['imageUrl', 'videoUrl', 'model3dUrl'] as const
+
+async function mediaBytes(url: string): Promise<Buffer> {
+  // net.fetch resolves the custom aipg-media protocol registered in
+  // main.ts (including its path-traversal protection).
+  const response = await net.fetch(url)
+  if (!response.ok) throw new Error(`fetch failed with status ${response.status}`)
+  return Buffer.from(await response.arrayBuffer())
+}
+
+/** Move the app-folder file into the Session; copy when it cannot be moved. */
+async function moveIntoSession(url: string, target: string): Promise<void> {
+  const source = appMediaPath?.(url)
+  if (source && fs.existsSync(source)) {
+    try {
+      fs.renameSync(source, target)
+    } catch {
+      fs.copyFileSync(source, target)
+      fs.rmSync(source, { force: true })
+    }
+    return
+  }
+  fs.writeFileSync(target, await mediaBytes(url))
+}
+
+async function saveOne(
+  entry: Record<string, unknown>,
+  url: string,
+  workspaceDir: string,
+  sessionMedia: SessionMediaTarget | undefined,
+): Promise<{ saved: string; entry: Record<string, unknown> }> {
+  if (!sessionMedia) {
+    const bytes = await mediaBytes(url)
+    const saved =
+      workspacePathForMediaUrl(url) ?? path.posix.join('generated', `media-${Date.now()}`)
+    fs.mkdirSync(path.join(workspaceDir, 'generated'), { recursive: true })
+    fs.writeFileSync(path.join(workspaceDir, saved), bytes)
+    return { saved, entry }
+  }
+  const saved = path.basename(decodeURIComponent(new URL(url).pathname)) || `media-${Date.now()}`
+  await moveIntoSession(url, path.join(workspaceDir, saved))
+  const key = MEDIA_URL_KEYS.find((name) => entry[name] === url) ?? 'imageUrl'
+  return {
+    saved,
+    entry: { ...entry, [key]: sessionMediaUrl(sessionMedia.sessionRef, `files/${saved}`) },
+  }
+}
+
 /**
- * Copy generated media (aipg-media:// URLs in the ComfyUI-shaped tool result)
- * into `<workspace>/generated/` so Pi can reference the files, and annotate
- * the result with the workspace-relative paths. Non-media results and fetch
- * failures leave the result unchanged (the media still rendered app-side).
+ * Save generated media (aipg-media:// URLs in the ComfyUI-shaped tool result)
+ * into the workspace so Pi can reference the files, and annotate the result
+ * with the workspace-relative paths: a Session's media moves to the root of its
+ * `files/` folder, any other workspace gets a copy under `generated/`.
+ * Non-media results and failures leave the result unchanged (the media still
+ * rendered app-side).
  */
 export async function saveGeneratedMediaToWorkspace(
   result: unknown,
   workspaceDir: string,
+  sessionMedia?: SessionMediaTarget,
 ): Promise<unknown> {
   if (typeof result !== 'object' || result === null) return result
   const record = result as Record<string, unknown>
   if (!Array.isArray(record.images)) return result
 
   const savedFiles: string[] = []
+  const images: unknown[] = []
   for (const item of record.images) {
-    if (typeof item !== 'object' || item === null) continue
-    const url = mediaUrlOf(item as Record<string, unknown>)
-    if (typeof url !== 'string' || !url.startsWith('aipg-media://')) continue
+    const url =
+      typeof item === 'object' && item !== null
+        ? mediaUrlOf(item as Record<string, unknown>)
+        : undefined
+    if (typeof url !== 'string' || !url.startsWith('aipg-media://')) {
+      images.push(item)
+      continue
+    }
     try {
-      // net.fetch resolves the custom aipg-media protocol registered in
-      // main.ts (including its path-traversal protection).
-      const response = await net.fetch(url)
-      if (!response.ok) throw new Error(`fetch failed with status ${response.status}`)
-      const bytes = Buffer.from(await response.arrayBuffer())
-      const relativePath =
-        workspacePathForMediaUrl(url) ?? path.posix.join('generated', `media-${Date.now()}`)
-      fs.mkdirSync(path.join(workspaceDir, 'generated'), { recursive: true })
-      fs.writeFileSync(path.join(workspaceDir, relativePath), bytes)
-      savedFiles.push(relativePath)
+      const done = await saveOne(item as Record<string, unknown>, url, workspaceDir, sessionMedia)
+      savedFiles.push(done.saved)
+      images.push(done.entry)
     } catch (error) {
       logger.warn(`failed to save generated media to workspace: ${error}`, LOG_SOURCE)
+      images.push(item)
     }
   }
   if (savedFiles.length === 0) return result
   noteGeneratedMedia(workspaceDir, savedFiles)
   return {
     ...record,
+    images,
     savedFiles,
     savedFilesNote:
       'The generated media files were saved into the workspace at the paths listed in savedFiles.',

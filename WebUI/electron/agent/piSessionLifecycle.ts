@@ -31,6 +31,7 @@ import { chatModelFromAgentConfig } from './chatModelFromAgent.ts'
 import { setMediaSpecialistTurn } from './capabilities/mediaDelegation.ts'
 import { piAgentDir, piSessionDir, loadSessionFilePath, savePointer } from './piSessionStore.ts'
 import { compactionSettingsForWindow } from './piCompaction.ts'
+import { sessionPaths } from '../session/sessions.ts'
 import {
   copySamplingParams,
   ensureModelRuntime,
@@ -124,6 +125,16 @@ async function shutdownSessionExtensions(session: AgentSession): Promise<void> {
   }
 }
 
+/** Whether the workspace is the Session's `files/` folder (a game folder is not). */
+function isSessionFilesDir(sessionRef: string | undefined, workspaceDir: string): boolean {
+  if (!sessionRef) return false
+  try {
+    return fs.realpathSync(sessionPaths(sessionRef).filesDir) === workspaceDir
+  } catch {
+    return false
+  }
+}
+
 async function createSession(config: AgentModeTurnConfig): Promise<ActiveSession> {
   if (!fs.existsSync(config.workspaceDir) || !fs.statSync(config.workspaceDir).isDirectory()) {
     throw new Error(`Workspace folder does not exist: ${config.workspaceDir}`)
@@ -174,6 +185,9 @@ async function createSession(config: AgentModeTurnConfig): Promise<ActiveSession
     agentDir: piAgentDir(),
     contextWindow: config.modelConfig.contextWindow,
     keepModelsLoaded: config.keepModelsLoaded ?? false,
+    ...(isSessionFilesDir(config.sessionRef, workspaceDir)
+      ? { sessionMedia: { sessionRef: config.sessionRef! } }
+      : {}),
     ...(config.embeddingModel
       ? {
           embeddingModel: config.embeddingModel,

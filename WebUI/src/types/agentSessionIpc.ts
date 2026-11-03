@@ -53,6 +53,8 @@ export const AgentSessionFileSchema = z.object({
   taskId: z.string().optional(),
   /** The Steps a prompt is carried out in; edited in the settings panel like any setting. */
   steps: z.array(AgentTaskStepSchema).optional(),
+  /** The Session this Harness Session belongs to. */
+  sessionRef: z.string().optional(),
   messages: z.array(z.unknown()),
 })
 export type AgentSessionFile = z.infer<typeof AgentSessionFileSchema>

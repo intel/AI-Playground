@@ -1,5 +1,5 @@
 import type { ExtensionAPI, ToolDefinition } from '@earendil-works/pi-coding-agent'
-import type { SkillSource } from '../piCustomTools.ts'
+import type { SessionMediaTarget, SkillSource } from '../piCustomTools.ts'
 import type { PlanningEnd } from '../planningPhase.ts'
 import type { AgentToolSpec } from '@/types/agentIpc'
 import type { ChatModelConfig, ChatToolSpec, WorkflowRepairData } from '@/types/chatIpc'
@@ -47,6 +47,8 @@ export type CapabilityHost = {
   embeddingBackend?: 'llamaCPP' | 'openVINO'
   /** Developer setting: skip the GPU swap around in-process media calls. */
   keepModelsLoaded: boolean
+  /** Set when the workspace is a Session's `files/` folder: media is saved at its root. */
+  sessionMedia?: SessionMediaTarget
 }
 
 /** A slash command a capability offers, runnable as a prompt of its own. */

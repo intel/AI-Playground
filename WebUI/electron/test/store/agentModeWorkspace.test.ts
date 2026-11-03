@@ -205,7 +205,7 @@ describe('agentMode workspace kinds', () => {
 
   // The persisted workspace is hydrated after the store is built, so this is the
   // path a launch actually takes.
-  it('hands a hydrated non-game folder back to the Agent preset', async () => {
+  it('moves a games preset off a hydrated non-game folder', async () => {
     const store = useAgentMode()
     activePreset.value = GAME_AGENT
     await flush()
@@ -215,7 +215,6 @@ describe('agentMode workspace kinds', () => {
     await store.reconcileWorkspaceKind()
 
     expect(store.workspaceDir).toBe('/games/space-dodger')
-    expect(store.lastWorkspaceByKind.pick).toBe('/code/project')
   })
 
   it('leaves the Agent preset’s own folder alone', async () => {

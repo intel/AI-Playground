@@ -35,20 +35,17 @@
       </p>
     </div>
 
-    <!-- Workspace folder -->
+    <!-- The Session's own folder: nothing to pick. -->
     <div v-else class="flex flex-col gap-2">
       <Label class="whitespace-nowrap">Workspace folder</Label>
-      <div class="flex items-center gap-3">
-        <Button variant="secondary" class="px-3 py-1.5 rounded text-sm" @click="pickFolder">
-          Select folder…
-        </Button>
-        <span v-if="agentMode.workspaceDir" class="text-sm text-muted-foreground break-all">
-          {{ agentMode.workspaceDir }}
-        </span>
-        <span v-else class="text-sm text-muted-foreground italic">No folder selected</span>
-      </div>
-      <p class="text-xs text-amber-500">
-        The agent reads and writes files freely inside this folder — use a scratch folder.
+      <span v-if="agentMode.workspaceDir" class="text-sm text-muted-foreground break-all">
+        {{ agentMode.workspaceDir }}
+      </span>
+      <span v-else class="text-sm text-muted-foreground italic">
+        The open Session's folder, set up with its first agent prompt
+      </span>
+      <p class="text-xs text-muted-foreground">
+        The agent works in this Session's folder, next to everything else the Session made.
       </p>
     </div>
 
@@ -314,10 +311,6 @@ const binding: AgentSettingsBinding = reactive({
   problems: computed(() => agentMode.settingsProblems),
   sharedWithChat: computed(() => !agentMode.sessionScoped),
 })
-
-async function pickFolder() {
-  await agentMode.pickWorkspaceFolder()
-}
 
 /**
  * Back to the active agent preset's defaults: the shared model settings via

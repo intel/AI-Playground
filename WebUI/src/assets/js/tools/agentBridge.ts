@@ -20,8 +20,8 @@ import type { MediaToolSettings } from '@/lib/mediaToolSettings'
 // (offer_game_agent), not this file.
 
 const GENERATED_FILES_NOTE =
-  '\n\nFILES: Generated media is automatically saved into the "generated/" folder of your ' +
-  'workspace. The tool result lists the workspace-relative paths in "savedFiles". The ' +
+  '\n\nFILES: Generated media is automatically saved into your workspace. The tool result' +
+  ' lists the workspace-relative paths in "savedFiles". The ' +
   'generator names those files, so a path exists only once a call has reported it — never ' +
   'guess one, and never create the image file yourself.'
 

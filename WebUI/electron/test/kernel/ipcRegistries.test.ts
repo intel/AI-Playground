@@ -31,6 +31,8 @@ describe('per-owner handler registries', () => {
       | 'sessions:open'
       | 'sessions:rename'
       | 'sessions:delete'
+      | 'sessions:harnessSession'
+      | 'sessions:saveTimelineMessages'
       | 'sessions:recordAudioTurn'
       | 'sessions:listArtifacts'
       | 'sessions:deleteArtifact'

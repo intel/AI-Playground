@@ -74,7 +74,9 @@ export async function buildDirectMediaTools(
               }
             }
             const result = await runDirectTool(host, spec, args, toolCallId, signal ?? undefined)
-            return mediaToolResult(await saveGeneratedMediaToWorkspace(result, workspaceDir))
+            return mediaToolResult(
+              await saveGeneratedMediaToWorkspace(result, workspaceDir, host.sessionMedia),
+            )
           },
         }) as ToolDefinition,
     ),

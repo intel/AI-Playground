@@ -42,6 +42,7 @@ vi.mock('../../kernel/orchestrator.ts', async (importOriginal) => {
 
 const { buildDirectMediaTools, setMediaCatalogProvider, resetMediaCatalogProviderForTest } =
   await import('../../agent/capabilities/mediaDirect.ts')
+const { setAppMediaPathResolver } = await import('../../agent/piCustomTools.ts')
 
 const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'media-direct-'))
 
@@ -327,6 +328,47 @@ describe('mediaDirect (in-process generateImage / editImage)', () => {
     expect(output.details.items).toMatchObject([{ workspacePath: 'generated/castle gate.png' }])
     expect(fs.existsSync(path.join(workspaceDir, 'generated', 'castle gate.png'))).toBe(true)
     expect(output.content[0].text).not.toContain('workspacePath')
+  })
+
+  it("moves a Session's media straight into its files folder, served from there", async () => {
+    const appMedia = fs.mkdtempSync(path.join(os.tmpdir(), 'app-media-'))
+    fs.writeFileSync(path.join(appMedia, 'castle gate.png'), 'png-bytes')
+    setAppMediaPathResolver((url) => path.join(appMedia, decodeURIComponent(new URL(url).pathname)))
+    const filesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'session-files-'))
+    submitArtifactRunMock.mockImplementationOnce(async () => ({
+      state: 'completed',
+      items: [
+        {
+          id: 'item-0',
+          type: 'image',
+          imageUrl: 'aipg-media://media/castle%20gate.png',
+          mode: 'imageGen',
+          state: 'done',
+          settings: {},
+        },
+      ] as ArtifactRunResult['items'],
+    }))
+    const tool = await buildTool(
+      GENERATE_SPEC,
+      hostWith({ workspaceDir: filesDir, sessionMedia: { sessionRef: 'session-7' } }),
+    )
+    const output = (await tool.execute(
+      'call-1',
+      { prompt: 'a castle' },
+      new AbortController().signal,
+    )) as { content: Array<{ text: string }>; details: { items: unknown[] } }
+
+    expect(output.details.items).toMatchObject([
+      {
+        workspacePath: 'castle gate.png',
+        imageUrl: 'aipg-media://sessions/session-7/files/castle%20gate.png',
+      },
+    ])
+    expect(parseOutput(output).savedFiles).toEqual(['castle gate.png'])
+    expect(fs.readFileSync(path.join(filesDir, 'castle gate.png'), 'utf8')).toBe('png-bytes')
+    expect(fs.existsSync(path.join(filesDir, 'generated'))).toBe(false)
+    expect(fs.existsSync(path.join(appMedia, 'castle gate.png'))).toBe(false)
+    setAppMediaPathResolver(null)
   })
 
   it('gives an edit the same structured result', async () => {

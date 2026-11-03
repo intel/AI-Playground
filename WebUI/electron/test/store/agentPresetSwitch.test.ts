@@ -6,8 +6,8 @@ import type { ChatPreset } from '@/assets/js/store/presets'
 // A session's capabilities are frozen on its record while its instructions are
 // read live off the active preset, so a session carried across a preset switch
 // runs the new preset's prompt against the old preset's toolbox. These tests
-// cover the rule that follows: switching agent preset always starts a blank
-// session, and old ones are only reopened deliberately from the panel.
+// cover the rule that follows for the games presets: switching agent preset
+// starts a blank session, and old ones are only reopened deliberately.
 
 const AGENT: ChatPreset = {
   type: 'chat',
@@ -222,13 +222,14 @@ describe('switching agent preset', () => {
     expect(store.openSessionId).toBe('')
   })
 
-  it('lands on the last picked folder when going back to the Agent preset', async () => {
+  // In a Session the Agent preset works in the Session's folder (agentInSession.test.ts);
+  // outside one there is no folder to pick any more.
+  it('starts a blank Agent session with no folder outside a Session', async () => {
     seedGameSession(store, 'Quick Coder')
-    store.lastWorkspaceByKind = { pick: '/code/project' }
 
     await selectPreset(store, AGENT)
 
-    expect(store.workspaceDir).toBe('/code/project')
+    expect(store.workspaceDir).toBe('')
     expect(store.openSessionId).not.toBe('qc-1')
     expect(store.openSessionId).not.toBe('')
     expect(store.chat.messages).toEqual([])

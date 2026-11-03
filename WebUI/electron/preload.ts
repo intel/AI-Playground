@@ -273,6 +273,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     open: (id: string) => invoke('sessions:open', id),
     rename: (id: string, title: string) => invoke('sessions:rename', id, title),
     delete: (id: string) => invoke('sessions:delete', id),
+    harnessSession: (id: string, presetName: string) =>
+      invoke('sessions:harnessSession', id, presetName),
+    saveTimelineMessages: (id: string, messages: unknown[]) =>
+      invoke('sessions:saveTimelineMessages', id, cloneForIpc(messages)),
     recordAudioTurn: (turn: AudioTurnRequest) =>
       invoke('sessions:recordAudioTurn', cloneForIpc(turn)),
     listArtifacts: () => invoke('sessions:listArtifacts'),

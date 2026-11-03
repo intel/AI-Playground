@@ -32,6 +32,7 @@
       :progress="mediaLive.progress"
       hide-mode-switch
       :file-handlers="workspaceFileHandlers"
+      :deleted-urls="sessions.openDeletedFiles"
     />
   </div>
   <!-- Chat's audio player reads the app-folder copy, never the workspace. -->
@@ -73,6 +74,7 @@ import { useAgentMode } from '@/assets/js/store/agentMode'
 import { useMediaAgentRuns } from '@/assets/js/store/mediaAgentRuns'
 import { useArtifactRuns } from '@/assets/js/store/artifactRuns'
 import { useErrors } from '@/assets/js/store/errors'
+import { useSessions } from '@/assets/js/store/sessions'
 import { useI18N } from '@/assets/js/store/i18n'
 import type { AipgTools } from '@/assets/js/tools/tools'
 import type { MediaItem } from '@/assets/js/store/imageGenerationPresets'
@@ -108,6 +110,7 @@ const agentMode = useAgentMode()
 const mediaRuns = useMediaAgentRuns()
 const artifactRuns = useArtifactRuns()
 const errors = useErrors()
+const sessions = useSessions()
 const i18nState = useI18N().state
 
 // Pi's tool parts (tool-bash, tool-read, …) are not part of AipgTools, but the

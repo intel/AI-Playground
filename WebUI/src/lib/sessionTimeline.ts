@@ -1,4 +1,6 @@
+import type { UIMessage } from 'ai'
 import type {
+  AgentTurnTag,
   AudioTurnData,
   MediaTurnData,
   TimelineMessage,
@@ -13,6 +15,13 @@ export type TimelineTurn =
   | { kind: 'media'; id: string; prompt: string; createdAt: number; media: MediaTurnData }
   | { kind: 'audio'; id: string; prompt: string; createdAt: number; audio: AudioTurnData }
   | { kind: 'message'; id: string; message: TimelineMessage }
+  | {
+      kind: 'agent'
+      id: string
+      presetName: string
+      harnessSessionId: string
+      messages: UIMessage[]
+    }
 
 function isTimelineMessage(value: unknown): value is TimelineMessage {
   if (!value || typeof value !== 'object') return false
@@ -44,12 +53,37 @@ function promptOf(message: TimelineMessage): string {
   return message.parts.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('\n')
 }
 
-/** Pairs each prompt with the result card that answered it; anything else stays a plain message. */
+function agentTagOf(value: unknown): AgentTurnTag | null {
+  const tag = (value as { metadata?: { agentTurn?: AgentTurnTag } } | null)?.metadata?.agentTurn
+  return tag && typeof tag.harnessSessionId === 'string' ? tag : null
+}
+
+/**
+ * Pairs each prompt with the result card that answered it, and keeps a run of
+ * one Harness Session's messages together as one agent block; anything else
+ * stays a plain message.
+ */
 export function timelineTurns(timeline: readonly unknown[]): TimelineTurn[] {
   const messages = timeline.filter(isTimelineMessage)
   const turns: TimelineTurn[] = []
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i]
+    const tag = agentTagOf(message)
+    if (tag) {
+      const last = turns.at(-1)
+      if (last?.kind === 'agent' && last.harnessSessionId === tag.harnessSessionId) {
+        last.messages.push(message as unknown as UIMessage)
+      } else {
+        turns.push({
+          kind: 'agent',
+          id: message.id,
+          presetName: tag.presetName,
+          harnessSessionId: tag.harnessSessionId,
+          messages: [message as unknown as UIMessage],
+        })
+      }
+      continue
+    }
     const next = messages[i + 1]
     const answer = message.role === 'user' && next?.role === 'assistant' ? next : null
     const media = answer ? mediaPart(answer) : null

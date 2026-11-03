@@ -14,6 +14,8 @@ import type {
   listAllArtifacts,
   missingArtifactUrls,
 } from '../../session/sessionArtifacts'
+import type { harnessSessionFor } from '../../session/sessionHarness'
+import type { upsertTimelineMessages } from '../../session/sessionTimeline'
 import type { readSessionSettings, writePresetSettings } from '../../session/sessionSettings'
 import { PresetSessionSettingsSchema } from '@/types/sessionSettings'
 
@@ -29,6 +31,18 @@ export type SessionsDeps = {
   deleteArtifact: typeof deleteArtifact
   readSessionSettings: typeof readSessionSettings
   writePresetSettings: typeof writePresetSettings
+  harnessSessionFor: typeof harnessSessionFor
+  upsertTimelineMessages: typeof upsertTimelineMessages
+}
+
+function timelineMessages(value: unknown): { id: string }[] {
+  if (!Array.isArray(value)) throw new Error('timeline messages must be an array')
+  for (const message of value) {
+    if (typeof (message as { id?: unknown } | null)?.id !== 'string') {
+      throw new Error('every timeline message needs an id')
+    }
+  }
+  return value as { id: string }[]
 }
 
 function requireString(value: unknown, what: string): string {
@@ -78,6 +92,28 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
     'sessions:delete': async (_event, id) => {
       try {
         await deps.deleteSession(requireString(id, 'session id'))
+        return { success: true as const }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:harnessSession': async (_event, id, presetName) => {
+      try {
+        const harness = await deps.harnessSessionFor(
+          requireString(id, 'session id'),
+          requireString(presetName, 'preset name'),
+        )
+        return { success: true as const, harness }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:saveTimelineMessages': async (_event, id, messages) => {
+      try {
+        await deps.upsertTimelineMessages(
+          requireString(id, 'session id'),
+          timelineMessages(messages),
+        )
         return { success: true as const }
       } catch (e) {
         return ipcFail(e)

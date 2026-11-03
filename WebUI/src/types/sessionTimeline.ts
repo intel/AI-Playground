@@ -42,3 +42,6 @@ export type TimelineMessage = {
   createdAt: number
   parts: TimelinePart[]
 }
+
+/** Set on an agent turn's timeline messages: the agent preset and Harness Session they came from. */
+export type AgentTurnTag = { presetName: string; harnessSessionId: string }

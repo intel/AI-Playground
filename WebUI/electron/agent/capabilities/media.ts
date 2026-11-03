@@ -20,8 +20,14 @@ import { buildSpeechTools, SPEECH_TOOL_NAMES } from './mediaSpeech.ts'
 // example reads like a result the model already has, and it passes that example
 // on — to `set_icon`, to an <img src> — instead of calling the tool. When the
 // file then turns out not to exist, the shell looks like the way to fix it.
-const PATHS_ARE_REPORTED = [
-  'The generator names the files, so a path under "generated/" exists only once a call has',
+/** Where media lands: `generated/` in a game folder, the workspace root in a Session. */
+type MediaFolder = { where: string; example: string }
+
+const GENERATED_FOLDER: MediaFolder = { where: '"generated/"', example: 'generated/...png' }
+const SESSION_FOLDER: MediaFolder = { where: 'the workspace folder', example: '...png' }
+
+const pathsAreReported = (folder: MediaFolder) => [
+  `The generator names the files, so a path in ${folder.where} exists only once a call has`,
   'reported it. Never guess one, and never produce an image file yourself with `write` or the',
   'shell — a file you compose by hand is not a picture.',
   '',
@@ -29,7 +35,7 @@ const PATHS_ARE_REPORTED = [
   'retry while a call is running.',
 ]
 
-const DELEGATED_BODY = [
+const delegatedBody = (folder: MediaFolder) => [
   'The `media` tool hands your request to a media specialist that picks the right generation',
   'workflow and parameters. Use it like this:',
   '',
@@ -42,12 +48,12 @@ const DELEGATED_BODY = [
   '   path as sourceImagePath: one an earlier call reported, or a file the user attached',
   '   under "attachments/".',
   '4. The result lists what was created plus "savedFiles": the workspace-relative paths of the',
-  '   generated media under "generated/". Reference those paths in your reply or in files you',
-  '   write (e.g. an <img src="generated/...png"> in an HTML page).',
+  `   generated media in ${folder.where}. Reference those paths in your reply or in files you`,
+  `   write (e.g. an <img src="${folder.example}"> in an HTML page).`,
   '',
 ]
 
-const DIRECT_BODY = [
+const directBody = (folder: MediaFolder) => [
   '`generateImage` creates an image from a prompt. `editImage` transforms one that already',
   'exists, named by its workspace-relative `sourceImagePath` — a path an earlier call reported,',
   'or a file the user attached under "attachments/". Chaining is yours to do: generate first,',
@@ -55,19 +61,22 @@ const DIRECT_BODY = [
   '',
   'Describe the desired result in the prompt: subject, style, aspect ratio / size wishes and',
   'quality level. Each result lists what it produced under "savedFiles", saved into',
-  '"generated/". Reference those paths in your reply or in files you write (e.g. an',
-  '<img src="generated/...png"> in an HTML page).',
+  `${folder.where}. Reference those paths in your reply or in files you write (e.g. an`,
+  `<img src="${folder.example}"> in an HTML page).`,
   '',
 ]
 
-function mediaGenerationSkill(delegated: boolean): SkillSource {
+function mediaGenerationSkill(delegated: boolean, folder: MediaFolder): SkillSource {
   const tools = delegated ? 'the `media` tool' : '`generateImage` / `editImage`'
   return {
     name: 'media-generation',
     description:
       `Create or transform images, videos and 3D models with ${tools}; results are ` +
       'saved into the workspace.',
-    body: [...(delegated ? DELEGATED_BODY : DIRECT_BODY), ...PATHS_ARE_REPORTED].join('\n'),
+    body: [
+      ...(delegated ? delegatedBody(folder) : directBody(folder)),
+      ...pathsAreReported(folder),
+    ].join('\n'),
   }
 }
 
@@ -129,7 +138,12 @@ export const mediaCapability: AgentCapability = {
     const generation = mediaToolNames(host)
     return [
       ...(generation.length > 0
-        ? [mediaGenerationSkill(generation.includes(DELEGATION_TOOL_NAME))]
+        ? [
+            mediaGenerationSkill(
+              generation.includes(DELEGATION_TOOL_NAME),
+              host.sessionMedia ? SESSION_FOLDER : GENERATED_FOLDER,
+            ),
+          ]
         : []),
       ...(host.toolSpecs.some((spec) => SPEECH_TOOL_NAMES.has(spec.name)) ? [SPEECH_SKILL] : []),
     ]

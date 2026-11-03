@@ -67,7 +67,10 @@ export const AgentToolSpecSchema = z.object({
 })
 
 export const AgentModeTurnConfigSchema = z.object({
+  /** The Harness Session (`aipg-agent-*`) the turn continues. */
   sessionId: z.string().min(1),
+  /** The Session the turn runs in; its History gets the turn's entry. */
+  sessionRef: z.string().min(1).optional(),
   workspaceDir: z.string().min(1),
   modelConfig: AgentModeModelConfigSchema,
   toolSpecs: z.array(AgentToolSpecSchema).optional(),

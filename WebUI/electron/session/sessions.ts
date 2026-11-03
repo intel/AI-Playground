@@ -29,7 +29,11 @@ import {
  * Settings) build on `mutateSession` and `sessionPaths` in their own files.
  */
 
-export type SessionDeletedListener = (id: string) => void | Promise<void>
+/** `deleted` is the Session's last `session.json`, null when it could not be read. */
+export type SessionDeletedListener = (
+  id: string,
+  deleted: SessionFile | null,
+) => void | Promise<void>
 
 const deletedListeners = new Set<SessionDeletedListener>()
 
@@ -139,8 +143,12 @@ export async function renameSession(id: string, title: string): Promise<SessionS
 /** Removes the Session Folder, then lets owners of Session-bound data (Tasks, Harness Sessions) clean up. */
 export async function deleteSession(id: string): Promise<void> {
   assertSessionId(id)
-  await serializeSession(id, () => removeSessionFolder(id))
-  for (const listener of deletedListeners) await listener(id)
+  const deleted = await serializeSession(id, async () => {
+    const read = await readSessionFile(id)
+    await removeSessionFolder(id)
+    return read.status === 'ok' ? read.file : null
+  })
+  for (const listener of deletedListeners) await listener(id, deleted)
 }
 
 export function onSessionDeleted(listener: SessionDeletedListener): () => void {

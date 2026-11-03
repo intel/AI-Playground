@@ -11,6 +11,7 @@ import { useOemBranding } from './oemBranding'
 import { useErrors } from './errors'
 import { useI18N } from './i18n'
 import { useMcp } from './mcp'
+import { useSessions } from './sessions'
 import { unregisterAgentModeIpc } from './agentModeIpc'
 import { demoAwareStorage } from '../demoAwareStorage'
 import { makeForwardPersist } from '@/lib/ipcPersist'
@@ -165,6 +166,9 @@ export const useAgentMode = defineStore(
     const errors = useErrors()
     const i18n = useI18N()
     const mcp = useMcp()
+    const sessionsStore = useSessions()
+    /** The Session each Harness Session of this app run belongs to. */
+    const harnessSessionRefs: Record<string, string> = {}
 
     const workspaceDir = ref<string>('')
 
@@ -199,6 +203,16 @@ export const useAgentMode = defineStore(
       },
       { immediate: true },
     )
+
+    /** The active preset is the remembered agent preset, so Agent Mode is what the user sees. */
+    const agentActive = computed(() => {
+      const active = presetsStore.activePresetWithVariant
+      return (
+        active?.type === 'chat' &&
+        !!(active as ChatPreset).agentPreset &&
+        active.name === agentPresetName.value
+      )
+    })
 
     const presetCapabilities = computed<string[] | null>(() => {
       const declared = activeAgentPreset.value?.agentCapabilities
@@ -1091,6 +1105,15 @@ export const useAgentMode = defineStore(
 
     /** Bring a session on screen: into Agent Mode if the app is elsewhere, then open it. */
     async function openSession(id: string): Promise<void> {
+      const sessionRef = sessions.value[id]?.sessionRef
+      if (sessionRef) {
+        const presetName = sessions.value[id]?.presetName ?? AGENT_PRESET
+        if (presetName !== presetsStore.activePresetWithVariant?.name) {
+          await presetSwitching.switchPreset(presetName)
+        }
+        await sessionsStore.open(sessionRef)
+        return
+      }
       const presetName = sessions.value[id]?.presetName ?? agentPresetName.value
       if (!viewShown.value && presetName === agentPresetName.value) {
         await presetSwitching.switchPreset(presetName)
@@ -1265,11 +1288,27 @@ export const useAgentMode = defineStore(
         ...(open && presetUsesSessionSettings(heldWith)
           ? { steps: openSteps.value, taskId: openTaskId.value }
           : {}),
+        sessionRef: harnessSessionRefs[id],
       })
       if (!record) return
       delete pendingTitles[id]
       if (record.settings) delete record.capabilities
       rewriteSession(id, record)
+      saveToSessionTimeline(record)
+    }
+
+    /** A Harness Session's turns are the Session's too: its display messages join the timeline. */
+    function saveToSessionTimeline(record: AgentSessionRecord): void {
+      if (!record.sessionRef || record.messages.length === 0) return
+      const agentTurn = {
+        presetName: record.presetName ?? AGENT_PRESET,
+        harnessSessionId: record.id,
+      }
+      const messages = settleStreamingParts(record.messages).map((message) => ({
+        ...message,
+        metadata: { ...(message.metadata as object | undefined), agentTurn },
+      }))
+      void sessionsStore.saveTimelineMessages(record.sessionRef, messages)
     }
 
     function snapshotOpenSession(presetName?: string): void {
@@ -1368,10 +1407,76 @@ export const useAgentMode = defineStore(
     }
 
     async function newSession(): Promise<void> {
+      if (sessionsStore.openSessionId && agentWorkspaceKind.value === 'pick') {
+        // "+" always means a new Session; the watcher below opens its Harness Session.
+        await sessionsStore.create()
+        return
+      }
       await leaveOpenSession()
       if (await presetSessionStarter?.(agentPresetName.value)) return
       blankSession()
     }
+
+    /**
+     * Show the open Session's Harness Session for the agent preset, minting it on first
+     * use. Its workspace is the Session's `files/` folder; leaving one never stops its turn.
+     */
+    async function enterSessionHarness(): Promise<void> {
+      const sessionRef = sessionsStore.openSessionId
+      const presetName = agentPresetName.value
+      if (!sessionRef || !presetName || workspaceKindOf(presetName) !== 'pick') return
+      let result: Awaited<ReturnType<typeof window.electronAPI.sessions.harnessSession>>
+      try {
+        result = await window.electronAPI.sessions.harnessSession(sessionRef, presetName)
+      } catch (error) {
+        result = { success: false, error: extractMessage(error) }
+      }
+      if (!result.success) {
+        errors.report(new Error(result.error), {
+          category: 'backend',
+          code: 'agent/harness-session-failed',
+          surface: 'toast',
+        })
+        return
+      }
+      if (sessionRef !== sessionsStore.openSessionId || presetName !== agentPresetName.value) return
+      const { harnessSessionId, workspaceDir: dir } = result.harness
+      harnessSessionRefs[harnessSessionId] = sessionRef
+      if (openSessionId.value === harnessSessionId && workspaceDir.value === dir) return
+      if (openSessionId.value && openSessionId.value !== harnessSessionId) snapshotOpenSession()
+      openSessionId.value = harnessSessionId
+      workspaceDir.value = dir
+      sessionCapabilities.value = null
+      restoreOpenSession()
+      await refreshCurrentGame()
+    }
+
+    watch(
+      [() => sessionsStore.openSessionId, agentActive, sessionsHydrated],
+      ([sessionRef, active, hydrated]) => {
+        if (!sessionRef || !active || !hydrated || movingSession) return
+        void enterSessionHarness()
+      },
+      { immediate: true },
+    )
+
+    // Main deletes a Session's Harness Sessions with it; their records leave the map too.
+    watch(
+      () => sessionsStore.sessions,
+      (known) => {
+        const gone = Object.values(sessions.value).filter(
+          (record) => record.sessionRef && !known[record.sessionRef],
+        )
+        if (gone.length === 0) return
+        const next = { ...sessions.value }
+        for (const record of gone) {
+          delete next[record.id]
+          delete turnContexts[record.id]
+          if (record.id !== openSessionId.value) turns.release(record.id)
+        }
+        sessions.value = next
+      },
+    )
 
     async function switchSession(id: string): Promise<void> {
       if (id === openSessionId.value) return
@@ -1555,17 +1660,6 @@ export const useAgentMode = defineStore(
       await refreshCurrentGame()
     }
 
-    async function pickWorkspaceFolder(): Promise<void> {
-      const result = await window.electronAPI.showOpenDialog({
-        properties: ['openDirectory', 'createDirectory'],
-        title: 'Select the agent workspace folder',
-      })
-      if (result.canceled || result.filePaths.length === 0) return
-      const next = result.filePaths[0]
-      if (workspaceDir.value === next) return
-      await adoptWorkspace(next)
-    }
-
     async function refreshCurrentGame(): Promise<void> {
       const dir = workspaceDir.value
       currentGame.value = dir ? await window.electronAPI.games.read(dir) : null
@@ -1601,10 +1695,6 @@ export const useAgentMode = defineStore(
         lastGamesDir: lastWorkspaceByKind.value.games ?? '',
       })
       if (!reconciled) return
-      lastWorkspaceByKind.value = {
-        ...lastWorkspaceByKind.value,
-        pick: reconciled.pickDir ?? lastWorkspaceByKind.value.pick,
-      }
       await adoptWorkspace(reconciled.workspaceDir)
     }
 
@@ -1618,27 +1708,30 @@ export const useAgentMode = defineStore(
     )
 
     /**
-     * Switching agent preset by hand always starts a blank session for the new
-     * preset. A session's capabilities are frozen on its record while the
-     * instructions are read live off the active preset, so continuing one under
-     * another preset runs that preset's prompt against the wrong toolbox. The
-     * `offer_game_agent` hand-over is the one way a game crosses over, and it
-     * sets `movingSession` to keep its folder.
+     * Switching agent preset never carries a conversation across: a session's
+     * capabilities are frozen on its record while the instructions are read live
+     * off the active preset. In a Session the new preset gets its own Harness
+     * Session there; a games preset starts a blank game. The `offer_game_agent`
+     * hand-over is the one way a game crosses over, and it sets `movingSession`
+     * to keep its folder.
      */
     watch(agentPresetName, async (name, previous) => {
       if (!previous || name === previous || movingSession) return
       snapshotOpenSession(previous)
-      lastWorkspaceByKind.value = {
-        ...lastWorkspaceByKind.value,
-        [workspaceKindOf(previous)]: workspaceDir.value,
+      if (workspaceKindOf(previous) === 'games') {
+        lastWorkspaceByKind.value = { ...lastWorkspaceByKind.value, games: workspaceDir.value }
       }
       await leaveOpenSession(previous)
       if (agentWorkspaceKind.value === 'games') {
         blankGame()
         return
       }
+      if (sessionsStore.openSessionId) {
+        await enterSessionHarness()
+        return
+      }
       if (await presetSessionStarter?.(name)) return
-      workspaceDir.value = lastWorkspaceByKind.value.pick ?? ''
+      workspaceDir.value = ''
       blankSession()
       await refreshCurrentGame()
     })
@@ -1661,7 +1754,7 @@ export const useAgentMode = defineStore(
         lastWorkspaceByKind.value = { ...lastWorkspaceByKind.value, games: game.dir }
         currentGame.value = game
       }
-      if (!workspaceReady()) return false
+      if (!(await workspaceReady())) return false
       const attached = await importAttachments(workspaceDir.value)
       const sessionId = ensureSessionId(openSessionId)
       if (options.title && !sessions.value[sessionId]) pendingTitles[sessionId] = options.title
@@ -1675,16 +1768,21 @@ export const useAgentMode = defineStore(
     async function resendNotRun(): Promise<void> {
       if (!canResendNotRun.value) return
       if (await blockedBySettingsProblems()) return
-      if (!workspaceReady()) return
+      if (!(await workspaceReady())) return
       await runTurn(openSessionId.value, liveTurnContext(), (chat) => chat.regenerate())
     }
 
-    function workspaceReady(): boolean {
+    /** The Agent preset works in the open Session's folder; a Session is opened if none is. */
+    async function workspaceReady(): Promise<boolean> {
+      if (agentWorkspaceKind.value === 'pick') {
+        if (!sessionsStore.openSessionId) await sessionsStore.create()
+        await enterSessionHarness()
+      }
       if (workspaceDir.value) return true
-      errors.report(new Error('Select a workspace folder before starting the agent.'), {
+      errors.report(new Error('The agent has no workspace folder.'), {
         category: 'validation',
         code: 'agent/no-workspace',
-        userMessage: 'Select a workspace folder before starting the agent.',
+        userMessage: 'The agent has no workspace folder yet. Open a Session and try again.',
         surface: 'toast',
       })
       return false
@@ -1961,7 +2059,6 @@ export const useAgentMode = defineStore(
       sessions,
       presetSessions,
       openSessionId,
-      pickWorkspaceFolder,
       refreshCurrentGame,
       newGame,
       startNew,

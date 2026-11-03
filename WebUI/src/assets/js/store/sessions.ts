@@ -134,6 +134,23 @@ export const useSessions = defineStore('sessions', () => {
     if (result) remember(result.session)
   }
 
+  /** Saves settled display messages into a Session's timeline; one with a known id is replaced. */
+  async function saveTimelineMessages(id: string, messages: { id: string }[]): Promise<void> {
+    if (id === openSessionId.value) {
+      const timeline = [...openTimeline.value]
+      const at = new Map(timeline.map((message, index) => [(message as { id?: string }).id, index]))
+      for (const message of messages) {
+        const index = at.get(message.id)
+        if (index === undefined) timeline.push(message)
+        else timeline[index] = message
+      }
+      openTimeline.value = timeline
+    }
+    await call('sessions/save-timeline-failed', () =>
+      window.electronAPI.sessions.saveTimelineMessages(id, messages),
+    )
+  }
+
   async function remove(id: string): Promise<void> {
     const result = await call('sessions/delete-failed', () =>
       window.electronAPI.sessions.delete(id),
@@ -161,6 +178,7 @@ export const useSessions = defineStore('sessions', () => {
     open,
     rename,
     remove,
+    saveTimelineMessages,
     ensureOpenSession,
     isFileDeleted,
     markFileDeleted,

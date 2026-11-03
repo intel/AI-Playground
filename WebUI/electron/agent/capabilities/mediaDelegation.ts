@@ -96,7 +96,11 @@ export async function buildDelegatedMediaTool(
         signal ?? undefined,
       )
       const condensed = condenseMediaAgentRun(raw)
-      const saved = await saveGeneratedMediaToWorkspace(slimCondensedMedia(condensed), workspaceDir)
+      const saved = await saveGeneratedMediaToWorkspace(
+        slimCondensedMedia(condensed),
+        workspaceDir,
+        host.sessionMedia,
+      )
       return mediaToolResult(saved, condensed.steps)
     },
   }) as ToolDefinition

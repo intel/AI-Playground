@@ -42,7 +42,8 @@ import {
   releaseTurnSession,
 } from './piSessionLifecycle.ts'
 import { agentRunIdentity } from './agentRunIdentity.ts'
-import { reportAgentTurnEnd } from './agentTurnOutcome.ts'
+import { reportAgentTurnEnd, type AgentTurnEnd } from './agentTurnOutcome.ts'
+import { trackAgentTurnInSession } from '../session/sessionAgentTurns.ts'
 import { noteAnswerTurn } from './notifier.ts'
 import { downloadedMissingReadinessModels } from './agentModelConsent.ts'
 import { setAgentRunIdentity } from '../observability/laminarAttributes.ts'
@@ -357,6 +358,14 @@ export async function startAgentTurn(
   beginAgentTurnSnapshot(sessionId, turnId)
   emitAgentTurnState(sessionId, turnId, 'queued')
   const verbose = verboseLogging()
+  const inSession = config.sessionRef
+    ? trackAgentTurnInSession({
+        sessionRef: config.sessionRef,
+        presetName: config.presetName ?? '',
+        workspaceDir: config.workspaceDir,
+        prompt,
+      })
+    : null
   const translator = createStreamTranslator({
     emit: (chunk: StreamChunk) => emitAgentChunk(sessionId, turnId, chunk),
     onToolProgress: ({ toolCallId, toolName, text }) => {
@@ -508,13 +517,14 @@ export async function startAgentTurn(
     finishTextRequest(turnId)
     if (agentTurns.get(sessionId) === turn) agentTurns.delete(sessionId)
     // Decided by the abort, not the thrown error: a stop or shutdown is never a failure.
-    reportAgentTurnEnd(
+    const end: AgentTurnEnd =
       failedWith !== undefined
         ? { sessionId, turnId, outcome: 'failed', error: failedWith }
         : abortController.signal.aborted
           ? { sessionId, turnId, outcome: 'cancelled' }
-          : { sessionId, turnId, outcome: 'completed', reply },
-    )
+          : { sessionId, turnId, outcome: 'completed', reply }
+    reportAgentTurnEnd(end)
+    if (inSession) await inSession.settle(end)
     if (turn.live) await releaseTurnSession(turn.live)
     emitAgentTurnDone(sessionId, turnId)
   }
