@@ -36,6 +36,8 @@
   "SESSIONS_DELETE_TITLE": "세션을 삭제할까요?",
   "SESSIONS_DELETE_BODY": "세션과 세션 폴더의 모든 파일이 영구적으로 삭제됩니다.",
   "SESSION_TIMELINE_EMPTY": "아래에 프롬프트를 입력하여 이 세션을 시작하세요.",
+  "SESSION_IMAGE_GENERATION_FAILED": "이미지 생성을 시작할 수 없습니다.",
+  "SESSION_AUDIO_TURN_NOT_SAVED": "오디오 턴을 해당 세션에 저장할 수 없습니다.",
   "SESSION_TIMELINE_TASK_RUN": "작업 “{name}” 실행, {time}",
   "SESSION_TURN_CANCELLED": "생성이 취소되었습니다",
   "SESSION_AUDIO_LOADING_VOICE": "음성 모델을 불러오는 중…",

@@ -36,6 +36,8 @@
   "SESSIONS_DELETE_TITLE": "删除会话？",
   "SESSIONS_DELETE_BODY": "这将永久删除该会话及其会话文件夹中的所有文件。",
   "SESSION_TIMELINE_EMPTY": "在下方输入提示词以开始此会话。",
+  "SESSION_IMAGE_GENERATION_FAILED": "无法启动图像生成。",
+  "SESSION_AUDIO_TURN_NOT_SAVED": "无法将音频轮次保存到其会话中。",
   "SESSION_TIMELINE_TASK_RUN": "任务“{name}”的运行，{time}",
   "SESSION_TURN_CANCELLED": "生成已取消",
   "SESSION_AUDIO_LOADING_VOICE": "正在加载语音模型…",

@@ -33,6 +33,10 @@ vi.mock('@/assets/js/toast', () => ({
 
 vi.mock('@/assets/js/speech/speechIO', () => speech)
 
+vi.mock('@/assets/js/store/i18n', () => ({
+  useI18N: () => ({ langName: 'en-US', state: {} }),
+}))
+
 vi.mock('@/assets/js/store/presets', () => ({
   usePresets: () => ({
     get activePresetName() {

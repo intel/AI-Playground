@@ -36,6 +36,8 @@
   "SESSIONS_DELETE_TITLE": "Sitzung löschen?",
   "SESSIONS_DELETE_BODY": "Dadurch werden die Sitzung und alle Dateien in ihrem Sitzungsordner dauerhaft entfernt.",
   "SESSION_TIMELINE_EMPTY": "Gib unten einen Prompt ein, um diese Sitzung zu beginnen.",
+  "SESSION_IMAGE_GENERATION_FAILED": "Die Bildgenerierung konnte nicht gestartet werden.",
+  "SESSION_AUDIO_TURN_NOT_SAVED": "Der Audio-Durchgang konnte nicht in seiner Sitzung gespeichert werden.",
   "SESSION_TIMELINE_TASK_RUN": "Aufgabenlauf von „{name}“, {time}",
   "SESSION_TURN_CANCELLED": "Generierung abgebrochen",
   "SESSION_AUDIO_LOADING_VOICE": "Sprachmodell wird geladen…",

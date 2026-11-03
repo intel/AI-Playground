@@ -36,6 +36,8 @@
   "SESSIONS_DELETE_TITLE": "ลบเซสชันหรือไม่",
   "SESSIONS_DELETE_BODY": "การดำเนินการนี้จะลบเซสชันและไฟล์ทั้งหมดในโฟลเดอร์เซสชันอย่างถาวร",
   "SESSION_TIMELINE_EMPTY": "พิมพ์พรอมต์ด้านล่างเพื่อเริ่มเซสชันนี้",
+  "SESSION_IMAGE_GENERATION_FAILED": "ไม่สามารถเริ่มการสร้างภาพได้",
+  "SESSION_AUDIO_TURN_NOT_SAVED": "ไม่สามารถบันทึกรอบเสียงลงในเซสชันได้",
   "SESSION_TIMELINE_TASK_RUN": "การทำงานของงาน “{name}”, {time}",
   "SESSION_TURN_CANCELLED": "ยกเลิกการสร้างแล้ว",
   "SESSION_AUDIO_LOADING_VOICE": "กำลังโหลดโมเดลเสียง…",

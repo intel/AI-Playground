@@ -100,7 +100,7 @@ export const useSessions = defineStore('sessions', () => {
     const { [id]: _seen, ...rest } = unseen.value
     unseen.value = rest
   })
-  projection.ready.catch(() => {})
+  projection.ready.catch((error: unknown) => errors.report(error, { surface: 'silent' }))
   if (import.meta.hot) {
     import.meta.hot.dispose(() => projection.dispose())
   }

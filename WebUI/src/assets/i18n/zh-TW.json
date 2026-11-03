@@ -36,6 +36,8 @@
   "SESSIONS_DELETE_TITLE": "要刪除工作階段嗎？",
   "SESSIONS_DELETE_BODY": "這會永久移除該工作階段及其工作階段資料夾中的所有檔案。",
   "SESSION_TIMELINE_EMPTY": "在下方輸入提示詞以開始此工作階段。",
+  "SESSION_IMAGE_GENERATION_FAILED": "無法啟動影像生成。",
+  "SESSION_AUDIO_TURN_NOT_SAVED": "無法將音訊輪次儲存至其工作階段。",
   "SESSION_TIMELINE_TASK_RUN": "任務「{name}」的執行，{time}",
   "SESSION_TURN_CANCELLED": "生成已取消",
   "SESSION_AUDIO_LOADING_VOICE": "正在載入語音模型…",

@@ -1,6 +1,7 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useErrors } from '@/assets/js/store/errors'
+import { useI18N } from '@/assets/js/store/i18n'
 import { usePresets } from '@/assets/js/store/presets'
 import { useSessions } from '@/assets/js/store/sessions'
 import { isCancellation } from '@/assets/js/errors/appError'
@@ -52,6 +53,7 @@ export const useSessionAudio = defineStore('sessionAudio', () => {
   const sessions = useSessions()
   const presets = usePresets()
   const errors = useErrors()
+  const i18nState = useI18N().state
 
   const pendingTurns = ref<Record<string, PendingAudioTurn>>({})
 
@@ -103,7 +105,11 @@ export const useSessionAudio = defineStore('sessionAudio', () => {
     pendingTurns.value = rest
     const turnId = turnIds[sessionId]
     delete turnIds[sessionId]
-    if (turnId) void window.electronAPI.sessions.endTurn(sessionId, turnId).catch(() => {})
+    if (turnId) {
+      void window.electronAPI.sessions
+        .endTurn(sessionId, turnId)
+        .catch((error: unknown) => errors.report(error, { surface: 'silent' }))
+    }
   }
 
   async function settle(request: AudioTurnRequest): Promise<void> {
@@ -114,7 +120,7 @@ export const useSessionAudio = defineStore('sessionAudio', () => {
       errors.report(error, {
         category: 'backend',
         code: 'sessions/record-audio-failed',
-        userMessage: 'The audio turn could not be saved into its Session.',
+        userMessage: i18nState.SESSION_AUDIO_TURN_NOT_SAVED,
         surface: 'toast',
       })
     }

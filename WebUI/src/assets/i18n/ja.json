@@ -36,6 +36,8 @@
   "SESSIONS_DELETE_TITLE": "セッションを削除しますか？",
   "SESSIONS_DELETE_BODY": "セッションと、そのセッションフォルダー内のすべてのファイルが完全に削除されます。",
   "SESSION_TIMELINE_EMPTY": "下にプロンプトを入力して、このセッションを始めましょう。",
+  "SESSION_IMAGE_GENERATION_FAILED": "画像生成を開始できませんでした。",
+  "SESSION_AUDIO_TURN_NOT_SAVED": "音声ターンをセッションに保存できませんでした。",
   "SESSION_TIMELINE_TASK_RUN": "タスク「{name}」の実行、{time}",
   "SESSION_TURN_CANCELLED": "生成がキャンセルされました",
   "SESSION_AUDIO_LOADING_VOICE": "音声モデルを読み込み中…",

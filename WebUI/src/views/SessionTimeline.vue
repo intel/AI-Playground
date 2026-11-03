@@ -141,7 +141,7 @@ async function generate(prompt: string): Promise<void> {
     errors.report(error, {
       category: 'generation',
       code: 'generation/submit-failed',
-      userMessage: 'Image generation could not be started.',
+      userMessage: languages.SESSION_IMAGE_GENERATION_FAILED,
     })
   }
 }

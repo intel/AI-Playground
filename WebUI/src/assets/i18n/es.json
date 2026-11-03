@@ -36,6 +36,8 @@
   "SESSIONS_DELETE_TITLE": "¿Eliminar la sesión?",
   "SESSIONS_DELETE_BODY": "Esto elimina de forma permanente la sesión y todos los archivos de su carpeta de sesión.",
   "SESSION_TIMELINE_EMPTY": "Escribe un prompt abajo para comenzar esta sesión.",
+  "SESSION_IMAGE_GENERATION_FAILED": "No se pudo iniciar la generación de imágenes.",
+  "SESSION_AUDIO_TURN_NOT_SAVED": "No se pudo guardar el turno de audio en su sesión.",
   "SESSION_TIMELINE_TASK_RUN": "Ejecución de la tarea «{name}», {time}",
   "SESSION_TURN_CANCELLED": "Generación cancelada",
   "SESSION_AUDIO_LOADING_VOICE": "Cargando modelo de voz…",

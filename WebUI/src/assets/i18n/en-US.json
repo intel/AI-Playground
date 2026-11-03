@@ -36,6 +36,8 @@
   "SESSIONS_DELETE_TITLE": "Delete Session?",
   "SESSIONS_DELETE_BODY": "This permanently removes the Session and every file in its Session Folder.",
   "SESSION_TIMELINE_EMPTY": "Write a prompt below to start this Session.",
+  "SESSION_IMAGE_GENERATION_FAILED": "Image generation could not be started.",
+  "SESSION_AUDIO_TURN_NOT_SAVED": "The audio turn could not be saved into its Session.",
   "SESSION_TIMELINE_TASK_RUN": "Task Run of “{name}”, {time}",
   "SESSION_TURN_CANCELLED": "Generation cancelled",
   "SESSION_AUDIO_LOADING_VOICE": "Loading voice model…",
