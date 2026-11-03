@@ -62,6 +62,8 @@ export const useSessionLifecycle = defineStore('sessionLifecycle', () => {
       agentTurn: harness ? agentMode.sessionTurns[harness] : undefined,
       mediaQueued:
         turn?.kind === 'media' && artifactRuns.state.runs[turn.turnId]?.phase === 'queued',
+      mediaQueuePosition:
+        turn?.kind === 'media' ? artifactRuns.queuePositions[turn.turnId] : undefined,
       download: downloadOf(harness),
       unseen: sessions.unseen[sessionId]
         ? agentUnseenFailed(sessionId)

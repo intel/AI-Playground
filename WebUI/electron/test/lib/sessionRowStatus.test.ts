@@ -41,6 +41,14 @@ describe('sessionRowStatus', () => {
     })
   })
 
+  it('knows its panel run’s place in the Turn Queue', () => {
+    const turn = { turnId: 't', kind: 'media' as const }
+    expect(sessionRowStatus({ turn, mediaQueued: true, mediaQueuePosition: 3 })).toEqual({
+      status: 'queued',
+      queuePosition: 3,
+    })
+  })
+
   it("takes an agent turn's queue position and pause reason", () => {
     const turn = { turnId: 't', kind: 'agent' as const }
     expect(sessionRowStatus({ turn, agentTurn: { state: 'queued', queuePosition: 2 } })).toEqual({

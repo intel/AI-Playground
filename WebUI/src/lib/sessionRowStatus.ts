@@ -13,13 +13,14 @@ export type SessionRowStatus = ReturnType<typeof agentSessionStatus>
 export type SessionRowMarker = { status: AgentSessionStatus; label: string; short?: string }
 
 /**
- * A Sessions panel row's status: its turn in flight (an agent turn knows its queue
- * place and what it waits on), else whether a turn ended while it was not open.
+ * A Sessions panel row's status: its turn in flight (its queue place, and for an agent
+ * turn what it waits on), else whether a turn ended while it was not open.
  */
 export function sessionRowStatus(input: {
   turn?: SessionTurn
   agentTurn?: { state: AgentTurnState; queuePosition?: number | null; pauseReason?: PauseReason }
   mediaQueued?: boolean
+  mediaQueuePosition?: number
   download?: SessionDownload | null
   unseen?: 'done' | 'failed'
 }): SessionRowStatus {
@@ -28,7 +29,7 @@ export function sessionRowStatus(input: {
   const live = turn
     ? turn.kind === 'agent' && input.agentTurn
       ? input.agentTurn
-      : { state }
+      : { state, queuePosition: input.mediaQueuePosition }
     : undefined
   return agentSessionStatus({
     turn: live,

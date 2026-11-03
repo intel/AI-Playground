@@ -20,6 +20,7 @@ export const useArtifactRuns = defineStore('artifactRuns', () => {
   const i18nState = useI18N().state
 
   const state = shallowRef(emptyArtifactRuns())
+  const queuePositions = shallowRef<Record<string, number>>({})
 
   const projection = connectKernelEventStream(
     (event) => {
@@ -29,6 +30,10 @@ export const useArtifactRuns = defineStore('artifactRuns', () => {
         event.type === 'artifact-done'
       ) {
         state.value = applyArtifactEvent(state.value, event)
+      } else if (event.type === 'queue-event' && event.kind === 'artifact') {
+        const { [event.runKey]: _left, ...rest } = queuePositions.value
+        queuePositions.value =
+          event.position === undefined ? rest : { ...rest, [event.runKey]: event.position }
       }
     },
     (snapshot) => {
@@ -54,7 +59,7 @@ export const useArtifactRuns = defineStore('artifactRuns', () => {
     return artifactPhaseLabel(view.phase, view.progress, i18nState)
   }
 
-  return { state, ownedBy, viewFor, labelFor }
+  return { state, queuePositions, ownedBy, viewFor, labelFor }
 })
 
 if (import.meta.hot) {
