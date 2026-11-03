@@ -1,7 +1,18 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { connectKernelEventStream } from '@/assets/js/projection/kernelProjection'
 import { useErrors } from '@/assets/js/store/errors'
-import type { SessionSummary } from '@/types/sessionIpc'
+import type { SessionDocument, SessionSummary } from '@/types/sessionIpc'
+import type { MediaTurnData } from '@/types/sessionTimeline'
+
+/** A panel run submitted in a Session whose turn has not settled into its timeline yet. */
+export type PendingMediaTurn = {
+  runId: string
+  mode: MediaTurnData['mode']
+  preset: string
+  prompt: string
+  createdAt: number
+}
 
 type IpcResult<T> = ({ success: true } & T) | { success: false; error: string }
 
@@ -12,6 +23,7 @@ export const useSessions = defineStore('sessions', () => {
   const sessions = ref<Record<string, SessionSummary>>({})
   const openSessionId = ref<string | null>(null)
   const openTimeline = ref<unknown[]>([])
+  const pendingTurns = ref<Record<string, PendingMediaTurn>>({})
 
   const orderedSessions = computed(() =>
     Object.values(sessions.value).sort(
@@ -39,6 +51,35 @@ export const useSessions = defineStore('sessions', () => {
 
   function remember(session: SessionSummary): void {
     sessions.value = { ...sessions.value, [session.id]: session }
+  }
+
+  function applyChanged(document: SessionDocument): void {
+    const { timeline, ...summary } = document
+    remember(summary)
+    if (openSessionId.value === document.id) openTimeline.value = timeline
+  }
+
+  const projection = connectKernelEventStream((event) => {
+    if (event.type === 'session-changed') applyChanged(event.session)
+  })
+  projection.ready.catch(() => {})
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => projection.dispose())
+  }
+
+  /** The open Session, creating one when none is open yet. */
+  async function ensureOpenSession(): Promise<string | null> {
+    return openSessionId.value ?? (await create())
+  }
+
+  function beginMediaTurn(sessionId: string, turn: PendingMediaTurn): void {
+    pendingTurns.value = { ...pendingTurns.value, [sessionId]: turn }
+  }
+
+  function endMediaTurn(sessionId: string, runId: string): void {
+    if (pendingTurns.value[sessionId]?.runId !== runId) return
+    const { [sessionId]: _ended, ...rest } = pendingTurns.value
+    pendingTurns.value = rest
   }
 
   /** Hydrates the list and opens the newest Session, creating one when there is none. */
@@ -97,6 +138,7 @@ export const useSessions = defineStore('sessions', () => {
     sessions,
     openSessionId,
     openTimeline,
+    pendingTurns,
     orderedSessions,
     openSession,
     init,
@@ -104,6 +146,9 @@ export const useSessions = defineStore('sessions', () => {
     open,
     rename,
     remove,
+    ensureOpenSession,
+    beginMediaTurn,
+    endMediaTurn,
   }
 })
 

@@ -32,6 +32,8 @@
   "SESSIONS_SAVE": "Simpan",
   "SESSIONS_DELETE_TITLE": "Hapus sesi?",
   "SESSIONS_DELETE_BODY": "Ini akan menghapus sesi dan setiap file di folder sesinya secara permanen.",
+  "SESSION_TIMELINE_EMPTY": "Tulis prompt di bawah untuk memulai Sesi ini.",
+  "SESSION_TURN_CANCELLED": "Pembuatan dibatalkan",
   "COM_POST_TO_ENHANCE_PROCESS": "Kirim ke Proses Peningkatan",
   "COM_POST_TO_IMAGE_EDIT": "Kirim ke Mode Image Edit",
   "COM_POST_TO_VIDEO": "Kirim ke Mode Video",

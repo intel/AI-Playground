@@ -10,6 +10,7 @@ import { useI18N } from './i18n'
 import { useErrors } from './errors'
 import { createAppError } from '../errors/appError'
 import { useBackendServices } from './backendServices'
+import { useSessions } from './sessions'
 import { connectKernelEventStream } from '@/assets/js/projection/kernelProjection'
 import type { ArtifactPhase, ArtifactRunOwner } from '@/types/kernelEvents'
 import { usePresets, presetRequiresUserPrompt, type ComfyInput } from './presets'
@@ -112,6 +113,7 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
   const comfyUi = useComfyUiPresets()
   const backendServices = useBackendServices()
   const errors = useErrors()
+  const sessions = useSessions()
   const i18n = useI18N()
   const i18nState = i18n.state
 
@@ -1159,6 +1161,17 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
 
     const abort = new AbortController()
     panelAbort = abort
+    const sessionId = await sessions.ensureOpenSession()
+    const runId = crypto.randomUUID()
+    if (sessionId) {
+      sessions.beginMediaTurn(sessionId, {
+        runId,
+        mode,
+        preset: preset.name,
+        prompt: prompt.value,
+        createdAt: Date.now(),
+      })
+    }
     // UI runs are top-level: no parent activity (the runner resets the stale
     // tool-parented value the previous chat run may have left behind).
     try {
@@ -1178,9 +1191,10 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
             batchSize: batchSize.value,
           },
         },
-        { abortSignal: abort.signal },
+        { abortSignal: abort.signal, sessionId: sessionId ?? undefined, runId },
       )
     } finally {
+      if (sessionId) sessions.endMediaTurn(sessionId, runId)
       if (panelAbort === abort) panelAbort = null
       processing.value = false
       queuedLabel.value = null

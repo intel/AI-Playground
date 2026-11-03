@@ -32,6 +32,8 @@
   "SESSIONS_SAVE": "Kaydet",
   "SESSIONS_DELETE_TITLE": "Oturum silinsin mi?",
   "SESSIONS_DELETE_BODY": "Bu işlem oturumu ve oturum klasöründeki tüm dosyaları kalıcı olarak kaldırır.",
+  "SESSION_TIMELINE_EMPTY": "Bu oturumu başlatmak için aşağıya bir istem yazın.",
+  "SESSION_TURN_CANCELLED": "Oluşturma iptal edildi",
   "COM_POST_TO_ENHANCE_PROCESS": "İyileştirme İşlemine Gönder",
   "COM_POST_TO_IMAGE_EDIT": "Image Edit Moduna Gönder",
   "COM_POST_TO_VIDEO": "Video Moduna Gönder",

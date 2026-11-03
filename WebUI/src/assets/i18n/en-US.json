@@ -32,6 +32,8 @@
   "SESSIONS_SAVE": "Save",
   "SESSIONS_DELETE_TITLE": "Delete Session?",
   "SESSIONS_DELETE_BODY": "This permanently removes the Session and every file in its Session Folder.",
+  "SESSION_TIMELINE_EMPTY": "Write a prompt below to start this Session.",
+  "SESSION_TURN_CANCELLED": "Generation cancelled",
   "COM_POST_TO_ENHANCE_PROCESS": "Post To Enhance Process",
   "COM_POST_TO_IMAGE_EDIT": "Post To Image Edit Mode",
   "COM_POST_TO_VIDEO": "Post To Video Mode",

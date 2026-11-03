@@ -194,17 +194,11 @@
         ref="chatRef"
       />
       <AgentMode v-if="promptStore.getCurrentMode() === 'agent'" />
-      <WorkflowResult
-        v-if="promptStore.getCurrentMode() === 'imageGen'"
-        ref="imageGenRef"
-        mode="imageGen"
+      <SessionTimeline
+        v-if="isMediaMode(promptStore.getCurrentMode())"
+        :key="promptStore.getCurrentMode()"
+        :mode="promptStore.getCurrentMode()"
       />
-      <WorkflowResult
-        v-if="promptStore.getCurrentMode() === 'imageEdit'"
-        ref="imageEditRef"
-        mode="imageEdit"
-      />
-      <WorkflowResult v-if="promptStore.getCurrentMode() === 'video'" ref="videoRef" mode="video" />
       <PromptArea @auto-hide-footer="handleAutoHideFooter" @open-settings="openSpecificSettings" />
       <div v-if="!footerExpanded" class="fixed bottom-4 right-4 z-5 flex items-center gap-3">
         <button
@@ -332,7 +326,7 @@ import ModelManager from '@/views/ModelManager.vue'
 import { useColorMode } from '@vueuse/core'
 import { useDemoMode } from './assets/js/store/demoMode.ts'
 import { debugSettingsVisible } from './assets/js/store/debugSettings.ts'
-import WorkflowResult from '@/views/WorkflowResult.vue'
+import SessionTimeline from '@/views/SessionTimeline.vue'
 import Chat from '@/views/Chat.vue'
 import AgentMode from '@/views/AgentMode.vue'
 import { computed, ref, watch } from 'vue'
@@ -384,9 +378,8 @@ const chatRef = ref<{
   handleSubmitPromptClick: (prompt: string) => void
   scrollToBottom: () => void
 }>()
-const imageGenRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
-const imageEditRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
-const videoRef = ref<{ handleSubmitPromptClick: (prompt: string) => void }>()
+const isMediaMode = (mode: ModeType) =>
+  mode === 'imageGen' || mode === 'imageEdit' || mode === 'video'
 
 const isOpen = ref(false)
 const footerExpanded = ref(true)

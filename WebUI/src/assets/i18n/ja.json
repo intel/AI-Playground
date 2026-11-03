@@ -32,6 +32,8 @@
   "SESSIONS_SAVE": "保存",
   "SESSIONS_DELETE_TITLE": "セッションを削除しますか？",
   "SESSIONS_DELETE_BODY": "セッションと、そのセッションフォルダー内のすべてのファイルが完全に削除されます。",
+  "SESSION_TIMELINE_EMPTY": "下にプロンプトを入力して、このセッションを始めましょう。",
+  "SESSION_TURN_CANCELLED": "生成がキャンセルされました",
   "COM_POST_TO_ENHANCE_PROCESS": "強化処理へ送る",
   "COM_POST_TO_IMAGE_EDIT": "Image Edit モードへ送る",
   "COM_POST_TO_VIDEO": "Video モードへ送る",

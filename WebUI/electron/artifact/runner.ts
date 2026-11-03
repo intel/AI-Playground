@@ -63,6 +63,7 @@ import {
 } from './comfyClient'
 import { buildDummyGlb, DUMMY_3D_PRESET_NAME, VIEW_FIXTURE } from '@/lib/devPresetWorkflows'
 import { saveMediaItems } from '../persist/mediaItemFiles'
+import { recordMediaTurn } from '../session/sessionMediaTurn'
 import { extractMessage } from '@/assets/js/errors/appError'
 
 const appLogger = appLoggerInstance
@@ -125,6 +126,8 @@ export type ArtifactRunPayload = {
   conversationKey?: string
   /** The renderer activity the tool began for this run — lets queue events relabel it. */
   activityId?: string
+  /** The Session a panel run belongs to: its outputs and History Entry settle there. */
+  sessionId?: string
 }
 
 // Hoisted to `@/types/artifactIpc` (the manifest row states it); re-exported
@@ -170,6 +173,8 @@ export type ArtifactRunnerDeps = {
   getPlatform(): NodeJS.Platform
   /** Dev-only dummy presets are offered (npm run dev / showDebugSettingsInUI). */
   devPresetsEnabled(): boolean
+  /** The file an `aipg-media://` URL names, so a Session can take the run's outputs. */
+  localPathOf?(url: string): string | null
 }
 
 type ActiveRun = {
@@ -334,13 +339,40 @@ function settleItems(run: ActiveRun, state: 'failed' | 'stopped'): void {
   }
 }
 
-function persistRendererGallery(run: ActiveRun): void {
+function persistRendererGallery(run: ActiveRun, items: MediaItem[]): void {
   if (runOrigin(run.payload) !== 'renderer') return
-  const items = doneItems(run)
-  if (items.length === 0) return
-  void saveMediaItems(items).catch((error) => {
+  const done = items.filter(isDoneWithMedia)
+  if (done.length === 0) return
+  void saveMediaItems(done).catch((error) => {
     appLogger.warn(`Media record persist failed: ${extractMessage(error)}`, 'electron-backend')
   })
+}
+
+/** A panel run in a Session moves its outputs there and records its turn before it settles. */
+async function settleIntoSession(
+  sessionId: string,
+  run: ActiveRun,
+  result: ArtifactRunResult,
+): Promise<ArtifactRunResult> {
+  try {
+    const items = await recordMediaTurn({
+      sessionId,
+      runId: run.payload.runId,
+      mode: run.payload.mode,
+      preset: run.payload.preset.name,
+      variant: resolvedVariantName(run.payload),
+      prompt: run.payload.params.prompt,
+      status: result.state,
+      error: result.error,
+      items: result.items,
+      localPathOf: (url) => runnerDeps?.localPathOf?.(url) ?? null,
+    })
+    for (const item of items) emitItem(run, item)
+    return { ...result, items }
+  } catch (error) {
+    appLogger.warn(`Session turn record failed: ${extractMessage(error)}`, 'electron-backend')
+    return result
+  }
 }
 
 function finish(run: ActiveRun, result: ArtifactRunResult): void {
@@ -352,7 +384,17 @@ function finish(run: ActiveRun, result: ArtifactRunResult): void {
   }
   run.statusWatch?.()
   run.statusWatch = null
-  persistRendererGallery(run)
+  if (run.payload.sessionId && runOrigin(run.payload) === 'renderer') {
+    void settleIntoSession(run.payload.sessionId, run, result).then((settled) =>
+      publishSettlement(run, settled),
+    )
+  } else {
+    publishSettlement(run, result)
+  }
+}
+
+function publishSettlement(run: ActiveRun, result: ArtifactRunResult): void {
+  persistRendererGallery(run, result.items)
   emitArtifactPhase(
     artifactRunTag(run.payload),
     result.state === 'completed'

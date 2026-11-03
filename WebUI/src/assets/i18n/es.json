@@ -32,6 +32,8 @@
   "SESSIONS_SAVE": "Guardar",
   "SESSIONS_DELETE_TITLE": "¿Eliminar la sesión?",
   "SESSIONS_DELETE_BODY": "Esto elimina de forma permanente la sesión y todos los archivos de su carpeta de sesión.",
+  "SESSION_TIMELINE_EMPTY": "Escribe un prompt abajo para comenzar esta sesión.",
+  "SESSION_TURN_CANCELLED": "Generación cancelada",
   "COM_POST_TO_ENHANCE_PROCESS": "Enviar al proceso de mejora",
   "COM_POST_TO_IMAGE_EDIT": "Enviar al modo Image Edit",
   "COM_POST_TO_VIDEO": "Enviar al modo Video",

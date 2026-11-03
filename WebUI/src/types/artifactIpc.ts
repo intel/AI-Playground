@@ -41,6 +41,8 @@ export const ArtifactRunRequestSchema = z.object({
   conversationKey: z.string().optional(),
   /** The renderer activity the tool began for this run — lets queue events relabel it. */
   activityId: z.string().optional(),
+  /** The Session a panel run belongs to. */
+  sessionId: z.string().optional(),
 })
 
 export type ArtifactRunRequest = z.infer<typeof ArtifactRunRequestSchema>

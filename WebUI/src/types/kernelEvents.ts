@@ -8,6 +8,7 @@ import type { UIMessageChunk } from 'ai'
 import type { MediaItem } from './mediaItem'
 import type { ActivityCategory, ActivityScope, ActivityState } from '@/assets/js/activities/types'
 import type { SerializedAppError } from '@/assets/js/errors/types'
+import type { SessionDocument } from './sessionIpc'
 
 export type KernelEventScope =
   { kind: 'global' } | { kind: 'chat'; conversationKey: string } | { kind: 'run'; runId: string }
@@ -252,6 +253,12 @@ export type KernelStoredEvent = {
   inferenceProfile?: KernelInferenceProfile | null
 }
 
+/** A Session's `session.json` changed in main (a turn settled into it): its row and timeline. */
+export type KernelSessionChangedEvent = {
+  type: 'session-changed'
+  session: SessionDocument
+}
+
 /** Last successful local chat load — kernel memory, not the settings dropdown. */
 export type KernelInferenceProfile = {
   serviceName: string
@@ -280,6 +287,7 @@ export type KernelEventPayload =
   | KernelActivityEvent
   | KernelErrorEvent
   | KernelStoredEvent
+  | KernelSessionChangedEvent
 
 export type KernelEvent = KernelEventPayload & KernelEventEnvelope
 

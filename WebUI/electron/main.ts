@@ -229,6 +229,7 @@ import {
   listSessions,
   openSession,
   renameSession,
+  sessionsRootDir,
   setSessionDeps,
   wipeDemoSessions,
 } from './session/sessions'
@@ -509,12 +510,12 @@ const audioDir = getAudioDir()
 fs.mkdirSync(audioDir, { recursive: true })
 
 /**
- * Roots the `aipg-media` scheme serves, keyed by URL authority: generated media
- * and the game library (a game's icon lives next to its HTML, not in the media
- * folder — see gameLibrary.ts).
+ * Roots the `aipg-media` scheme serves, keyed by URL authority: generated media,
+ * the game library (a game's icon lives next to its HTML, not in the media
+ * folder — see gameLibrary.ts) and the Session Folders.
  */
 function aipgMediaRoots(): Record<string, string> {
-  return { media: mediaDir, games: getGamesDir() }
+  return { media: mediaDir, games: getGamesDir(), sessions: sessionsRootDir() }
 }
 
 /** Resolve aipg-media://… to an absolute file path under a served root (no path traversal). */
@@ -1486,6 +1487,7 @@ function wireArtifactRunner(settings: LocalSettings): void {
     readMediaAsDataUri: readAipgMediaAsDataUri,
     getPlatform: () => process.platform,
     devPresetsEnabled: () => isDeveloperMode(),
+    localPathOf: getLocalPathFromAipgMediaUrl,
   })
 
   // The orchestrator owns GPU policy (step 7): every run — panel, chat tool,

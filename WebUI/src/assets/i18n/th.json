@@ -32,6 +32,8 @@
   "SESSIONS_SAVE": "บันทึก",
   "SESSIONS_DELETE_TITLE": "ลบเซสชันหรือไม่",
   "SESSIONS_DELETE_BODY": "การดำเนินการนี้จะลบเซสชันและไฟล์ทั้งหมดในโฟลเดอร์เซสชันอย่างถาวร",
+  "SESSION_TIMELINE_EMPTY": "พิมพ์พรอมต์ด้านล่างเพื่อเริ่มเซสชันนี้",
+  "SESSION_TURN_CANCELLED": "ยกเลิกการสร้างแล้ว",
   "COM_POST_TO_ENHANCE_PROCESS": "ส่งไปยังกระบวนการปรับปรุง",
   "COM_POST_TO_IMAGE_EDIT": "ส่งไปยังโหมด Image Edit",
   "COM_POST_TO_VIDEO": "ส่งไปยังโหมดวิดีโอ",

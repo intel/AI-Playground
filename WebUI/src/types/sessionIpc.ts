@@ -38,3 +38,35 @@ export type SessionSummary = Pick<
 export type SessionDocument = SessionSummary & { timeline: unknown[] }
 
 export const SessionTitleSchema = z.string().trim().min(1).max(500)
+
+export const HistoryEntryKindSchema = z.enum([
+  'chat',
+  'agent',
+  'image',
+  'edit',
+  'video',
+  'tts',
+  'stt',
+])
+
+export const ArtifactMediaTypeSchema = z.enum(['image', 'video', 'audio', 'model3d'])
+
+/** One line of `session-history.jsonl`: a settled turn, never rewritten. */
+export const HistoryEntrySchema = z.object({
+  id: z.string(),
+  timestamp: z.number().int().nonnegative(),
+  preset: z.string(),
+  variant: z.string().optional(),
+  kind: HistoryEntryKindSchema,
+  prompt: z.string(),
+  status: z.enum(['completed', 'failed', 'cancelled']),
+  /** Paths relative to the Session Folder. */
+  artifacts: z.array(z.object({ path: z.string(), mediaType: ArtifactMediaTypeSchema })),
+  response: z.string().optional(),
+  taskName: z.string().optional(),
+  stepIndex: z.number().int().nonnegative().optional(),
+})
+
+export type HistoryEntry = z.infer<typeof HistoryEntrySchema>
+export type HistoryEntryKind = z.infer<typeof HistoryEntryKindSchema>
+export type ArtifactMediaType = z.infer<typeof ArtifactMediaTypeSchema>

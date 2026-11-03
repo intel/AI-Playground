@@ -69,6 +69,10 @@ export type ArtifactRunContext = {
   queueMode?: 'queue'
   /** The conversation this run was asked from — routes orchestrator queue events. */
   conversationKey?: string
+  /** The Session a panel run lands in. */
+  sessionId?: string
+  /** Lets the caller know the run's id before it is submitted. */
+  runId?: string
 }
 
 export type ArtifactResult = {
@@ -303,7 +307,7 @@ export async function runArtifact(
   // artifact events (the imageGenerationPresets projection), and this promise
   // settles with the run. The abort listener is armed BEFORE submit so the
   // window between item registration and queueing is covered too.
-  const runId = crypto.randomUUID()
+  const runId = ctx.runId ?? crypto.randomUUID()
   imageGen.trackArtifactRun(runId)
   const onAbort = () => {
     void window.electronAPI.artifact.cancel(runId)
@@ -332,6 +336,7 @@ export async function runArtifact(
         conversationKey: ctx.conversationKey,
         // The tool activity's id lets queue events relabel it while parked.
         activityId: typeof ctx.parentActivityId === 'string' ? ctx.parentActivityId : undefined,
+        sessionId: ctx.sessionId,
       }),
       ctx.queueMode ? { queue: ctx.queueMode } : undefined,
     )

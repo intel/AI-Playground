@@ -202,9 +202,9 @@ page's own JS — login, EventSource, send, reply/media rendering — is caught)
   minutes; use `IMAGE_TIMEOUT`/`VIDEO_TIMEOUT`). Result assertions use ARIA added to outputs:
   generated images `alt="Generated result"` (count via `getByRole('img', …)`), videos via
   `locator('video')`, 3D models `aria-label="Generated 3D model"`, assistant text via
-  `getByRole('article', { name: 'Assistant response' })`. Both the agentic chat tool card
-  (`ChatWorkflowResult.vue`) and the direct Image Gen/Edit/Video panel (`WorkflowResult.vue`)
-  carry the same output ARIA, so one locator covers both surfaces.
+  `getByRole('article', { name: 'Assistant response' })`. The agentic chat tool card and the
+  Image Gen/Edit/Video turns of the Session timeline (`MediaTurnBlock.vue`) render the same
+  `ChatWorkflowResult.vue`, so one locator covers both surfaces.
 - **Per-preset smoke tests** (`preset-chat/image/video.spec.ts`) are data-driven: each selects
   one preset via `AppDriver.runChatPreset`/`runComfyPreset`, which `test.skip`s presets absent
   in the running product mode. Reference-image presets load `e2e/fixtures/input.png` into the
@@ -400,7 +400,7 @@ WebUI/                      # Electron + Vue.js frontend (all npm commands here)
     assets/js/errors/       # Unified error model (AppError type + createAppError/normalize helpers)
     assets/js/activities/   # Unified activity/progress model (Activity type + createActivity helper)
     components/             # Reusable Vue components
-    views/                  # Page-level Vue components (Chat, PromptArea, WorkflowResult)
+    views/                  # Page-level Vue components (Chat, PromptArea, SessionTimeline)
     lib/vram/               # GGUF VRAM estimator (drives the model-size chip)
   external/                 # Presets, workflows, external resources
 docs/vram-fit.md            # Measured VRAM catalog for keep-loaded / swap / recommend
@@ -539,7 +539,7 @@ This section eliminates the need for codebase exploration at the start of each s
 There is **no Vue Router**. Navigation is state-driven:
 
 - `App.vue` checks `globalSetup.loadingState` (`verifyBackend` → `manageInstallations` → `loading` → `running`/`failed`)
-- Once running, `promptStore.currentMode` controls which view renders: `chat`/`audio` → `Chat.vue`, `agent` → `AgentMode.vue`, `imageGen`/`imageEdit`/`video` → `WorkflowResult.vue`
+- Once running, `promptStore.currentMode` controls which view renders: `chat`/`audio` → `Chat.vue`, `agent` → `AgentMode.vue`, `imageGen`/`imageEdit`/`video` → `SessionTimeline.vue` (the open Session's timeline; a panel run settles into its Session Folder and Session History from `electron/session/sessionMediaTurn.ts`)
 - Each mode maps to a preset category (`chat`, `audio`, `create-images`, `edit-images`, `create-videos`). `chat`, `agent` and `audio` all run on `chat`-type presets; `audio` holds the speech presets (Text to Speech / Speech to Text) and gets its own settings panel (`SettingsAudio.vue`)
 - `PromptArea.vue` is the shared prompt input bar across all modes
 - **The preset picks the mode**, via `presetToMode()` in `src/lib/presetModes.ts`. A chat preset
@@ -956,7 +956,7 @@ env var, which stays only as a one-shot override for a launch with no UI yet.
 
 **Chat/LLM**: `views/Chat.vue` → stores: `openAiCompatibleChat`, `textInference`, `conversations`, `presets` → electron: `ensureBackendReadiness` IPC → backend: `llamacpp`/`openvino` via Vercel AI SDK
 
-**Image/Video Generation**: `views/WorkflowResult.vue` and Home Agent `/imgGen` → `src/assets/js/artifact/runArtifact.ts` (one resolved `ArtifactRequest` in, one settled `ArtifactResult` out; no preset switch, no UI-state mutation) → IPC `artifact:run` → `electron/artifact/runner.ts` (engine, readiness, watchdog) → backend: `comfyui-backend` via direct HTTP. Chat and Agent Mode submit in-process through the orchestrator's queue (`electron/kernel/orchestrator.ts`, which owns the GPU window): Pi `generateImage`/`editImage` via `electron/agent/capabilities/mediaDirect.ts`, Chat parent `comfyUI`/`comfyUiImageEdit` via `electron/chat/chatComfyTool.ts`, and the NL `media` specialist (`electron/chat/mediaAgentRunner.ts`) — all inner Comfy through `electron/artifact/inProcessComfy.ts`. Progress reaches the UI through kernel `artifact-phase`/`artifact-item` events (renderer-originated runs only)
+**Image/Video Generation**: `views/SessionTimeline.vue` and Home Agent `/imgGen` → `src/assets/js/artifact/runArtifact.ts` (one resolved `ArtifactRequest` in, one settled `ArtifactResult` out; no preset switch, no UI-state mutation) → IPC `artifact:run` → `electron/artifact/runner.ts` (engine, readiness, watchdog) → backend: `comfyui-backend` via direct HTTP. Chat and Agent Mode submit in-process through the orchestrator's queue (`electron/kernel/orchestrator.ts`, which owns the GPU window): Pi `generateImage`/`editImage` via `electron/agent/capabilities/mediaDirect.ts`, Chat parent `comfyUI`/`comfyUiImageEdit` via `electron/chat/chatComfyTool.ts`, and the NL `media` specialist (`electron/chat/mediaAgentRunner.ts`) — all inner Comfy through `electron/artifact/inProcessComfy.ts`. Progress reaches the UI through kernel `artifact-phase`/`artifact-item` events (renderer-originated runs only)
 
 **Speech (STT/TTS)**: every driver (mic + STT preset in `views/PromptArea.vue`, speak-replies + Speak button in `views/Chat.vue`, `tools/transcribeAudio`, `tools/synthesizeTextToSpeech`, the direct TTS/STT preset turns in `openAiCompatibleChat`, Home Agent voice paths, and both main-side tool bodies — `electron/chat/chatSpeechTools.ts` for a chat turn, `electron/agent/capabilities/mediaSpeech.ts` for an agent one, which reach this side over `chat:ask`) → `src/assets/js/speech/speechIO.ts` — the one engine seam: interactive vs dialog-free unattended readiness, endpoint resolution, the Qwen3/Kokoro/external branch, and desktop playback state. Drivers import no TTS/STT store; the stores (`speechToText`, `textToSpeech`, `qwen3TextToSpeech`) keep engine config, persistence and the engine clients, consumed by the adapter (settings panels read them directly)
 

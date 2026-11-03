@@ -21,6 +21,7 @@ import type {
   KernelSnapshot,
   KernelStoredEvent,
 } from '@/types/kernelEvents'
+import type { SessionDocument } from '@/types/sessionIpc'
 import type { MediaItem } from '@/types/mediaItem'
 import type { UIMessageChunk } from 'ai'
 import {
@@ -416,6 +417,10 @@ export function emitStored(
   inferenceProfile?: KernelInferenceProfile | null,
 ): void {
   emit({ type: 'stored', kind, id, inferenceProfile }, { kind: 'global' })
+}
+
+export function emitSessionChanged(session: SessionDocument): void {
+  emit({ type: 'session-changed', session }, { kind: 'global' })
 }
 
 export function setInferenceProfileSnapshot(profile: KernelInferenceProfile | null): void {

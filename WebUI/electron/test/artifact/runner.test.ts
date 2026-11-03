@@ -39,6 +39,17 @@ vi.mock('../../persist/mediaItemFiles.ts', () => ({
   saveMediaItems,
 }))
 
+const { recordMediaTurn } = vi.hoisted(() => ({
+  recordMediaTurn: vi.fn(async (turn: { sessionId: string; items: unknown[] }) =>
+    (turn.items as { id: string }[]).map((item) => ({
+      ...item,
+      imageUrl: `aipg-media://sessions/${turn.sessionId}/files/${item.id}.png`,
+    })),
+  ),
+}))
+
+vi.mock('../../session/sessionMediaTurn.ts', () => ({ recordMediaTurn }))
+
 import {
   artifactRunActive,
   cancelActiveArtifactRun,
@@ -222,6 +233,7 @@ describe('artifact runner', () => {
     socketHandlers = null
     setPresetParameters.mockClear()
     saveMediaItems.mockClear()
+    recordMediaTurn.mockClear()
     vi.mocked(getComfySocket).mockImplementation(
       (
         _baseUrl: string,
@@ -295,6 +307,81 @@ describe('artifact runner', () => {
     const savedItems = saveMediaItems.mock.calls[0]?.[0] as unknown as MediaItem[]
     expect(savedItems).toHaveLength(2)
     expect(savedItems[0]).toMatchObject({ state: 'done' })
+  })
+
+  it('settles a panel run in a Session into that Session', async () => {
+    setArtifactRunnerDeps(deps())
+    const request = payload({ sessionId: 'session-1', variant: 'Fast' })
+    const run = submitArtifactRun({ ...request, items: itemsFor(request), origin: 'renderer' })
+
+    await vi.waitFor(() => expect(submittedPrompts).toHaveLength(2))
+    for (const filename of ['out0.png', 'out1.png']) {
+      socketHandlers!.onJson({
+        type: 'executed',
+        data: { node: '2', output: { images: [{ filename, subfolder: '', type: 'output' }] } },
+      })
+    }
+
+    const result = await run
+    expect(recordMediaTurn).toHaveBeenCalledTimes(1)
+    expect(recordMediaTurn.mock.calls[0][0]).toMatchObject({
+      sessionId: 'session-1',
+      runId: 'run-1',
+      mode: 'imageGen',
+      preset: 'Test Image',
+      variant: 'Fast',
+      prompt: 'a cat',
+      status: 'completed',
+      items: [
+        expect.objectContaining({ imageUrl: 'aipg-media://media/out0.png' }),
+        expect.objectContaining({ imageUrl: 'aipg-media://media/out1.png' }),
+      ],
+    })
+    const moved = 'aipg-media://sessions/session-1/files/item-0.png'
+    expect(result.items[0]).toMatchObject({ imageUrl: moved })
+    const done = kernelEvents.findIndex((event) => event.type === 'artifact-done')
+    const movedEvent = kernelEvents.findIndex(
+      (event) =>
+        event.type === 'artifact-item' &&
+        (event.item as MediaItem & { imageUrl: string }).imageUrl === moved,
+    )
+    expect(movedEvent).toBeGreaterThan(-1)
+    expect(movedEvent).toBeLessThan(done)
+  })
+
+  it('records a failed panel run in its Session too', async () => {
+    setArtifactRunnerDeps(deps())
+    const request = payload({ sessionId: 'session-1' })
+    const run = submitArtifactRun({ ...request, items: itemsFor(request), origin: 'renderer' })
+    await vi.waitFor(() => expect(submittedPrompts).toHaveLength(2))
+    socketHandlers!.onJson({
+      type: 'execution_error',
+      data: { exception_type: 'RuntimeError', exception_message: 'boom', node_id: '2' },
+    })
+
+    expect((await run).state).toBe('failed')
+    expect(recordMediaTurn).toHaveBeenCalledTimes(1)
+    expect(recordMediaTurn.mock.calls[0][0]).toMatchObject({ status: 'failed', items: [] })
+  })
+
+  it('leaves agent runs out of the Session History', async () => {
+    setArtifactRunnerDeps(deps())
+    const request = payload({
+      sessionId: 'session-1',
+      origin: 'agent',
+      params: { ...payload().params, batchSize: 1 },
+    })
+    const run = submitArtifactRun(request)
+    await vi.waitFor(() => expect(submittedPrompts).toHaveLength(1))
+    socketHandlers!.onJson({
+      type: 'executed',
+      data: {
+        node: '2',
+        output: { images: [{ filename: 'a.png', subfolder: '', type: 'output' }] },
+      },
+    })
+    await run
+    expect(recordMediaTurn).not.toHaveBeenCalled()
   })
 
   it('applies the preset launch flags before starting the backend', async () => {

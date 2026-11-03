@@ -32,6 +32,8 @@
   "SESSIONS_SAVE": "저장",
   "SESSIONS_DELETE_TITLE": "세션을 삭제할까요?",
   "SESSIONS_DELETE_BODY": "세션과 세션 폴더의 모든 파일이 영구적으로 삭제됩니다.",
+  "SESSION_TIMELINE_EMPTY": "아래에 프롬프트를 입력하여 이 세션을 시작하세요.",
+  "SESSION_TURN_CANCELLED": "생성이 취소되었습니다",
   "COM_POST_TO_ENHANCE_PROCESS": "향상 처리로 보내기",
   "COM_POST_TO_IMAGE_EDIT": "Image Edit 모드로 보내기",
   "COM_POST_TO_VIDEO": "Video 모드로 보내기",

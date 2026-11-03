@@ -8,6 +8,7 @@ import {
   resetSessionFilesForTest,
   serializeSession,
   sessionFolderPaths,
+  sessionsRoot,
   setSessionFileDeps,
   wipeDemoSessionFolders,
   writeSessionFile,
@@ -36,6 +37,11 @@ const UNAVAILABLE_TITLE = 'Unavailable session'
 
 export function setSessionDeps(deps: SessionFileDeps): void {
   setSessionFileDeps(deps)
+}
+
+/** The folder every Session Folder lives in (the demo root in demo mode). */
+export function sessionsRootDir(): string {
+  return sessionsRoot()
 }
 
 export function sessionPaths(id: string): SessionFolderPaths {
@@ -98,9 +104,12 @@ export async function listSessions(): Promise<SessionSummary[]> {
     .sort((a, b) => b.updatedAt - a.updatedAt || b.createdAt - a.createdAt)
 }
 
-export async function openSession(id: string): Promise<SessionDocument> {
-  const file = await requireSessionFile(id)
+export function sessionDocumentOf(file: SessionFile): SessionDocument {
   return { ...summaryOf(file), timeline: file.timeline }
+}
+
+export async function openSession(id: string): Promise<SessionDocument> {
+  return sessionDocumentOf(await requireSessionFile(id))
 }
 
 /** Read-modify-write of one `session.json` on that Session's write chain. */

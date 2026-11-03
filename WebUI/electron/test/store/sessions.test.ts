@@ -26,6 +26,8 @@ vi.mock('@/assets/js/toast', () => ({
 }))
 
 const sessionModule = await import('../../session/sessions')
+const kernelBus = await import('../../kernel/kernelBus')
+const { recordMediaTurn } = await import('../../session/sessionMediaTurn')
 const { useSessions } = await import('@/assets/js/store/sessions')
 
 function ok<T extends object>(run: () => Promise<T>) {
@@ -37,8 +39,11 @@ beforeEach(async () => {
   dirs.real = path.join(root, 'sessions')
   dirs.demo = path.join(root, 'sessions-demo')
   sessionModule.setSessionDeps({ isDemoMode: () => false })
+  kernelBus.resetKernelBusForTest()
   vi.stubGlobal('window', {
     electronAPI: {
+      onKernelEvent: kernelBus.onKernelEvent,
+      getKernelSnapshot: async () => kernelBus.getKernelSnapshot(),
       sessions: {
         list: ok(async () => ({ sessions: await sessionModule.listSessions() })),
         create: ok(async () => ({ session: await sessionModule.createSession() })),
@@ -122,5 +127,28 @@ describe('Sessions store', () => {
 
     expect(store.openSessionId).not.toBe(only)
     expect(store.orderedSessions.map((session) => session.id)).toEqual([store.openSessionId])
+  })
+
+  it('shows a media turn that settled into the open Session', async () => {
+    const store = useSessions()
+    await store.init()
+    const id = store.openSessionId!
+
+    await recordMediaTurn({
+      sessionId: id,
+      runId: 'run-1',
+      mode: 'imageGen',
+      preset: 'Dummy Image (test)',
+      prompt: 'a red fox',
+      status: 'failed',
+      items: [],
+      localPathOf: () => null,
+    })
+
+    await vi.waitFor(() => expect(store.openTimeline).toHaveLength(2))
+    expect(store.sessions[id]).toMatchObject({
+      title: 'a red fox',
+      presetsUsed: ['Dummy Image (test)'],
+    })
   })
 })
