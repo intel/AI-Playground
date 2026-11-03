@@ -242,6 +242,7 @@ import {
 } from './session/sessionArtifacts'
 import { cleanUpHarnessSessionsOnDelete, harnessSessionFor } from './session/sessionHarness'
 import { upsertTimelineMessages } from './session/sessionTimeline'
+import { saveChatTranscript } from './session/sessionChatTurn'
 import { setAppMediaPathResolver } from './agent/piCustomTools'
 import { readSessionSettings, writePresetSettings } from './session/sessionSettings'
 import { buildAgentModeRegistry } from './kernel/registries/agentMode'
@@ -1434,6 +1435,7 @@ function wireChatEngine(): void {
     // Tracing hooks: no-ops in laminar.ts unless a Laminar config is present.
     noteTimings: (timings) => noteLlamaCppChatTimings(timings),
     noteTraceContext: (context) => noteMainChatTurnContext(context),
+    localPathOf: getLocalPathFromAipgMediaUrl,
   })
   setRagRetrievalDeps({
     ensureEmbeddingServerReady: async (serviceName, embeddingModel) => {
@@ -1829,6 +1831,7 @@ function initEventHandle() {
       deleteSession,
       harnessSessionFor,
       upsertTimelineMessages,
+      saveChatTranscript,
       recordAudioTurn,
       listAllArtifacts,
       missingArtifactUrls,

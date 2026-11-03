@@ -33,6 +33,7 @@ describe('per-owner handler registries', () => {
       | 'sessions:delete'
       | 'sessions:harnessSession'
       | 'sessions:saveTimelineMessages'
+      | 'sessions:saveChatTranscript'
       | 'sessions:recordAudioTurn'
       | 'sessions:listArtifacts'
       | 'sessions:deleteArtifact'

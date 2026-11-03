@@ -21,6 +21,7 @@ import type {
 } from '../../session/sessionArtifacts'
 import type { harnessSessionFor } from '../../session/sessionHarness'
 import type { upsertTimelineMessages } from '../../session/sessionTimeline'
+import type { ChatTranscriptMessage, saveChatTranscript } from '../../session/sessionChatTurn'
 import type { readSessionSettings, writePresetSettings } from '../../session/sessionSettings'
 import { PresetSessionSettingsSchema } from '@/types/sessionSettings'
 
@@ -39,6 +40,7 @@ export type SessionsDeps = {
   newestArtifact: typeof newestArtifact
   harnessSessionFor: typeof harnessSessionFor
   upsertTimelineMessages: typeof upsertTimelineMessages
+  saveChatTranscript: typeof saveChatTranscript
 }
 
 function timelineMessages(value: unknown): { id: string }[] {
@@ -120,6 +122,17 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
         await deps.upsertTimelineMessages(
           requireString(id, 'session id'),
           timelineMessages(messages),
+        )
+        return { success: true as const }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:saveChatTranscript': async (_event, id, messages) => {
+      try {
+        await deps.saveChatTranscript(
+          requireString(id, 'session id'),
+          timelineMessages(messages) as ChatTranscriptMessage[],
         )
         return { success: true as const }
       } catch (e) {

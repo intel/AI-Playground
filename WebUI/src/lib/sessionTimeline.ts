@@ -6,6 +6,7 @@ import type {
   TimelineMessage,
   TimelinePart,
 } from '@/types/sessionTimeline'
+import { asChatTranscriptMessage } from '@/lib/sessionChat'
 
 /**
  * What the Session timeline renders, one block per turn. Later turn kinds
@@ -22,6 +23,7 @@ export type TimelineTurn =
       harnessSessionId: string
       messages: UIMessage[]
     }
+  | { kind: 'chat'; id: string; messages: UIMessage[] }
 
 function isTimelineMessage(value: unknown): value is TimelineMessage {
   if (!value || typeof value !== 'object') return false
@@ -82,6 +84,12 @@ export function timelineTurns(timeline: readonly unknown[]): TimelineTurn[] {
           messages: [message as unknown as UIMessage],
         })
       }
+      continue
+    }
+    if (asChatTranscriptMessage(message)) {
+      const last = turns.at(-1)
+      if (last?.kind === 'chat') last.messages.push(message as unknown as UIMessage)
+      else turns.push({ kind: 'chat', id: message.id, messages: [message as unknown as UIMessage] })
       continue
     }
     const next = messages[i + 1]

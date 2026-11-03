@@ -80,6 +80,7 @@ import {
   isNpuDevice,
 } from '@/lib/llmBackendChoices'
 import { modelSupportsThinkingToggle as supportsThinkingToggleFor } from '@/lib/llmModelChoices'
+import { sessionIdOfChatKey } from '@/lib/sessionChat'
 
 const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
@@ -2162,7 +2163,8 @@ export const useTextInference = defineStore(
     watch(
       () => conversations.activeKey,
       (newKey) => {
-        if (!newKey) return
+        // A Session's chat follows the live preset; opening a Session restores its preset itself.
+        if (!newKey || sessionIdOfChatKey(newKey)) return
         const meta = conversations.getThreadMeta(newKey)
         // Home Agent threads are always pinned to the bundled Home Agent preset,
         // even before they've been stamped, so opening one switches the picker.

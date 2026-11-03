@@ -262,6 +262,13 @@ export const CHANNELS = {
     args: [] as unknown as readonly [string, unknown[]],
     result: null as unknown as IpcMutationResult,
   },
+  /** Replace a Session's chat transcript (a removed or cleared message); other turns stay. */
+  'sessions:saveChatTranscript': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string, unknown[]],
+    result: null as unknown as IpcMutationResult,
+  },
   /** Settle a Text-to-Speech / Speech-to-Text turn: audio into files/, a History Entry, the timeline. */
   'sessions:recordAudioTurn': {
     kind: 'invoke',

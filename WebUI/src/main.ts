@@ -8,6 +8,7 @@ import { useErrors } from './assets/js/store/errors'
 import { usePromptStore } from './assets/js/store/promptArea'
 import { useConversations } from './assets/js/store/conversations'
 import { useSessions } from './assets/js/store/sessions'
+import { useSessionChat } from './assets/js/store/sessionChat'
 import { useSessionSettings } from './assets/js/store/sessionSettings'
 import { useSessionDefaultInputs } from './assets/js/store/sessionDefaultInputs'
 import { useAgentMode } from './assets/js/store/agentMode'
@@ -97,6 +98,8 @@ await useConversations().init()
 
 // The Sessions panel lists what is on disk from first paint, with a Session open.
 await useSessions().init()
+// Non-agent chat presets write into the open Session's chat transcript.
+useSessionChat()
 
 // Same for agent-session records (step 8): the Sessions panel and a resumed
 // agent turn read a fully hydrated map. Instantiating the store here is safe —

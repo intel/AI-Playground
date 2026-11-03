@@ -322,6 +322,7 @@ import SessionSettingsActions from '@/components/SessionSettingsActions.vue'
 import * as toast from '@/assets/js/toast'
 import { useProductMode } from '@/assets/js/store/productMode'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from '@/assets/js/store/conversations'
+import { useSessionChat } from '@/assets/js/store/sessionChat'
 import { useContextSizeField } from '@/assets/js/contextSizeField'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import { useCloudMode } from '@/assets/js/store/cloudMode'
@@ -343,6 +344,7 @@ const presetSwitching = usePresetSwitching()
 const backendServices = useBackendServices()
 const productModeStore = useProductMode()
 const conversations = useConversations()
+const sessionChat = useSessionChat()
 const homeAgent = useHomeAgent()
 const cloudMode = useCloudMode()
 const uiStore = useUIStore()
@@ -464,7 +466,7 @@ async function handlePresetChange(presetName: string) {
     if (switchingToHomeAgent) {
       conversations.activeKey = homeAgent.ensureActiveRemoteConversation()
     } else if (onHomeAgentThread) {
-      conversations.addNewConversation()
+      sessionChat.returnToSessionChat()
     }
     toast.success(`Switched to ${oemBranding.presetLabel(presetName)}`)
   } else if (result.error) {

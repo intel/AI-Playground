@@ -277,6 +277,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       invoke('sessions:harnessSession', id, presetName, game),
     saveTimelineMessages: (id: string, messages: unknown[]) =>
       invoke('sessions:saveTimelineMessages', id, cloneForIpc(messages)),
+    saveChatTranscript: (id: string, messages: unknown[]) =>
+      invoke('sessions:saveChatTranscript', id, cloneForIpc(messages)),
     recordAudioTurn: (turn: AudioTurnRequest) =>
       invoke('sessions:recordAudioTurn', cloneForIpc(turn)),
     listArtifacts: () => invoke('sessions:listArtifacts'),

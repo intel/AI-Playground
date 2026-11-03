@@ -6,6 +6,7 @@ import { completeOrphanedToolParts, sanitizeBulkyToolOutputs } from '@/lib/toolM
 import { currentPresetName } from '@/lib/presetRenames'
 import { makeForwardPersist } from '@/lib/ipcPersist'
 import { cloneForIpc } from '@/lib/cloneForIpc'
+import { sessionIdOfChatKey } from '@/lib/sessionChat'
 import { useErrors } from './errors'
 import { modelDownloads } from '../models/modelDownloadQueue'
 import type { ConversationBootstrap, ConversationLegacyState } from '@/types/conversationIpc'
@@ -94,6 +95,16 @@ export const useConversations = defineStore('conversations', () => {
   }
 
   function saveThread(conversationKey: string): void {
+    const sessionId = sessionIdOfChatKey(conversationKey)
+    if (sessionId) {
+      forwardPersist(() =>
+        window.electronAPI.sessions.saveChatTranscript(
+          sessionId,
+          cloneForIpc(conversationList.value[conversationKey] ?? []),
+        ),
+      )
+      return
+    }
     forwardPersist(() =>
       window.electronAPI.conversations.save(
         cloneForIpc({
@@ -125,6 +136,7 @@ export const useConversations = defineStore('conversations', () => {
     delete conversationList.value[conversationKey]
     delete conversationThreadMeta.value[conversationKey]
     delete conversationRagSelection.value[conversationKey]
+    if (sessionIdOfChatKey(conversationKey)) return
     forwardPersist(() => window.electronAPI.conversations.delete(conversationKey))
   }
 
@@ -181,7 +193,7 @@ export const useConversations = defineStore('conversations', () => {
   watch(
     () => activeKey.value,
     (k) => {
-      if (k && conversationList.value[k] && getThreadKind(k) === 'main') {
+      if (k && conversationList.value[k] && getThreadKind(k) === 'main' && !sessionIdOfChatKey(k)) {
         lastMainKey.value = k
         forwardPersist(() => window.electronAPI.conversations.saveLastMainKey(k))
       }

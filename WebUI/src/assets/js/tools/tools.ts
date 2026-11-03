@@ -8,6 +8,7 @@ import { browseWeb, interactWithWebPage, screenshotWebPage, searchWeb } from './
 import { configureHomeAgent, getHomeAgentSettings, listHomeAgentModels } from './configureHomeAgent'
 import { synthesizeTextToSpeech } from './synthesizeTextToSpeech'
 import { transcribeAudio } from './transcribeAudio'
+import { sessionHistory } from './sessionHistory'
 
 export const aipgTools = {
   comfyUI,
@@ -38,4 +39,9 @@ export const homeAgentTools = {
   getHomeAgentSettings,
   listHomeAgentModels,
   configureHomeAgent,
+} satisfies ToolSet
+
+/** Offered to a tool-enabled chat turn in a Session; not a user-pickable tool. */
+export const sessionTools = {
+  session_history: sessionHistory,
 } satisfies ToolSet

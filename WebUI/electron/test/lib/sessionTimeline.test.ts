@@ -63,6 +63,33 @@ const user = (id: string, text: string) => ({
   parts: [{ type: 'text', text }],
 })
 
+const chatMessage = (id: string, role: 'user' | 'assistant', text: string) => ({
+  id,
+  role,
+  parts: [{ type: 'text', text }],
+  metadata: { chatTurn: true },
+})
+
+describe('chat turns in the timeline', () => {
+  it('keeps a run of the chat transcript together as one chat block', () => {
+    const turns = timelineTurns([
+      chatMessage('u1', 'user', 'hi'),
+      chatMessage('a1', 'assistant', 'hello'),
+      mediaPrompt,
+      mediaCard,
+      chatMessage('u2', 'user', 'describe it'),
+      chatMessage('a2', 'assistant', 'a fox'),
+    ])
+
+    expect(turns.map((turn) => turn.kind)).toEqual(['chat', 'media', 'chat'])
+    const last = turns.at(-1)
+    expect(last?.kind === 'chat' && last.messages.map((message) => message.id)).toEqual([
+      'u2',
+      'a2',
+    ])
+  })
+})
+
 describe('timelineTurns', () => {
   it('pairs a prompt with its audio result into one audio turn', () => {
     const audio = { kind: 'tts', preset: 'Text to Speech', status: 'completed', audioUrl: 'u' }

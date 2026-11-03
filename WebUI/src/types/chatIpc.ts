@@ -214,6 +214,11 @@ export const ChatTurnRequestSchema = z.object({
   conversationLabel: z.string().optional(),
   /** Home Agent preset: what its own settings tools read and diff against. */
   homeAgentInference: HomeAgentInferenceSnapshotSchema.optional(),
+  /** The Session whose chat transcript this is; its file replaces the conversation file. */
+  sessionRef: z.string().optional(),
+  /** The chat preset (and variant) the turn ran with, for its History Entry. */
+  presetName: z.string().optional(),
+  variant: z.string().optional(),
 })
 export type ChatTurnRequest = z.infer<typeof ChatTurnRequestSchema>
 

@@ -19,6 +19,8 @@ import type { ChatTurnRequest } from '@/types/chatIpc'
 import { withResponseLanguageAtStart } from '@/lib/responseLanguage'
 import { useTextInference } from './textInference'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from './conversations'
+import { usePresets } from './presets'
+import { sessionIdOfChatKey } from '@/lib/sessionChat'
 import { sanitizeBulkyToolOutputs } from '@/lib/toolMessageSanitize'
 import { restoreMissingHistory } from '@/lib/threadHistoryMerge'
 import { useErrors } from './errors'
@@ -30,23 +32,15 @@ import { useComputeMetrics } from './computeMetrics'
 import type { ChatTurnEnergy } from '@/lib/chatEnergy'
 import { createAppError, extractMessage, isCancellation } from '../errors/appError'
 import type { AppError } from '../errors/types'
-import { aipgTools, homeAgentTools } from '../tools/tools'
+import { aipgTools, homeAgentTools, sessionTools } from '../tools/tools'
 import { getAvailableWorkflows, createToolRepairData } from '../tools/comfyUi'
 import { getAvailableEditWorkflows, createEditToolRepairData } from '../tools/comfyUiImageEdit'
 import z from 'zod'
 import { AipgTools } from '../tools/tools'
 import { JSONSchema7 } from '@ai-sdk/provider'
 import { dynamicTool, jsonSchema } from '@ai-sdk/provider-utils'
-import {
-  readyTranscriptionForInput,
-  synthesizeClip,
-  synthesizeToolAvailable,
-  saveSpeechClip,
-  transcribe,
-  transcriptionAvailable,
-} from '../speech/speechIO'
-import * as toast from '@/assets/js/toast'
-import { buildTtsAudioFileName, conversationLabelForTtsFile } from '@/lib/ttsAudioFileName'
+import { synthesizeToolAvailable, transcriptionAvailable } from '../speech/speechIO'
+import { conversationLabelForTtsFile } from '@/lib/ttsAudioFileName'
 
 // Web tools that share browseWeb's single "Browse the web" enablement toggle:
 // they all act on the same background browser browseWeb drives.
@@ -90,6 +84,9 @@ export type AipgMetadata = {
   energy?: ChatTurnEnergy
   ragSource?: string
   usage?: LanguageModelUsage
+  /** In a Session's chat transcript; the Session Update main put ahead of this prompt. */
+  chatTurn?: boolean
+  sessionUpdate?: string
 }
 
 export type AipgUiMessage = UIMessage<AipgMetadata, UIDataTypes, AipgTools>
@@ -108,6 +105,7 @@ export const useOpenAiCompatibleChat = defineStore(
   () => {
     const textInference = useTextInference()
     const conversations = useConversations()
+    const presets = usePresets()
     const errors = useErrors()
     const activities = useActivities()
     const confirmations = useConfirmations()
@@ -219,15 +217,15 @@ export const useOpenAiCompatibleChat = defineStore(
       return !excludedKeywords.some((keyword) => name.includes(keyword))
     }
 
-    async function resolveTools(): Promise<ToolSet> {
+    async function resolveTools(conversationKey: string): Promise<ToolSet> {
       if (!textInference.modelSupportsToolCalling) return {}
 
-      const builtinTools = resolveBuiltinTools()
+      const builtinTools = resolveBuiltinTools(conversationKey)
       const mcpTools = await resolveMcpTools()
       return { ...builtinTools, ...mcpTools }
     }
 
-    function resolveBuiltinTools(): ToolSet {
+    function resolveBuiltinTools(conversationKey: string): ToolSet {
       if (!textInference.aipgToolsEnabled) return {}
       const tools: ToolSet = {}
       // With tool delegation on, the two heavy comfy tools are replaced by the
@@ -289,6 +287,7 @@ export const useOpenAiCompatibleChat = defineStore(
       if (textInference.activePreset?.name === HOME_AGENT_CHAT_PRESET_NAME) {
         Object.assign(tools, homeAgentTools)
       }
+      if (sessionIdOfChatKey(conversationKey)) Object.assign(tools, sessionTools)
       return tools
     }
 
@@ -436,7 +435,7 @@ export const useOpenAiCompatibleChat = defineStore(
           label: i18nState.COM_ACTIVITY_PREPARING_TOOLS,
           scope: { kind: 'chat' as const, conversationKey: targetKey },
         },
-        () => resolveTools(),
+        () => resolveTools(targetKey),
       )
       const hasTools = Object.keys(toolSet).length > 0
       const specs = hasTools ? serializeToolSet(toolSet) : []
@@ -498,7 +497,25 @@ export const useOpenAiCompatibleChat = defineStore(
           ? { homeAgentInference: buildHomeAgentInferenceSnapshot() }
           : {}),
         homeAgentDiagnostics: textInference.activePreset?.name === HOME_AGENT_CHAT_PRESET_NAME,
+        ...sessionTurnFields(targetKey),
       }
+    }
+
+    function sessionTurnFields(conversationKey: string) {
+      const sessionRef = sessionIdOfChatKey(conversationKey)
+      const presetName = presets.activePresetName
+      if (!sessionRef || !presetName) return {}
+      const variant = presets.activeVariantName[presetName]
+      return { sessionRef, presetName, ...(variant ? { variant } : {}) }
+    }
+
+    /** Replaces a chat's messages with its stored transcript unless a turn is running in it. */
+    function loadTranscript(conversationKey: string, messages: AipgUiMessage[]): void {
+      if ((generatingKeys.value[conversationKey] ?? 0) > 0) return
+      const chat = chats[conversationKey]
+      if (chat && (chat.status === 'submitted' || chat.status === 'streaming')) return
+      conversations.applyConversationMessages(messages, conversationKey)
+      if (chat) chat.messages = [...(conversations.conversationList[conversationKey] ?? [])]
     }
 
     function getOrCreateChat(conversationKey: string): Chat<AipgUiMessage> {
@@ -654,277 +671,6 @@ export const useOpenAiCompatibleChat = defineStore(
     }
 
     /**
-     * Direct Text-to-Speech turn (no LLM). Used when the active preset is a TTS
-     * preset: synthesize the typed text with Qwen3-TTS and append the same
-     * `tool-synthesizeTextToSpeech` assistant part the agentic tool emits, so the
-     * chat renders a ChatTtsToolResult audio bubble. Voice/language/mode come from
-     * the shared qwen3TextToSpeech store (edited in SettingsTts).
-     */
-    async function synthesizeDirect(
-      question: string,
-      targetKey: string,
-      opts: {
-        clearInputs: boolean
-        sideChannel: boolean
-        /** Regenerate: the user's message is already in the thread — don't duplicate it. */
-        keepExistingUserMessage?: boolean
-      },
-    ): Promise<void> {
-      const chat = getOrCreateChat(targetKey)
-
-      // Show the user's message right away so the turn isn't blank while we
-      // synthesize — this path has no streaming LLM to fill the bubble, and the
-      // audio can take a while to generate.
-      if (!opts.keepExistingUserMessage) {
-        const userMessage = {
-          id: crypto.randomUUID(),
-          role: 'user',
-          parts: [{ type: 'text', text: question }],
-          metadata: { timestamp: Date.now() },
-        } as unknown as AipgUiMessage
-        chat.messages.push(userMessage)
-        conversations.updateConversation(chat.messages, targetKey)
-      }
-      if (opts.clearInputs) {
-        messageInput.value = ''
-        fileInput.value = []
-      }
-
-      // Surface progress while synthesizing: "Loading voice model…" (first use /
-      // backend start) then "Generating audio file…". The standalone
-      // ChatActivityIndicator renders this because the last message is the user's
-      // (no assistant bubble exists yet). The engine's own phase signal drives the
-      // label, so the activity is visible from the first probe.
-      const ttsScope = { kind: 'chat' as const, conversationKey: targetKey }
-      const ttsActivityId = activities.begin({
-        category: 'tools',
-        label: 'Loading voice model…',
-        scope: ttsScope,
-      })
-
-      let output: {
-        ok: boolean
-        message: string
-        savedFilePath: string
-        speaker: string
-        language: string
-        mode: string
-      }
-      let modelLabel = ''
-      try {
-        const label = conversationLabelForTtsFile({
-          conversationKey: targetKey,
-          messages: getMessagesForKey(targetKey),
-          threadMeta: conversations.getThreadMeta(targetKey),
-        })
-        const fileName = buildTtsAudioFileName({
-          conversationKey: targetKey,
-          conversationLabel: label,
-        })
-        const clip = await synthesizeClip({
-          text: question,
-          onPhase: (phase) =>
-            activities.update(ttsActivityId, {
-              label: phase === 'loading-model' ? 'Loading voice model…' : 'Generating audio file…',
-            }),
-        })
-        const savedFilePath = await saveSpeechClip(clip.audioBase64, fileName)
-        modelLabel =
-          clip.engine === 'kokoro'
-            ? 'Kokoro'
-            : clip.engine === 'external'
-              ? 'External TTS'
-              : 'Qwen TTS'
-        if (clip.engine === 'qwen3') {
-          output = {
-            ok: true,
-            message: `Synthesized ${clip.mode} speech (${clip.language}, ${clip.voice}).`,
-            savedFilePath,
-            speaker: clip.voice,
-            language: clip.language ?? '',
-            mode: clip.mode ?? 'custom_voice',
-          }
-        } else {
-          const engineLabel = clip.engine === 'kokoro' ? 'Kokoro' : 'the external endpoint'
-          output = {
-            ok: true,
-            message: `Synthesized speech with ${engineLabel} (${clip.voice}).`,
-            savedFilePath,
-            speaker: clip.voice,
-            language: '',
-            mode: 'custom_voice',
-          }
-        }
-      } catch (error) {
-        errors.report(error, {
-          category: 'inference',
-          code: 'inference/tts-failed',
-          userMessage: `Text To Speech failed: ${extractMessage(error)}`,
-          surface: opts.sideChannel ? 'silent' : 'toast',
-          context: { conversationKey: targetKey },
-        })
-        // Fall through and record the failure as the turn's result rather than
-        // returning here. A toast is the only thing this path used to leave behind,
-        // and it fades — so a synthesis that died in the sidecar (an Intel XPU
-        // `UR_RESULT_ERROR_DEVICE_LOST` mid-generation, say) left the thread showing
-        // the user's message with nothing under it and no way to tell whether it had
-        // failed or was still working. ChatTtsToolResult already renders `ok: false`
-        // as an error line; nothing had ever produced one.
-        const hint = inferenceFailureHint(extractMessage(error))
-        output = {
-          ok: false,
-          message: `Text To Speech failed: ${extractMessage(error)}${hint ? ` — ${hint}` : ''}`,
-          savedFilePath: '',
-          speaker: '',
-          language: '',
-          mode: '',
-        }
-      } finally {
-        activities.end(ttsActivityId)
-      }
-
-      // Cast to the message type: the AI SDK's inferred tool-UI-part shape is wider
-      // than what we construct by hand, but this part mirrors exactly what the tool
-      // produces (see synthesizeTextToSpeech + toolMessageSanitize fixtures).
-      const assistantMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        parts: [
-          {
-            type: 'tool-synthesizeTextToSpeech',
-            toolCallId: crypto.randomUUID(),
-            state: 'output-available',
-            input: { text: question },
-            output,
-          },
-        ],
-        metadata: {
-          model: modelLabel,
-          timestamp: Date.now(),
-        },
-      } as unknown as AipgUiMessage
-      chat.messages.push(assistantMessage)
-      conversations.updateConversation(chat.messages, targetKey)
-    }
-
-    /**
-     * Regenerate an audio turn in a TTS thread: drop the audio message (and
-     * anything after it) and synthesize the same prompt again, keeping the user's
-     * message in place. No LLM is involved — a TTS thread has no chat model.
-     */
-    async function regenerateSynthesis(messageId: string, targetKey: string): Promise<void> {
-      const chat = getOrCreateChat(targetKey)
-      const targetIdx = chat.messages.findIndex((m) => m.id === messageId)
-      if (targetIdx < 0) return
-      const priorUserMessage = [...chat.messages.slice(0, targetIdx)]
-        .reverse()
-        .find((m) => m.role === 'user')
-      const question =
-        priorUserMessage?.parts
-          ?.filter((p): p is { type: 'text'; text: string } => p.type === 'text')
-          .map((p) => p.text)
-          .join('\n\n')
-          .trim() ?? ''
-      if (!question) return
-
-      // A previous Stop leaves `manuallyStopped` set, which would keep `processing`
-      // false for this turn and let the UI accept a second submission mid-synthesis.
-      manuallyStopped.value = false
-      markGenerating(targetKey)
-      try {
-        // Drop the old audio turn first so the retry replaces it rather than
-        // appending a second player under the same prompt.
-        chat.messages.splice(targetIdx, chat.messages.length - targetIdx)
-        conversations.updateConversation(chat.messages, targetKey)
-        await synthesizeDirect(question, targetKey, {
-          clearInputs: false,
-          sideChannel: false,
-          keepExistingUserMessage: true,
-        })
-      } finally {
-        unmarkGenerating(targetKey)
-      }
-    }
-
-    /**
-     * Append a completed speech-to-text turn to a conversation: a lightweight user
-     * "audio" message (label only) followed by an assistant message holding the
-     * transcript text. Used by the STT preset for both the recorded-mic path (where
-     * the audio recorder already produced the transcript) and the upload path.
-     *
-     * An empty transcript (silence, or an unintelligible clip) is not appended: a
-     * blank assistant bubble tells the user nothing about what went wrong. Both
-     * callers can produce one, so the check lives here — the user is told instead,
-     * matching what the Home Agent replies on the remote voice path.
-     */
-    function appendTranscriptTurn(
-      transcript: string,
-      targetKey: string,
-      sourceLabel?: string,
-    ): void {
-      if (!transcript.trim()) {
-        toast.warning("Couldn't make out any speech in that audio. Please try again.")
-        return
-      }
-      const chat = getOrCreateChat(targetKey)
-      const userMessage = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        parts: [{ type: 'text', text: sourceLabel ?? '🎤 Audio input' }],
-        metadata: { timestamp: Date.now() },
-      } as unknown as AipgUiMessage
-      const assistantMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        parts: [{ type: 'text', text: transcript }],
-        metadata: { model: 'Whisper', timestamp: Date.now() },
-      } as unknown as AipgUiMessage
-      chat.messages.push(userMessage, assistantMessage)
-      conversations.updateConversation(chat.messages, targetKey)
-    }
-
-    /**
-     * Direct Speech-to-Text turn (no LLM). Used when the active preset is an STT
-     * preset and the user uploads an audio file: transcribe it with the OVMS Whisper
-     * server (or the configured fallback) and append the transcript as a chat turn.
-     * The recorded-mic path reuses the audio recorder's own transcription and calls
-     * {@link appendTranscriptTurn} directly instead.
-     */
-    async function transcribeDirect(
-      blob: Blob,
-      opts?: { conversationKey?: string; sourceLabel?: string },
-    ): Promise<void> {
-      const targetKey = opts?.conversationKey ?? conversations.activeKey
-      const scope = { kind: 'chat' as const, conversationKey: targetKey }
-      const activityId = activities.begin({
-        category: 'tools',
-        label: 'Transcribing audio…',
-        scope,
-      })
-      try {
-        // Ready the selected engine before resolving the endpoint: OVMS Whisper or
-        // the standalone torch sidecar (both may prompt a model download on first
-        // use); the External engine needs nothing started. Already-captured audio,
-        // so a prompted download lands before the transcription and `downloadPrompted`
-        // can be ignored.
-        await readyTranscriptionForInput()
-        const { text } = await transcribe({ audio: blob })
-        // Silence / no recognizable speech is handled inside appendTranscriptTurn.
-        appendTranscriptTurn(text, targetKey, opts?.sourceLabel)
-      } catch (error) {
-        errors.report(error, {
-          category: 'inference',
-          code: 'inference/stt-failed',
-          userMessage: `Speech To Text failed: ${extractMessage(error)}`,
-          surface: 'toast',
-          context: { conversationKey: targetKey },
-        })
-      } finally {
-        activities.end(activityId)
-      }
-    }
-
-    /**
      * Whether an image reaches the model on this turn — newly attached or
      * already in the thread, since history is sent too. It is the only thing
      * the multimodal projector is needed for.
@@ -961,13 +707,6 @@ export const useOpenAiCompatibleChat = defineStore(
         manuallyStopped.value = false
         // Clear any prior failure so consumeTurnError only ever reflects this turn.
         turnErrors.delete(targetKey)
-
-        // TTS preset: synthesize directly from the typed text, bypassing the LLM
-        // entirely (no model load, no tool calling).
-        if (textInference.activePreset?.ttsPreset) {
-          await synthesizeDirect(question, targetKey, { clearInputs, sideChannel })
-          return
-        }
 
         // 2. Block if images attached to non-vision model (UI path only). Validate
         //    before touching the backend so we don't load a model just to reject.
@@ -1097,23 +836,6 @@ export const useOpenAiCompatibleChat = defineStore(
       textInference.ensureGlobalsMatchConversation(targetKey)
       textInference.stampMetaForConversation(targetKey)
 
-      // TTS preset: re-synthesize the prompt instead of running the LLM. Without
-      // this the regenerate button falls through to `checkModelAvailability()`
-      // and may load a chat model into a thread that never uses one.
-      if (textInference.activePreset?.ttsPreset) {
-        await regenerateSynthesis(messageId, targetKey)
-        return
-      }
-
-      // STT preset: same trap as TTS above — falling through would load a chat
-      // model into a thread that never uses one. Unlike TTS there is nothing to
-      // redo: the transcript's source audio is not kept in the thread (the user
-      // message is only a label), so re-transcribing is impossible.
-      if (textInference.activePreset?.sttPreset) {
-        toast.warning('A transcript cannot be regenerated — record or upload the audio again.')
-        return
-      }
-
       try {
         await textInference.checkModelAvailability({
           needsVision: turnCarriesImage(targetKey),
@@ -1213,8 +935,7 @@ export const useOpenAiCompatibleChat = defineStore(
       fileInput,
       canTranscribeAttachments,
       generate,
-      transcribeDirect,
-      appendTranscriptTurn,
+      loadTranscript,
       getMessagesForKey,
       summarizeMessages,
       stop,

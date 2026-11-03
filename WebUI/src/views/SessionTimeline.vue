@@ -22,6 +22,7 @@
         <div v-else-if="turn.kind === 'agent'" class="flex flex-col gap-4">
           <AgentTurnBlock :messages="turn.messages" />
         </div>
+        <ChatTurnBlock v-else-if="turn.kind === 'chat'" :messages="turn.messages" />
         <AudioTurnBlock
           v-else-if="turn.kind === 'audio'"
           :prompt="turn.prompt"
@@ -76,6 +77,7 @@ import { useSessions } from '@/assets/js/store/sessions'
 import AudioTurnBlock from '@/components/AudioTurnBlock.vue'
 import MediaTurnBlock from '@/components/MediaTurnBlock.vue'
 import AgentTurnBlock from '@/components/AgentTurnBlock.vue'
+import ChatTurnBlock from '@/components/ChatTurnBlock.vue'
 import { isCancellation } from '@/assets/js/errors/appError'
 import { timelineTurns } from '@/lib/sessionTimeline'
 import type { TimelineMessage } from '@/types/sessionTimeline'

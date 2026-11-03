@@ -556,6 +556,7 @@ import { useOemBranding } from '@/assets/js/store/oemBranding'
 import { useModeSettingsLabel } from '@/assets/js/modeSettingsLabel'
 import { MODE_TO_CATEGORIES, MODE_TO_PRESET_TYPE, buttonModeFor } from '@/lib/presetModes'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from '@/assets/js/store/conversations'
+import { useSessionChat } from '@/assets/js/store/sessionChat'
 import { useHomeAgent } from '@/assets/js/store/homeAgent'
 import { useBackendServices } from '@/assets/js/store/backendServices'
 import { useActivities } from '@/assets/js/store/activities'
@@ -607,6 +608,7 @@ const oemBranding = useOemBranding()
 const settingsLabel = useModeSettingsLabel(() => promptStore.getCurrentMode())
 const textInference = useTextInference()
 const conversations = useConversations()
+const sessionChat = useSessionChat()
 const activities = useActivities()
 const errors = useErrors()
 const textareaRef = ref<HTMLTextAreaElement>()
@@ -777,7 +779,7 @@ async function selectPresetFromPicker(mode: ModeType, preset: Preset) {
     if (switchingToHomeAgent) {
       conversations.activeKey = homeAgent.ensureActiveRemoteConversation()
     } else if (onHomeAgentThread) {
-      conversations.addNewConversation()
+      sessionChat.returnToSessionChat()
     }
     toast.success(`Switched to ${oemBranding.presetLabel(preset.name)}`)
   } else if (result.error) {

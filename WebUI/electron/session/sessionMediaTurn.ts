@@ -62,21 +62,25 @@ async function moveFile(from: string, to: string): Promise<void> {
   }
 }
 
-type Moved = { url: string; relativePath: string }
+export type AdoptedFile = { url: string; relativePath: string }
 
-/** Moves the file behind `url` into the Session's `files/`; null leaves the URL as it was. */
-async function adoptFile(turn: MediaTurn, url: string | undefined): Promise<Moved | null> {
+/** Moves the media-folder file behind `url` into the Session's `files/`; null leaves it there. */
+export async function adoptMediaFile(
+  sessionId: string,
+  url: string | undefined,
+  localPathOf: (url: string) => string | null,
+): Promise<AdoptedFile | null> {
   if (!url?.startsWith('aipg-media://media/')) return null
-  const source = turn.localPathOf(url)
+  const source = localPathOf(url)
   if (!source) return null
-  const filesDir = sessionPaths(turn.sessionId).filesDir
+  const filesDir = sessionPaths(sessionId).filesDir
   try {
     if (!(await fs.stat(source)).isFile()) return null
     await fs.mkdir(filesDir, { recursive: true })
     const name = await freeName(filesDir, path.basename(source))
     await moveFile(source, path.join(filesDir, name))
     const relativePath = `${SESSION_FILES_DIR}/${name}`
-    return { url: sessionMediaUrl(turn.sessionId, relativePath), relativePath }
+    return { url: sessionMediaUrl(sessionId, relativePath), relativePath }
   } catch (error) {
     appLoggerInstance.warn(`could not move ${source} into its Session: ${error}`, LOG_SCOPE)
     return null
@@ -99,8 +103,11 @@ type AdoptedItem = { item: MediaItem; artifact?: { path: string; mediaType: Arti
 async function adoptItem(turn: MediaTurn, item: MediaItem): Promise<AdoptedItem> {
   const mainUrl =
     item.type === 'image' ? item.imageUrl : item.type === 'video' ? item.videoUrl : item.model3dUrl
-  const main = await adoptFile(turn, mainUrl)
-  const thumbnail = item.type === 'image' ? null : await adoptFile(turn, item.thumbnailUrl)
+  const main = await adoptMediaFile(turn.sessionId, mainUrl, turn.localPathOf)
+  const thumbnail =
+    item.type === 'image'
+      ? null
+      : await adoptMediaFile(turn.sessionId, item.thumbnailUrl, turn.localPathOf)
   const patch: Partial<MediaItem> = {}
   if (main) {
     if (item.type === 'image') Object.assign(patch, { imageUrl: main.url })

@@ -72,6 +72,15 @@ import {
   type TurnPause,
 } from '../kernel/orchestrator'
 import { saveChatTurnConversation } from '../persist/conversationFiles'
+import {
+  beginChatTurnInSession,
+  saveChatTranscript,
+  textOfMessage,
+  trackChatTurnInSession,
+  withSessionUpdatesInPrompt,
+  type ChatTranscriptMessage,
+} from '../session/sessionChatTurn'
+import { CHAT_SESSION_HISTORY_TOOL, executeChatSessionHistoryTool } from './chatSessionHistoryTool'
 import { cloneForIpc } from '@/lib/cloneForIpc'
 import { emitFailure } from '../kernel/kernelBus'
 
@@ -107,6 +116,8 @@ export type ChatEngineDeps = {
   noteTraceContext?: (context: Record<string, unknown> | null) => void
   /** Tests inject retrieval; production uses `retrieveRagForTurn`. */
   prepareRag?: typeof retrieveRagForTurn
+  /** Resolves an `aipg-media://` URL to its file, so Session chat media can move into `files/`. */
+  localPathOf?: (url: string) => string | null
 }
 
 let engineDeps: ChatEngineDeps | null = null
@@ -120,7 +131,23 @@ export function resetChatEngineDepsForTest(): void {
   activeTurns.clear()
 }
 
-async function persistChatTurn(request: ChatTurnRequest, messages: unknown[]): Promise<void> {
+async function persistChatTurn(
+  request: ChatTurnRequest,
+  messages: unknown[],
+  settled?: { preset: string; prompt: string },
+): Promise<void> {
+  if (request.sessionRef) {
+    try {
+      await saveChatTranscript(
+        request.sessionRef,
+        cloneForIpc(messages) as ChatTranscriptMessage[],
+        settled,
+      )
+    } catch (error) {
+      appLogger.warn(`Session chat persist failed: ${extractMessage(error)}`, 'electron-backend')
+    }
+    return
+  }
   if (!request.persist) return
   try {
     await saveChatTurnConversation({
@@ -560,7 +587,11 @@ type BuildToolSetOptions = {
   attachmentMessages?: ModelMessage[]
   /** Track each execute Promise so a null SDK tool result can still wait. */
   onExecute?: (toolCallId: string, work: Promise<unknown>) => void
+  /** The Session the turn runs in: `session_history` reads it, generated media moves into it. */
+  session?: { id: string; adoptToolMedia: (output: unknown) => Promise<unknown> }
 }
+
+const SESSION_MEDIA_TOOLS = new Set(['media', 'comfyUI', 'comfyUiImageEdit'])
 
 async function dispatchChatTool(
   spec: ChatToolSpec,
@@ -579,6 +610,27 @@ async function dispatchChatTool(
   }
   const options = ctx.options
   if (options?.execute) return await options.execute(spec, input, exec)
+  const result = await dispatchChatToolBody(spec, input, exec, ctx)
+  const session = options?.session
+  return session && SESSION_MEDIA_TOOLS.has(spec.name)
+    ? await session.adoptToolMedia(result)
+    : result
+}
+
+async function dispatchChatToolBody(
+  spec: ChatToolSpec,
+  input: unknown,
+  exec: ToolExecuteOptions,
+  ctx: {
+    conversationKey: string
+    defaultWorkflow?: string
+    options?: BuildToolSetOptions
+  },
+): Promise<unknown> {
+  const options = ctx.options
+  if (spec.name === CHAT_SESSION_HISTORY_TOOL && options?.session) {
+    return await executeChatSessionHistoryTool(options.session.id, input)
+  }
   if (spec.name === 'media') {
     if (!options?.parentMedia) {
       throw new Error(
@@ -787,10 +839,23 @@ async function runChatTurn(request: ChatTurnRequest, turn: ActiveChatTurn): Prom
   const { conversationKey, turnId } = turn
   const haDiag = request.homeAgentDiagnostics === true
   let ragSourceText: string | null = null
+  const sessionTurn = request.sessionRef
+    ? trackChatTurnInSession(request.sessionRef, (url) => engineDeps?.localPathOf?.(url) ?? null)
+    : null
+  // Stored with the transcript, so later turns resend the same prompt prefix.
+  const turnMessages = request.sessionRef
+    ? await beginChatTurnInSession(
+        request.sessionRef,
+        request.messages as ChatTranscriptMessage[],
+        request.trigger,
+      )
+    : request.messages
+  let assistantMessage: UIMessage | undefined
+  let streamFailed = false
   try {
     // User message (and regenerate truncation) land on disk before GPU wait /
     // stream, so a crash mid-turn does not lose the prompt.
-    await persistChatTurn(request, request.messages)
+    await persistChatTurn(request, turnMessages)
 
     const config = request.model
     // Local Chat and Home Agent turns wait in the Turn Queue; cloud ones run at once.
@@ -833,7 +898,11 @@ async function runChatTurn(request: ChatTurnRequest, turn: ActiveChatTurn): Prom
     // convertToModelMessages/streamText throw "Tool result is missing …".
     let messages = await convertToModelMessages(
       sanitizeBulkyToolOutputs(
-        completeOrphanedToolParts(request.messages as unknown as AipgUiMessage[]),
+        completeOrphanedToolParts(
+          withSessionUpdatesInPrompt(
+            turnMessages as ChatTranscriptMessage[],
+          ) as unknown as AipgUiMessage[],
+        ),
       ),
     )
 
@@ -883,6 +952,9 @@ async function runChatTurn(request: ChatTurnRequest, turn: ActiveChatTurn): Prom
       onExecute: (toolCallId, work) => {
         pendingToolExecutes.set(toolCallId, work)
       },
+      ...(request.sessionRef && sessionTurn
+        ? { session: { id: request.sessionRef, adoptToolMedia: sessionTurn.adoptToolMedia } }
+        : {}),
       parentMedia: request.mediaAgent
         ? {
             catalog: request.mediaAgent,
@@ -1149,6 +1221,7 @@ async function runChatTurn(request: ChatTurnRequest, turn: ActiveChatTurn): Prom
       },
 
       onError: (error) => {
+        streamFailed = true
         appLogger.warn(`Chat turn failed: ${describeInferenceError(error)}`, 'electron-backend')
       },
 
@@ -1218,12 +1291,19 @@ async function runChatTurn(request: ChatTurnRequest, turn: ActiveChatTurn): Prom
     )
 
     const persistMessages = async (assistant: UIMessage | undefined) => {
-      const messages: unknown[] = [...request.messages]
+      const messages: unknown[] = [...turnMessages]
       if (assistant) messages.push(withRagSource(assistant, ragSourceText))
-      await persistChatTurn(request, messages)
+      assistantMessage = assistant
+      await persistChatTurn(
+        request,
+        messages,
+        request.presetName
+          ? { preset: request.presetName, prompt: lastUserText(turnMessages) }
+          : undefined,
+      )
     }
 
-    if (request.persist) {
+    if (request.persist || request.sessionRef) {
       const [busStream, persistStream] = stream.tee()
       const persistTask = assembleAssistantFromStream(persistStream)
       try {
@@ -1242,6 +1322,7 @@ async function runChatTurn(request: ChatTurnRequest, turn: ActiveChatTurn): Prom
     // A user stop must not surface as an error chunk — the renderer's manual-
     // stop guard expects a clean stream end, same as the aborted fetch before
     // the move.
+    streamFailed = true
     if (!turn.controller.signal.aborted) {
       appLogger.error(`Chat turn crashed: ${describeInferenceError(error)}`, 'electron-backend')
       emitFailure({
@@ -1259,7 +1340,21 @@ async function runChatTurn(request: ChatTurnRequest, turn: ActiveChatTurn): Prom
   } finally {
     if (turnQueueHolder() === turnId) setTurnChatBackendLoad(null)
     finishTextRequest(turnId)
+    await sessionTurn?.settle({
+      preset: request.presetName ?? 'Chat',
+      variant: request.variant,
+      prompt: lastUserText(turnMessages),
+      status: turn.controller.signal.aborted ? 'cancelled' : streamFailed ? 'failed' : 'completed',
+      response: assistantMessage
+        ? textOfMessage(assistantMessage as unknown as ChatTranscriptMessage)
+        : undefined,
+    })
     activeTurns.delete(conversationKey)
     endChatTurn(conversationKey, turnId)
   }
+}
+
+function lastUserText(messages: readonly unknown[]): string {
+  const prompt = (messages as ChatTranscriptMessage[]).findLast((m) => m.role === 'user')
+  return textOfMessage(prompt)
 }
