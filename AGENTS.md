@@ -388,6 +388,7 @@ WebUI/                      # Electron + Vue.js frontend (all npm commands here)
   electron/                 # Electron main process — main.ts/preload.ts are the composition root
     kernel/                 # Bus, orchestrator (GPU queue), shutdown, install roots, settings schema
     persist/                # Kernel-owned user-data files: where and how they are written
+    session/                # Session module: Session Folder, History, Session Update, Harness Sessions, turn ledger
     chat/                   # Text capability: turn engine, RAG retrieval, tool bridge, media specialist
     agent/                  # Agent capability (Pi harness, capabilities/) + games/ library
     artifact/               # Artifact capability: ComfyUI runner, workflow rewrite, catalog
@@ -414,6 +415,8 @@ OpenVINO/                   # OpenVINO inference backend
 The folders above are layers, not just grouping. Put a new module where its job belongs:
 
 - Capability logic → `chat/`, `agent/`, `artifact/`, `permissions/`
+- Anything a Session owns (its timeline, History Entries, Session Update, Harness Sessions) →
+  `session/`; it reaches disk only through `persist/sessionFiles.ts` / `persist/sessionMediaFiles.ts`
 - Anything that writes a user-data file → `persist/`
 - Child processes, HTTP clients, OS probing, git → `adapters/`
 - Bus, GPU queue, install roots, machine-level settings schema → `kernel/`
