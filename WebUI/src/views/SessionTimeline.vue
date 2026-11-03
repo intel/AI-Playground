@@ -16,6 +16,8 @@
           :items="turn.media.items"
           :status="turn.media.status"
           :error="turn.media.error"
+          :deleted-urls="sessions.openDeletedFiles"
+          @delete-file="(url) => gallery.removeByUrl(url)"
         />
         <AudioTurnBlock
           v-else-if="turn.kind === 'audio'"
@@ -27,6 +29,7 @@
           :engine="turn.audio.engine"
           :status="turn.audio.status"
           :error="turn.audio.error"
+          :file-deleted="!!turn.audio.audioUrl && sessions.isFileDeleted(turn.audio.audioUrl)"
         />
         <div
           v-else
@@ -60,6 +63,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useArtifactRuns } from '@/assets/js/store/artifactRuns'
 import { useErrors } from '@/assets/js/store/errors'
+import { useGallery } from '@/assets/js/store/gallery'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
 import { usePresets } from '@/assets/js/store/presets'
@@ -76,6 +80,7 @@ import type { TimelineMessage } from '@/types/sessionTimeline'
 const props = defineProps<{ mode: ModeType }>()
 
 const sessions = useSessions()
+const gallery = useGallery()
 const artifactRuns = useArtifactRuns()
 const imageGeneration = useImageGenerationPresets()
 const promptStore = usePromptStore()

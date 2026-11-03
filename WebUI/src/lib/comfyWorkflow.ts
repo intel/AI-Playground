@@ -70,6 +70,15 @@ export function sessionMediaUrl(sessionId: string, relativePath: string): string
   return `aipg-media://sessions/${encoded}`
 }
 
+/** The Session and Session-Folder path a `sessionMediaUrl` names, or null for any other URL. */
+export function sessionMediaPathOf(url: string): { sessionId: string; path: string } | null {
+  const prefix = 'aipg-media://sessions/'
+  if (!url.startsWith(prefix)) return null
+  const [sessionId, ...rest] = url.slice(prefix.length).split('/').map(decodeURIComponent)
+  if (!sessionId || rest.length === 0) return null
+  return { sessionId, path: rest.join('/') }
+}
+
 export const settingToComfyInputsName = {
   seed: ['seed', 'noise_seed'],
   inferenceSteps: ['steps'],

@@ -275,6 +275,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (id: string) => invoke('sessions:delete', id),
     recordAudioTurn: (turn: AudioTurnRequest) =>
       invoke('sessions:recordAudioTurn', cloneForIpc(turn)),
+    listArtifacts: () => invoke('sessions:listArtifacts'),
+    deleteArtifact: (sessionId: string, relativePath: string) =>
+      invoke('sessions:deleteArtifact', sessionId, relativePath),
     readSettings: (id: string) => invoke('sessions:readSettings', id),
     writePresetSettings: (id: string, presetName: string, entry: PresetSessionSettings) =>
       invoke('sessions:writePresetSettings', id, presetName, cloneForIpc(entry)),

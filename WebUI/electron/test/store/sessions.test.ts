@@ -47,7 +47,8 @@ beforeEach(async () => {
       sessions: {
         list: ok(async () => ({ sessions: await sessionModule.listSessions() })),
         create: ok(async () => ({ session: await sessionModule.createSession() })),
-        open: (id: string) => ok(async () => ({ session: await sessionModule.openSession(id) }))(),
+        open: (id: string) =>
+          ok(async () => ({ session: await sessionModule.openSession(id), missingFiles: [] }))(),
         rename: (id: string, title: string) =>
           ok(async () => ({ session: await sessionModule.renameSession(id, title) }))(),
         delete: (id: string) => ok(async () => sessionModule.deleteSession(id).then(() => ({})))(),

@@ -2,8 +2,6 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 import { computed, nextTick, ref, shallowRef, watch } from 'vue'
 import { demoAwareStorage } from '../demoAwareStorage'
 import { makeFileBackedPreference } from '@/lib/fileBackedPreferences'
-import { cloneForIpc } from '@/lib/cloneForIpc'
-import { makeForwardPersist } from '@/lib/ipcPersist'
 import { useComfyUiPresets } from './comfyUiPresets'
 import { useDemoMode } from './demoMode'
 import { useI18N } from './i18n'
@@ -557,118 +555,15 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
     )
   }
 
-  // ── Kernel-owned gallery records (step 8 / step 11, §6.1) ────────────────
-  // `generatedImages` is a live projection of `media/records/` files. Completed
-  // renderer-origin runs persist from the artifact runner; this store writes
-  // only user mutations (add/delete). In-flight items are never durable.
+  // `generatedImages` is the live projection of in-flight runs plus the inputs
+  // picked for Image Edit / Video. The gallery reads every Session's History
+  // Entries instead, so nothing here writes `media/records/` any more; old
+  // records still hydrate once so nothing a user picked before vanishes.
   const MEDIA_LEGACY_KEY = 'imageGenerationPresets'
-  /** Set once `init()` has hydrated (or migrated) — gates every write-through. */
-  const mediaRecordsHydrated = ref(false)
   let mediaRecordsInitPromise: Promise<void> | null = null
-  const FLUSH_DEBOUNCE_MS = 300
-  let mediaFlushTimer: ReturnType<typeof setTimeout> | null = null
-  let mediaFlushInFlight = false
-  /** id → JSON of what the record files hold; the diff base for save/delete. */
-  const flushedMediaItems = new Map<string, string>()
-
-  const persistMediaMutation = makeForwardPersist({
-    code: 'media-records/persist-failed',
-    technicalMessage: 'the media record file store rejected the write',
-  })
-
-  function mediaItemJson(item: MediaItem): string {
-    return JSON.stringify(item)
-  }
-
-  function scheduleMediaRecordsFlush(): void {
-    if (!mediaRecordsHydrated.value) return
-    if (mediaFlushTimer) clearTimeout(mediaFlushTimer)
-    mediaFlushTimer = setTimeout(() => {
-      mediaFlushTimer = null
-      void flushMediaRecords()
-    }, FLUSH_DEBOUNCE_MS)
-  }
-
-  async function flushMediaRecords(): Promise<void> {
-    if (!mediaRecordsHydrated.value) return
-    if (mediaFlushInFlight) {
-      // Re-arm instead of overlapping: this flush must diff against the
-      // post-IPC base the in-flight one is about to write.
-      scheduleMediaRecordsFlush()
-      return
-    }
-    const doneItems = generatedImages.value.filter((item) => item.state === 'done')
-    const currentIds = new Set<string>()
-    const changed: MediaItem[] = []
-    for (const item of doneItems) {
-      currentIds.add(item.id)
-      if (flushedMediaItems.get(item.id) !== mediaItemJson(item)) changed.push(item)
-    }
-    const removed = [...flushedMediaItems.keys()].filter((id) => !currentIds.has(id))
-    if (changed.length === 0 && removed.length === 0) return
-    mediaFlushInFlight = true
-    const errorsStore = useErrors()
-    try {
-      if (changed.length > 0) {
-        const result = await window.electronAPI.mediaItems.save(cloneForIpc(changed))
-        if (result.success) {
-          for (const item of changed) flushedMediaItems.set(item.id, mediaItemJson(item))
-        } else {
-          // The items stay un-flushed, so the next flush retries them.
-          errorsStore.report(new Error(result.error), {
-            category: 'backend',
-            code: 'media-records/save-failed',
-            severity: 'warning',
-            surface: 'silent',
-            technicalMessage: 'the media record file store rejected the write',
-          })
-        }
-      }
-      if (removed.length > 0) {
-        const result = await window.electronAPI.mediaItems.delete(removed)
-        if (result.success) {
-          for (const id of removed) flushedMediaItems.delete(id)
-        } else {
-          errorsStore.report(new Error(result.error), {
-            category: 'backend',
-            code: 'media-records/delete-failed',
-            severity: 'warning',
-            surface: 'silent',
-            technicalMessage: 'the media record file store rejected the delete',
-          })
-        }
-      }
-    } finally {
-      mediaFlushInFlight = false
-    }
-  }
 
   function addGalleryItem(item: MediaItem): void {
     generatedImages.value.push(item)
-    if (!mediaRecordsHydrated.value || item.state !== 'done') return
-    persistMediaMutation(() =>
-      window.electronAPI.mediaItems.save(cloneForIpc([item])).then((result) => {
-        if (result.success) flushedMediaItems.set(item.id, mediaItemJson(item))
-        return result
-      }),
-    )
-  }
-
-  function deleteRecordIds(ids: string[]): void {
-    if (!mediaRecordsHydrated.value || ids.length === 0) return
-    for (const id of ids) flushedMediaItems.delete(id)
-    persistMediaMutation(() => window.electronAPI.mediaItems.delete(ids))
-  }
-
-  function persistMediaRecordsNow(): void {
-    if (mediaFlushTimer) {
-      clearTimeout(mediaFlushTimer)
-      mediaFlushTimer = null
-    }
-    void flushMediaRecords()
-  }
-  if (typeof window.addEventListener === 'function') {
-    window.addEventListener('beforeunload', persistMediaRecordsNow)
   }
 
   /** Read the pre-step-8 Pinia payload's gallery, if any, for the one-shot upload. */
@@ -768,16 +663,6 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
       if (bootstrap && bootstrap.status === 'ok') {
         generatedImages.value = bootstrap.items
       }
-      // On a failed bootstrap the live gallery stays empty (`generatedImages`
-      // is not in the persist pick, so Pinia cannot hydrate the leftover
-      // key). The leftover key is kept so the next boot can merge-migrate;
-      // write-through of an empty projection would not recover it. The diff
-      // base always mirrors the ref as booted.
-      flushedMediaItems.clear()
-      for (const item of generatedImages.value) {
-        if (item.state === 'done') flushedMediaItems.set(item.id, mediaItemJson(item))
-      }
-      mediaRecordsHydrated.value = true
       // The per-preset settings ride the same legacy Pinia key: run after
       // the media half so the two slims never interleave — each must see
       // the other's completed write, or a removed half comes back on the
@@ -790,10 +675,6 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
   if (import.meta.hot) {
     import.meta.hot.dispose(() => {
       settingsPrefs.dispose()
-      if (mediaFlushTimer) clearTimeout(mediaFlushTimer)
-      if (typeof window.removeEventListener === 'function') {
-        window.removeEventListener('beforeunload', persistMediaRecordsNow)
-      }
     })
   }
 
@@ -1272,7 +1153,6 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
 
   function deleteImage(id: string) {
     generatedImages.value = generatedImages.value.filter((image) => image.id !== id)
-    deleteRecordIds([id])
 
     if (selectedGeneratedImageId.value === id) {
       selectedGeneratedImageId.value = null
@@ -1286,15 +1166,11 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
   }
 
   function deleteAllImages() {
-    const ids = generatedImages.value.map((image) => image.id)
     generatedImages.value.length = 0
-    deleteRecordIds(ids)
   }
 
   function deleteAllImagesForMode(mode: WorkflowModeType) {
-    const removed = generatedImages.value.filter((image) => image.mode === mode).map((i) => i.id)
     generatedImages.value = generatedImages.value.filter((image) => image.mode !== mode)
-    deleteRecordIds(removed)
 
     switch (mode) {
       case 'imageGen':
@@ -1388,7 +1264,6 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
     copyImageAsInputForMode,
     addGalleryItem,
     init,
-    mediaRecordsHydrated,
   }
 })
 

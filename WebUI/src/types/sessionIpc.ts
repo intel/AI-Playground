@@ -88,3 +88,17 @@ export const AudioTurnRequestSchema = z.object({
 })
 
 export type AudioTurnRequest = z.infer<typeof AudioTurnRequestSchema>
+/** One file a History Entry produced, as the gallery lists it. */
+export type SessionArtifact = {
+  sessionId: string
+  sessionTitle: string
+  entryId: string
+  timestamp: number
+  preset: string
+  kind: HistoryEntryKind
+  prompt: string
+  /** Relative to the Session Folder. */
+  path: string
+  mediaType: ArtifactMediaType
+  url: string
+}

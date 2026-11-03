@@ -4,9 +4,8 @@ import { createPinia, setActivePinia } from 'pinia'
 // The renderer half of step 8's generated-media slice (architecture-target
 // §6.1, step 11): the store hydrates the gallery from the kernel's record
 // files before mount, uploads the legacy Pinia-persisted gallery once (then
-// slims it out of the leftover key), and writes user add/delete through
-// explicitly. Completed renderer-origin runs persist from the artifact
-// runner — `updateImage` (kernel projection) does not write.
+// slims it out of the leftover key). Nothing writes records any more: the
+// gallery reads every Session's History Entries instead.
 
 const { errorsReport } = vi.hoisted(() => ({ errorsReport: vi.fn() }))
 
@@ -177,14 +176,13 @@ const advanceFlush = async (): Promise<void> => {
 }
 
 describe('useImageGenerationPresets media-record hydration', () => {
-  it('hydrates the gallery from the kernel files and marks itself hydrated', async () => {
+  it('hydrates the old gallery records once', async () => {
     mediaItemsApi.bootstrap.mockResolvedValue({ status: 'ok', items: [doneImage('item-1')] })
     const store: Store = useImageGenerationPresets()
 
     await store.init()
 
     expect(store.generatedImages).toHaveLength(1)
-    expect(store.mediaRecordsHydrated).toBe(true)
     expect(mediaItemsApi.migrate).not.toHaveBeenCalled()
     // init is idempotent — a second call does not re-hydrate.
     await store.init()
@@ -252,7 +250,6 @@ describe('useImageGenerationPresets media-record hydration', () => {
     // The settings half still migrates and slims its own fields out; only the
     // gallery copy stays behind for the media retry next boot.
     expect(key.settingsPerPreset).toBeUndefined()
-    expect(store.mediaRecordsHydrated).toBe(true)
   })
 
   it('slims an empty legacy gallery payload and reports a failed bootstrap', async () => {
@@ -263,7 +260,6 @@ describe('useImageGenerationPresets media-record hydration', () => {
     await store.init()
 
     expect(errorsReport).toHaveBeenCalled()
-    expect(store.mediaRecordsHydrated).toBe(true)
     expect(store.generatedImages).toEqual([])
   })
 
@@ -286,93 +282,20 @@ describe('useImageGenerationPresets media-record hydration', () => {
   })
 })
 
-describe('useImageGenerationPresets media-record write-through', () => {
-  async function hydratedStore(): Promise<Store> {
+describe('useImageGenerationPresets after the gallery moved to Sessions', () => {
+  it('writes no gallery record for an added, projected, deleted or quit-time item', async () => {
     mediaItemsApi.bootstrap.mockResolvedValue({ status: 'ok', items: [] })
     const store: Store = useImageGenerationPresets()
     await store.init()
-    return store
-  }
 
-  it('writes nothing before init has hydrated', async () => {
-    mediaItemsApi.bootstrap.mockResolvedValue({ status: 'empty' })
-    const store: Store = useImageGenerationPresets()
-
-    store.addGalleryItem(doneImage('item-1'))
-    await advanceFlush()
-
-    expect(mediaItemsApi.save).not.toHaveBeenCalled()
-  })
-
-  it('saves a user-added done item and does not persist kernel projection updates', async () => {
-    const store = await hydratedStore()
-
-    store.updateImage(doneImage('item-1'))
-    await advanceFlush()
-    expect(mediaItemsApi.save).not.toHaveBeenCalled()
-
-    store.addGalleryItem(doneImage('item-2'))
-    await vi.waitFor(() => expect(mediaItemsApi.save).toHaveBeenCalledTimes(1))
-    expect(mediaItemsApi.save.mock.calls[0][0]).toHaveLength(1)
-    expect(mediaItemsApi.save.mock.calls[0][0][0]).toMatchObject({ id: 'item-2' })
-  })
-
-  it('never persists an item that is not done', async () => {
-    const store = await hydratedStore()
-
-    store.addGalleryItem(doneImage('item-1', { state: 'generating' }))
-    await advanceFlush()
-
-    expect(mediaItemsApi.save).not.toHaveBeenCalled()
-  })
-
-  it('deletes a removed id and mode-scoped ids through explicit delete IPC', async () => {
-    const store = await hydratedStore()
-    store.addGalleryItem(doneImage('keep', { mode: 'imageGen' }))
-    store.addGalleryItem(doneImage('gone', { mode: 'imageGen' }))
-    store.addGalleryItem(
-      doneImage('video-gone', {
-        mode: 'video',
-        type: 'video',
-        videoUrl: 'aipg-media://media/v.mp4',
-      }),
-    )
-    await vi.waitFor(() => expect(mediaItemsApi.save).toHaveBeenCalledTimes(3))
-
-    store.deleteImage('gone')
-    await vi.waitFor(() => expect(mediaItemsApi.delete).toHaveBeenCalledWith(['gone']))
-
-    store.deleteAllImagesForMode('video')
-    await vi.waitFor(() => expect(mediaItemsApi.delete).toHaveBeenCalledWith(['video-gone']))
-
+    store.addGalleryItem(doneImage('reference'))
+    store.updateImage(doneImage('projected'))
+    store.deleteImage('reference')
     store.deleteAllImages()
-    await vi.waitFor(() => expect(mediaItemsApi.delete).toHaveBeenCalledWith(['keep']))
-  })
-
-  it('reports a save that the file store rejected without dropping the live copy', async () => {
-    const store = await hydratedStore()
-    mediaItemsApi.save.mockResolvedValueOnce({ success: false, error: 'locked' })
-
-    store.addGalleryItem(doneImage('item-1'))
-    await vi.waitFor(() => expect(errorsReport).toHaveBeenCalled())
-    expect(store.generatedImages.map((item) => (item as { id: string }).id)).toContain('item-1')
-  })
-
-  it('flushes immediately on beforeunload so a quit does not drop a projection-only item', async () => {
-    const store = await hydratedStore()
-    const saved = new Promise<void>((resolve) => {
-      mediaItemsApi.save.mockImplementation(async () => {
-        resolve()
-        return { success: true }
-      })
-    })
-
-    store.updateImage(doneImage('item-1'))
-    expect(mediaItemsApi.save).not.toHaveBeenCalled()
     for (const handler of windowListeners.beforeunload ?? []) handler()
-    await saved
+    await advanceFlush()
 
-    expect(mediaItemsApi.save).toHaveBeenCalledTimes(1)
-    expect(mediaItemsApi.save.mock.calls[0][0]).toHaveLength(1)
+    expect(mediaItemsApi.save).not.toHaveBeenCalled()
+    expect(mediaItemsApi.delete).not.toHaveBeenCalled()
   })
 })

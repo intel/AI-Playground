@@ -62,7 +62,6 @@ import {
   type ComfyClientDeps,
 } from './comfyClient'
 import { buildDummyGlb, DUMMY_3D_PRESET_NAME, VIEW_FIXTURE } from '@/lib/devPresetWorkflows'
-import { saveMediaItems } from '../persist/mediaItemFiles'
 import { recordMediaTurn } from '../session/sessionMediaTurn'
 import { extractMessage } from '@/assets/js/errors/appError'
 
@@ -339,15 +338,6 @@ function settleItems(run: ActiveRun, state: 'failed' | 'stopped'): void {
   }
 }
 
-function persistRendererGallery(run: ActiveRun, items: MediaItem[]): void {
-  if (runOrigin(run.payload) !== 'renderer') return
-  const done = items.filter(isDoneWithMedia)
-  if (done.length === 0) return
-  void saveMediaItems(done).catch((error) => {
-    appLogger.warn(`Media record persist failed: ${extractMessage(error)}`, 'electron-backend')
-  })
-}
-
 /** A panel run in a Session moves its outputs there and records its turn before it settles. */
 async function settleIntoSession(
   sessionId: string,
@@ -394,7 +384,6 @@ function finish(run: ActiveRun, result: ArtifactRunResult): void {
 }
 
 function publishSettlement(run: ActiveRun, result: ArtifactRunResult): void {
-  persistRendererGallery(run, result.items)
   emitArtifactPhase(
     artifactRunTag(run.payload),
     result.state === 'completed'

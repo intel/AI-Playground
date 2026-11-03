@@ -5,8 +5,11 @@
       <div class="flex flex-col gap-2 max-w-4/5 bg-muted rounded-md px-4 py-3">
         <p class="text-muted-foreground text-sm">{{ languages.ANSWER_USER_NAME }}</p>
         <p class="whitespace-pre-wrap wrap-break-word">{{ prompt || preset }}</p>
+        <p v-if="kind === 'stt' && fileDeleted" class="text-sm text-muted-foreground">
+          {{ languages.SESSION_FILE_DELETED }}
+        </p>
         <audio
-          v-if="kind === 'stt' && audioUrl"
+          v-else-if="kind === 'stt' && audioUrl"
           controls
           class="w-full max-w-md"
           :src="audioUrl"
@@ -24,8 +27,11 @@
           {{ phaseLabel }}
         </p>
         <template v-else-if="status === 'completed'">
+          <p v-if="kind === 'tts' && fileDeleted" class="text-sm text-muted-foreground">
+            {{ languages.SESSION_FILE_DELETED }}
+          </p>
           <audio
-            v-if="kind === 'tts' && audioUrl"
+            v-else-if="kind === 'tts' && audioUrl"
             controls
             class="w-full max-w-md"
             :src="audioUrl"
@@ -68,6 +74,7 @@ const props = defineProps<{
   phase?: AudioTurnPhase
   status?: MediaTurnStatus
   error?: string
+  fileDeleted?: boolean
 }>()
 
 const languages = useI18N().state

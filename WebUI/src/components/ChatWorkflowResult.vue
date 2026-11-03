@@ -15,7 +15,16 @@
           draggable="true"
           @dragstart="(e) => dragImage(image)(e)"
         >
-          <video v-if="isVideo(image)" :src="image.videoUrl" class="w-full h-full object-cover" />
+          <div
+            v-if="isDeleted(image)"
+            class="w-full h-full bg-muted"
+            :aria-label="languages.SESSION_FILE_DELETED"
+          ></div>
+          <video
+            v-else-if="isVideo(image)"
+            :src="image.videoUrl"
+            class="w-full h-full object-cover"
+          />
           <Model3DViewer v-else-if="is3D(image)" :src="image.model3dUrl" class="w-full h-full" />
           <img
             v-else-if="image.type === 'image'"
@@ -44,9 +53,16 @@
           :draggable="currentImage && !is3D(currentImage) ? true : false"
           @dragstart="(e) => dragImage(currentImage)(e)"
         >
+          <div
+            v-if="currentImage && isDeleted(currentImage)"
+            role="status"
+            class="flex items-center justify-center w-[400px] h-[300px] text-muted-foreground"
+          >
+            {{ languages.SESSION_FILE_DELETED }}
+          </div>
           <!-- Placeholder for queued/generating images without preview (exclude stopped) -->
           <div
-            v-if="
+            v-else-if="
               currentImage &&
               currentImage.type === 'image' &&
               currentImage.state !== 'stopped' &&
@@ -97,7 +113,12 @@
           class="absolute top-1/2 -translate-y-1/2 -right-8 flex flex-col items-center justify-center gap-2"
         >
           <IconButton
-            v-if="!hideModeSwitch && currentImage && currentImage.state !== 'generating'"
+            v-if="
+              !hideModeSwitch &&
+              currentImage &&
+              currentImage.state !== 'generating' &&
+              !isDeleted(currentImage)
+            "
             icon="i-transfer"
             :tooltip="languages.COM_POST_TO_IMAGE_EDIT"
             @click="postImageToMode(currentImage, 'imageEdit')"
@@ -107,7 +128,8 @@
               !hideModeSwitch &&
               currentImage &&
               currentImage.state !== 'generating' &&
-              !is3D(currentImage)
+              !is3D(currentImage) &&
+              !isDeleted(currentImage)
             "
             icon="i-video"
             :tooltip="languages.COM_POST_TO_VIDEO"
@@ -120,22 +142,33 @@
             @click="showParamsDialog"
           />
           <IconButton
-            v-if="currentImage && !(currentImage?.state === 'generating')"
+            v-if="currentImage && currentImage.state !== 'generating' && !isDeleted(currentImage)"
             icon="i-zoom-in"
             :tooltip="languages.COM_ZOOM_IN"
             @click="openImage(currentImage)"
           />
           <IconButton
-            v-if="currentImage && !(currentImage?.state === 'generating')"
+            v-if="currentImage && currentImage.state !== 'generating' && !isDeleted(currentImage)"
             icon="i-copy"
             :tooltip="languages.COM_COPY"
             @click="copyImage(currentImage)"
           />
           <IconButton
-            v-if="currentImage && !(currentImage?.state === 'generating')"
+            v-if="currentImage && currentImage.state !== 'generating' && !isDeleted(currentImage)"
             icon="i-folder"
             :tooltip="languages.COM_OPEN_LOCATION"
             @click="openImageInFolder(currentImage)"
+          />
+          <IconButton
+            v-if="
+              deletable &&
+              currentImage &&
+              currentImage.state !== 'generating' &&
+              !isDeleted(currentImage)
+            "
+            icon="i-delete"
+            :tooltip="languages.ARTIFACT_DELETE"
+            @click="confirmingDelete = getMediaUrl(currentImage)"
           />
         </div>
       </div>
@@ -149,6 +182,11 @@
     <p v-if="currentCaption" class="text-xs text-muted-foreground break-all">
       {{ currentCaption }}
     </p>
+    <DeleteArtifactDialog
+      :open="confirmingDelete !== null"
+      @update:open="(open) => !open && (confirmingDelete = null)"
+      @confirm="confirmDelete"
+    />
   </div>
 </template>
 
@@ -171,6 +209,7 @@ import {
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import Model3DViewer from '@/components/Model3DViewer.vue'
 import IconButton from '@/components/ui/IconButton.vue'
+import DeleteArtifactDialog from '@/components/DeleteArtifactDialog.vue'
 import { artifactPhaseLabel, isTerminalPhase } from '@/lib/artifactRunProjection'
 import type { ArtifactPhase } from '@/types/kernelEvents'
 
@@ -182,12 +221,27 @@ const props = defineProps<{
   /** Hides Send to Image Edit / Send to Video. */
   hideModeSwitch?: boolean
   fileHandlers?: MediaFileHandlers
+  /** Main-file URLs whose file is gone; their item shows as deleted. */
+  deletedUrls?: readonly string[]
+  /** Offers deleting the item's file. */
+  deletable?: boolean
 }>()
+const emit = defineEmits<{ deleteFile: [url: string] }>()
 const i18nState = useI18N().state
 const languages = i18nState
 const imageGeneration = useImageGenerationPresets()
 const promptStore = usePromptStore()
 const showInfoParams = ref(false)
+const confirmingDelete = ref<string | null>(null)
+
+function isDeleted(image: MediaItem): boolean {
+  return !!props.deletedUrls?.includes(getMediaUrl(image))
+}
+
+function confirmDelete() {
+  if (confirmingDelete.value) emit('deleteFile', confirmingDelete.value)
+  confirmingDelete.value = null
+}
 
 const processing = computed(() => !!props.phase && !isTerminalPhase(props.phase))
 const phaseLabel = computed(

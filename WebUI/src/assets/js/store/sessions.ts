@@ -23,6 +23,8 @@ export const useSessions = defineStore('sessions', () => {
   const sessions = ref<Record<string, SessionSummary>>({})
   const openSessionId = ref<string | null>(null)
   const openTimeline = ref<unknown[]>([])
+  /** Artifact URLs of the open Session whose file was deleted; their cards say so. */
+  const openDeletedFiles = ref<string[]>([])
   const pendingTurns = ref<Record<string, PendingMediaTurn>>({})
 
   const orderedSessions = computed(() =>
@@ -72,6 +74,15 @@ export const useSessions = defineStore('sessions', () => {
     return openSessionId.value ?? (await create())
   }
 
+  function isFileDeleted(url: string): boolean {
+    return openDeletedFiles.value.includes(url)
+  }
+
+  function markFileDeleted(sessionId: string, url: string): void {
+    if (openSessionId.value !== sessionId || isFileDeleted(url)) return
+    openDeletedFiles.value = [...openDeletedFiles.value, url]
+  }
+
   function beginMediaTurn(sessionId: string, turn: PendingMediaTurn): void {
     pendingTurns.value = { ...pendingTurns.value, [sessionId]: turn }
   }
@@ -102,6 +113,7 @@ export const useSessions = defineStore('sessions', () => {
     remember(result.session)
     openSessionId.value = result.session.id
     openTimeline.value = []
+    openDeletedFiles.value = []
     return result.session.id
   }
 
@@ -112,6 +124,7 @@ export const useSessions = defineStore('sessions', () => {
     remember(summary)
     openSessionId.value = id
     openTimeline.value = timeline
+    openDeletedFiles.value = result.missingFiles
   }
 
   async function rename(id: string, title: string): Promise<void> {
@@ -131,6 +144,7 @@ export const useSessions = defineStore('sessions', () => {
     if (openSessionId.value !== id) return
     openSessionId.value = null
     openTimeline.value = []
+    openDeletedFiles.value = []
     await openNewestOrCreate()
   }
 
@@ -138,6 +152,7 @@ export const useSessions = defineStore('sessions', () => {
     sessions,
     openSessionId,
     openTimeline,
+    openDeletedFiles,
     pendingTurns,
     orderedSessions,
     openSession,
@@ -147,6 +162,8 @@ export const useSessions = defineStore('sessions', () => {
     rename,
     remove,
     ensureOpenSession,
+    isFileDeleted,
+    markFileDeleted,
     beginMediaTurn,
     endMediaTurn,
   }

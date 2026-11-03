@@ -9,6 +9,11 @@ import type {
   openSession,
   renameSession,
 } from '../../session/sessions'
+import type {
+  deleteArtifact,
+  listAllArtifacts,
+  missingArtifactUrls,
+} from '../../session/sessionArtifacts'
 import type { readSessionSettings, writePresetSettings } from '../../session/sessionSettings'
 import { PresetSessionSettingsSchema } from '@/types/sessionSettings'
 
@@ -19,6 +24,9 @@ export type SessionsDeps = {
   renameSession: typeof renameSession
   deleteSession: typeof deleteSession
   recordAudioTurn: typeof recordAudioTurn
+  listAllArtifacts: typeof listAllArtifacts
+  missingArtifactUrls: typeof missingArtifactUrls
+  deleteArtifact: typeof deleteArtifact
   readSessionSettings: typeof readSessionSettings
   writePresetSettings: typeof writePresetSettings
 }
@@ -46,10 +54,12 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
     },
     'sessions:open': async (_event, id) => {
       try {
-        return {
-          success: true as const,
-          session: await deps.openSession(requireString(id, 'session id')),
-        }
+        const sessionId = requireString(id, 'session id')
+        const [session, missingFiles] = await Promise.all([
+          deps.openSession(sessionId),
+          deps.missingArtifactUrls(sessionId),
+        ])
+        return { success: true as const, session, missingFiles }
       } catch (e) {
         return ipcFail(e)
       }
@@ -77,6 +87,24 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
       try {
         const session = await deps.recordAudioTurn(AudioTurnRequestSchema.parse(turn))
         return { success: true as const, session }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:listArtifacts': async () => {
+      try {
+        return { success: true as const, artifacts: await deps.listAllArtifacts() }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:deleteArtifact': async (_event, id, relativePath) => {
+      try {
+        await deps.deleteArtifact(
+          requireString(id, 'session id'),
+          requireString(relativePath, 'artifact path'),
+        )
+        return { success: true as const }
       } catch (e) {
         return ipcFail(e)
       }

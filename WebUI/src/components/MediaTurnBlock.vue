@@ -19,6 +19,9 @@
           :phase="phase"
           :progress="progress"
           :hide-mode-switch="mode === 'video'"
+          :deleted-urls="deletedUrls"
+          :deletable="!phase"
+          @delete-file="(url) => emit('deleteFile', url)"
         />
         <p v-if="!phase && status === 'failed'" class="text-sm text-red-500 wrap-break-word">
           {{ languages.COM_GENERATE_FAILED }}<template v-if="error">: {{ error }}</template>
@@ -49,7 +52,10 @@ defineProps<{
   progress?: { current: number; max: number }
   status?: MediaTurnStatus
   error?: string
+  deletedUrls?: readonly string[]
 }>()
+
+const emit = defineEmits<{ deleteFile: [url: string] }>()
 
 const languages = useI18N().state
 </script>

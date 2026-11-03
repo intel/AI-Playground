@@ -303,10 +303,7 @@ describe('artifact runner', () => {
       ]),
     )
     expect(kernelEvents.filter((event) => event.type === 'artifact-item')).toHaveLength(2 + 1 + 2)
-    expect(saveMediaItems).toHaveBeenCalledTimes(1)
-    const savedItems = saveMediaItems.mock.calls[0]?.[0] as unknown as MediaItem[]
-    expect(savedItems).toHaveLength(2)
-    expect(savedItems[0]).toMatchObject({ state: 'done' })
+    expect(saveMediaItems).not.toHaveBeenCalled()
   })
 
   it('settles a panel run in a Session into that Session', async () => {

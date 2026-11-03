@@ -234,6 +234,7 @@ import {
   setSessionDeps,
   wipeDemoSessions,
 } from './session/sessions'
+import { deleteArtifact, listAllArtifacts, missingArtifactUrls } from './session/sessionArtifacts'
 import { readSessionSettings, writePresetSettings } from './session/sessionSettings'
 import { buildAgentModeRegistry } from './kernel/registries/agentMode'
 import { buildChatRegistry } from './kernel/registries/chat'
@@ -1814,6 +1815,9 @@ function initEventHandle() {
       renameSession,
       deleteSession,
       recordAudioTurn,
+      listAllArtifacts,
+      missingArtifactUrls,
+      deleteArtifact,
       readSessionSettings,
       writePresetSettings,
     }),
