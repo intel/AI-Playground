@@ -24,14 +24,23 @@ export type TimelineTurn =
     }
   | { kind: 'chat'; id: string; messages: UIMessage[] }
 
-function isTimelineMessage(value: unknown): value is TimelineMessage {
+function isMessageShaped(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false
-  const message = value as Partial<TimelineMessage>
+  const message = value as { id?: unknown; role?: unknown; parts?: unknown }
   return (
     typeof message.id === 'string' &&
     (message.role === 'user' || message.role === 'assistant') &&
     Array.isArray(message.parts)
   )
+}
+
+function isTimelineMessage(value: unknown): value is TimelineMessage {
+  return isMessageShaped(value)
+}
+
+/** Agent and chat turns are stored as the UI messages their engines produced. */
+function isUIMessage(value: unknown): value is UIMessage {
+  return isMessageShaped(value)
 }
 
 function mediaPart(message: TimelineMessage): MediaTurnData | null {
@@ -146,26 +155,26 @@ export function timelineTurns(timeline: readonly unknown[]): TimelineTurn[] {
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i]
     const tag = agentTagOf(message)
-    if (tag) {
+    if (tag && isUIMessage(message)) {
       const last = turns.at(-1)
       if (last?.kind === 'agent' && last.harnessSessionId === tag.harnessSessionId) {
-        last.messages.push(message as unknown as UIMessage)
+        last.messages.push(message)
       } else {
         turns.push({
           kind: 'agent',
           id: message.id,
           presetName: tag.presetName,
           harnessSessionId: tag.harnessSessionId,
-          messages: [message as unknown as UIMessage],
+          messages: [message],
           ...(tag.taskRun ? { taskRun: tag.taskRun } : {}),
         })
       }
       continue
     }
-    if (asChatTranscriptMessage(message)) {
+    if (asChatTranscriptMessage(message) && isUIMessage(message)) {
       const last = turns.at(-1)
-      if (last?.kind === 'chat') last.messages.push(message as unknown as UIMessage)
-      else turns.push({ kind: 'chat', id: message.id, messages: [message as unknown as UIMessage] })
+      if (last?.kind === 'chat') last.messages.push(message)
+      else turns.push({ kind: 'chat', id: message.id, messages: [message] })
       continue
     }
     const next = messages[i + 1]
