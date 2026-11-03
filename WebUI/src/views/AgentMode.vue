@@ -8,6 +8,11 @@
     :live-agent="liveAgent"
     @resend="agentMode.resendNotRun()"
   >
+    <template v-if="isGameAgent" #top>
+      <div class="sticky top-0 z-5 flex justify-end pl-32 pr-32">
+        <GameBar />
+      </div>
+    </template>
     <template v-if="!agentMode.processing" #empty>
       <AgentEmptyState />
     </template>
@@ -75,7 +80,7 @@ function scrollToBottom(smooth = true) {
 
 // The game bar belongs to the presets that work on a managed game folder.
 const isGameAgent = computed(() => agentMode.agentWorkspaceKind === 'games')
-const inSession = computed(() => !isGameAgent.value && !!sessions.openSessionId)
+const inSession = computed(() => !!sessions.openSessionId)
 
 /** The sent message of a turn still waiting in the Turn Queue. */
 const queuedMessageId = computed(() =>

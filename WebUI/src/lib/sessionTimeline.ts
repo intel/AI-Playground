@@ -97,6 +97,45 @@ export function withLiveAgentTurn(
   return [...merged, ...tagged.values()]
 }
 
+/** One row of Chat mode: a message of the live conversation, or another preset's turn. */
+export type ChatTimelineItem<M extends { id: string }> =
+  { kind: 'message'; message: M; index: number } | { kind: 'turn'; turn: TimelineTurn }
+
+/**
+ * Chat mode renders the Session timeline with the conversation live in it: each saved
+ * chat message shows its live copy (`index` into `live`, -1 when it has none), every
+ * other turn stays where it happened, and what the running turn adds follows last.
+ */
+export function chatTimelineItems<M extends { id: string }>(
+  timeline: readonly unknown[],
+  live: readonly M[],
+): ChatTimelineItem<M>[] {
+  const indexOf = new Map(live.map((message, index) => [message.id, index]))
+  const items: ChatTimelineItem<M>[] = []
+  const shown = new Set<string>()
+  let others: unknown[] = []
+  const flush = () => {
+    for (const turn of timelineTurns(others)) items.push({ kind: 'turn', turn })
+    others = []
+  }
+  for (const value of timeline) {
+    const saved = asChatTranscriptMessage(value)
+    if (!saved) {
+      others.push(value)
+      continue
+    }
+    flush()
+    const index = indexOf.get(saved.id) ?? -1
+    items.push({ kind: 'message', message: index >= 0 ? live[index] : (saved as M), index })
+    shown.add(saved.id)
+  }
+  flush()
+  live.forEach((message, index) => {
+    if (!shown.has(message.id)) items.push({ kind: 'message', message, index })
+  })
+  return items
+}
+
 /**
  * Pairs each prompt with the result card that answered it, and keeps a run of
  * one Harness Session's messages together as one agent block; anything else

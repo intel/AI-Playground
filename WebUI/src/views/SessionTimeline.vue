@@ -11,20 +11,8 @@
     </template>
     <div v-else class="w-full max-w-4xl mx-auto flex flex-col gap-6">
       <template v-for="turn in turns" :key="turn.id">
-        <MediaTurnBlock
-          v-if="turn.kind === 'media'"
-          :prompt="turn.prompt"
-          :preset="turn.media.preset"
-          :mode="turn.media.mode"
-          :items="turn.media.items"
-          :status="turn.media.status"
-          :error="turn.media.error"
-          :deleted-urls="sessions.openDeletedFiles"
-          @delete-file="(url) => gallery.removeByUrl(url)"
-        />
-        <div v-else-if="turn.kind === 'agent'" class="flex flex-col gap-4">
+        <div v-if="turn.kind === 'agent' && isLiveBlock(turn)" class="flex flex-col gap-4">
           <AgentTurnBlock
-            v-if="isLiveBlock(turn)"
             :messages="turn.messages"
             :live="liveAgent?.live"
             :queued-message-id="liveAgent?.queuedMessageId"
@@ -32,28 +20,8 @@
             :can-resend="liveAgent?.canResend"
             @resend="emit('resend')"
           />
-          <AgentTurnBlock v-else :messages="turn.messages" />
         </div>
-        <ChatTurnBlock v-else-if="turn.kind === 'chat'" :messages="turn.messages" />
-        <AudioTurnBlock
-          v-else-if="turn.kind === 'audio'"
-          :prompt="turn.prompt"
-          :preset="turn.audio.preset"
-          :kind="turn.audio.kind"
-          :audio-url="turn.audio.audioUrl"
-          :transcript="turn.audio.transcript"
-          :engine="turn.audio.engine"
-          :status="turn.audio.status"
-          :error="turn.audio.error"
-          :file-deleted="!!turn.audio.audioUrl && sessions.isFileDeleted(turn.audio.audioUrl)"
-        />
-        <div
-          v-else
-          class="text-sm text-muted-foreground whitespace-pre-wrap"
-          :class="turn.message.role === 'user' ? 'self-end' : 'self-start'"
-        >
-          {{ messageText(turn.message) }}
-        </div>
+        <SessionTurnBlock v-else :turn="turn" />
       </template>
       <MediaTurnBlock
         v-if="pending"
@@ -82,7 +50,6 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useArtifactRuns } from '@/assets/js/store/artifactRuns'
 import { useErrors } from '@/assets/js/store/errors'
-import { useGallery } from '@/assets/js/store/gallery'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
 import { usePresets } from '@/assets/js/store/presets'
@@ -92,7 +59,7 @@ import { useSessions } from '@/assets/js/store/sessions'
 import AudioTurnBlock from '@/components/AudioTurnBlock.vue'
 import MediaTurnBlock from '@/components/MediaTurnBlock.vue'
 import AgentTurnBlock from '@/components/AgentTurnBlock.vue'
-import ChatTurnBlock from '@/components/ChatTurnBlock.vue'
+import SessionTurnBlock from '@/components/SessionTurnBlock.vue'
 import { isCancellation } from '@/assets/js/errors/appError'
 import ScrollToBottomButton from '@/components/ScrollToBottomButton.vue'
 import {
@@ -102,14 +69,12 @@ import {
   type TimelineTurn,
 } from '@/lib/sessionTimeline'
 import { useStickToBottom } from '@/lib/useStickToBottom'
-import type { TimelineMessage } from '@/types/sessionTimeline'
 
 /** The main area for a Session: every turn of its display timeline, in order. */
 const props = defineProps<{ mode: ModeType; liveAgent?: LiveAgentTurn }>()
 const emit = defineEmits<{ resend: [] }>()
 
 const sessions = useSessions()
-const gallery = useGallery()
 const artifactRuns = useArtifactRuns()
 const imageGeneration = useImageGenerationPresets()
 const promptStore = usePromptStore()
@@ -147,10 +112,6 @@ const pending = computed(() => {
 })
 
 const pendingAudio = computed(() => sessionAudio.pendingTurn)
-
-function messageText(message: TimelineMessage): string {
-  return message.parts.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('\n')
-}
 
 const { showScrollButton, scrollToBottom } = useStickToBottom(panel)
 

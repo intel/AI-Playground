@@ -2,7 +2,7 @@
   <ScrollToBottomButton v-if="showScrollButton" @click="scrollToBottom()" />
   <div
     v-if="
-      (activeConversation && activeConversation.length > 0) ||
+      items.length > 0 ||
       openAiCompatibleChat.processing ||
       hasActiveChatActivity ||
       hasPendingConfirmation
@@ -13,471 +13,480 @@
   >
     <!-- eslint-disable vue/require-v-for-key -->
     <div class="w-full max-w-4xl mx-auto flex flex-col gap-6">
-      <template v-for="(message, i) in activeConversation">
-        <!-- eslint-enable -->
-        <div v-if="message.role === 'user'" class="flex items-start gap-3">
-          <UserCircleIcon :class="textInference.iconSizeClass" class="text-foreground/90" />
-          <div class="flex flex-col gap-3 max-w-4/5 bg-muted rounded-md px-4 py-3">
-            <p class="text-muted-foreground" :class="textInference.nameSizeClass">
-              {{ languages.ANSWER_USER_NAME }}
-            </p>
-            <img
-              v-if="
-                message.parts
-                  .toReversed()
-                  .find((part) => part.type === 'file' && part.mediaType?.startsWith('image/'))
-              "
-              :src="
-                (
+      <!-- In a Session the conversation sits in its timeline, between the other presets' turns. -->
+      <template v-for="item in items" :key="item.kind === 'turn' ? item.turn.id : item.message.id">
+        <SessionTurnBlock v-if="item.kind === 'turn'" :turn="item.turn" />
+        <template v-for="{ message, index: i } in messageItems(item)" :key="message.id">
+          <!-- eslint-enable -->
+          <div v-if="message.role === 'user'" class="flex items-start gap-3">
+            <UserCircleIcon :class="textInference.iconSizeClass" class="text-foreground/90" />
+            <div class="flex flex-col gap-3 max-w-4/5 bg-muted rounded-md px-4 py-3">
+              <p class="text-muted-foreground" :class="textInference.nameSizeClass">
+                {{ languages.ANSWER_USER_NAME }}
+              </p>
+              <img
+                v-if="
                   message.parts
                     .toReversed()
-                    .find(
-                      (part) => part.type === 'file' && part.mediaType?.startsWith('image/'),
-                    ) as { url?: string }
-                )?.url
-              "
-              alt="Generated Image"
-            />
-            <audio
-              v-for="(clip, clipIndex) in audioAttachments(message)"
-              :key="clipIndex"
-              controls
-              class="w-full max-w-md"
-              :src="clip.url"
-              :aria-label="clip.filename ?? 'Attached audio'"
-            />
-            <MarkdownRenderer
-              :class="textInference.fontSizeClass"
-              :content="getMessageTextForCopy(message)"
-              :on-copy="copyText"
-            />
-            <button
-              class="flex items-center gap-1 text-xs text-muted-foreground mt-1"
-              :title="languages.COM_COPY"
-              @click="copyText(getMessageTextForCopy(message))"
-            >
-              <span class="svg-icon i-copy w-4 h-4"></span>
-              <span>{{ languages.COM_COPY }}</span>
-            </button>
+                    .find((part) => part.type === 'file' && part.mediaType?.startsWith('image/'))
+                "
+                :src="
+                  (
+                    message.parts
+                      .toReversed()
+                      .find(
+                        (part) => part.type === 'file' && part.mediaType?.startsWith('image/'),
+                      ) as { url?: string }
+                  )?.url
+                "
+                alt="Generated Image"
+              />
+              <audio
+                v-for="(clip, clipIndex) in audioAttachments(message)"
+                :key="clipIndex"
+                controls
+                class="w-full max-w-md"
+                :src="clip.url"
+                :aria-label="clip.filename ?? 'Attached audio'"
+              />
+              <MarkdownRenderer
+                :class="textInference.fontSizeClass"
+                :content="getMessageTextForCopy(message)"
+                :on-copy="copyText"
+              />
+              <button
+                class="flex items-center gap-1 text-xs text-muted-foreground mt-1"
+                :title="languages.COM_COPY"
+                @click="copyText(getMessageTextForCopy(message))"
+              >
+                <span class="svg-icon i-copy w-4 h-4"></span>
+                <span>{{ languages.COM_COPY }}</span>
+              </button>
+            </div>
           </div>
-        </div>
-        <div
-          v-else-if="message.role === 'assistant'"
-          role="article"
-          aria-label="Assistant response"
-          class="flex items-start gap-3"
-        >
-          <img :class="textInference.iconSizeClass" src="../assets/svg/ai-icon.svg" />
-          <div class="flex flex-col gap-3 max-w-[90%] w-full text-wrap wrap-break-word">
-            <div class="flex items-center gap-2">
-              <p class="text-muted-foreground mt-0.75" :class="textInference.nameSizeClass">
-                {{ languages.ANSWER_AI_NAME }}
-              </p>
-              <div
-                v-if="(message.metadata as { model?: string }).model"
-                class="flex items-center gap-2"
-              >
-                <span
-                  class="bg-secondary text-foreground font-sans rounded-md px-1 py-1"
-                  :class="textInference.nameSizeClass"
+          <div
+            v-else-if="message.role === 'assistant'"
+            role="article"
+            aria-label="Assistant response"
+            class="flex items-start gap-3"
+          >
+            <img :class="textInference.iconSizeClass" src="../assets/svg/ai-icon.svg" />
+            <div class="flex flex-col gap-3 max-w-[90%] w-full text-wrap wrap-break-word">
+              <div class="flex items-center gap-2">
+                <p class="text-muted-foreground mt-0.75" :class="textInference.nameSizeClass">
+                  {{ languages.ANSWER_AI_NAME }}
+                </p>
+                <div
+                  v-if="(message.metadata as { model?: string }).model"
+                  class="flex items-center gap-2"
                 >
-                  {{
-                    message.metadata?.model?.endsWith('.gguf')
-                      ? (message.metadata?.model?.split('/').at(-1)?.split('.gguf')[0] ??
-                        message.metadata?.model)
-                      : message.metadata?.model
-                  }}
-                </span>
-                <!-- Display RAG source if available -->
-                <span
-                  v-if="
-                    (message.metadata as { ragSource?: string })?.ragSource ||
-                    ragSourcePerMessageId[message.id]
-                  "
-                  @click="
-                    showRagSourcePerMessageId[message.id] = !showRagSourcePerMessageId[message.id]
-                  "
-                  class="bg-primary text-foreground font-sans rounded-md px-1 py-1 cursor-pointer"
-                  :class="textInference.nameSizeClass"
-                >
-                  Source Docs
-                  <button class="ml-1">
-                    <img
-                      v-if="showRagSourcePerMessageId[message.id]"
-                      src="../assets/svg/arrow-up.svg"
-                      class="w-3 h-3"
-                    />
-                    <img v-else src="../assets/svg/arrow-down.svg" class="w-3 h-3" />
-                  </button>
-                </span>
+                  <span
+                    class="bg-secondary text-foreground font-sans rounded-md px-1 py-1"
+                    :class="textInference.nameSizeClass"
+                  >
+                    {{
+                      message.metadata?.model?.endsWith('.gguf')
+                        ? (message.metadata?.model?.split('/').at(-1)?.split('.gguf')[0] ??
+                          message.metadata?.model)
+                        : message.metadata?.model
+                    }}
+                  </span>
+                  <!-- Display RAG source if available -->
+                  <span
+                    v-if="
+                      (message.metadata as { ragSource?: string })?.ragSource ||
+                      ragSourcePerMessageId[message.id]
+                    "
+                    @click="
+                      showRagSourcePerMessageId[message.id] = !showRagSourcePerMessageId[message.id]
+                    "
+                    class="bg-primary text-foreground font-sans rounded-md px-1 py-1 cursor-pointer"
+                    :class="textInference.nameSizeClass"
+                  >
+                    Source Docs
+                    <button class="ml-1">
+                      <img
+                        v-if="showRagSourcePerMessageId[message.id]"
+                        src="../assets/svg/arrow-up.svg"
+                        class="w-3 h-3"
+                      />
+                      <img v-else src="../assets/svg/arrow-down.svg" class="w-3 h-3" />
+                    </button>
+                  </span>
+                </div>
               </div>
-            </div>
 
-            <!-- RAG Source Details (collapsible) -->
-            <div
-              v-if="
-                showRagSourcePerMessageId[message.id] &&
-                (message.metadata?.ragSource || ragSourcePerMessageId[message.id])
-              "
-              class="my-2 text-muted-foreground border-l-2 border-primary pl-2 flex flex-row gap-1"
-              :class="textInference.fontSizeClass"
-            >
-              <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
-              <div class="whitespace-pre-wrap">
-                {{ message.metadata?.ragSource || ragSourcePerMessageId[message.id] }}
-              </div>
-            </div>
-            <div
-              class="ai-answer chat-content flex flex-col gap-2"
-              :class="textInference.fontSizeClass"
-            >
-              <template
-                v-for="(part, partIndex) in message.parts"
-                :key="`${message.id}-${part.type}-${partIndex}`"
+              <!-- RAG Source Details (collapsible) -->
+              <div
+                v-if="
+                  showRagSourcePerMessageId[message.id] &&
+                  (message.metadata?.ragSource || ragSourcePerMessageId[message.id])
+                "
+                class="my-2 text-muted-foreground border-l-2 border-primary pl-2 flex flex-row gap-1"
+                :class="textInference.fontSizeClass"
               >
-                <!-- Reasoning part. A turn can carry several reasoning parts
+                <div class="font-bold">{{ i18nState.RAG_SOURCE }}:</div>
+                <div class="whitespace-pre-wrap">
+                  {{ message.metadata?.ragSource || ragSourcePerMessageId[message.id] }}
+                </div>
+              </div>
+              <div
+                class="ai-answer chat-content flex flex-col gap-2"
+                :class="textInference.fontSizeClass"
+              >
+                <template
+                  v-for="(part, partIndex) in message.parts"
+                  :key="`${message.id}-${part.type}-${partIndex}`"
+                >
+                  <!-- Reasoning part. A turn can carry several reasoning parts
                      (one per agentic step, and some backends resend cumulative
                      reasoning), which otherwise renders as several "Reasoned
                      for…" blocks. Aggregate them into a single block rendered at
                      the position of the first reasoning part (mirrors the
                      web-browse aggregation below). -->
-                <ChatReasoningDisplay
-                  v-if="part.type === 'reasoning' && isFirstReasoningPart(message, partIndex)"
-                  :text="mergedReasoningText(message)"
-                  :startedAt="reasoningStartedAtFor(message)"
-                  :finishedAt="reasoningFinishedAtFor(message)"
-                  :streaming="
-                    i === activeConversation.length - 1 && openAiCompatibleChat.reasoningInProgress
-                  "
-                  :liveStartedAt="openAiCompatibleChat.reasoningStartedAt"
-                  :onCopy="copyText"
-                />
-
-                <!-- Text part -->
-                <template v-else-if="part.type === 'text'">
-                  <MarkdownRenderer
-                    role="region"
-                    aria-label="Assistant reply"
-                    :content="stripAipgMediaImages((part as any).text ?? '')"
-                    :on-copy="copyText"
+                  <ChatReasoningDisplay
+                    v-if="part.type === 'reasoning' && isFirstReasoningPart(message, partIndex)"
+                    :text="mergedReasoningText(message)"
+                    :startedAt="reasoningStartedAtFor(message)"
+                    :finishedAt="reasoningFinishedAtFor(message)"
+                    :streaming="
+                      i === activeConversation.length - 1 &&
+                      openAiCompatibleChat.reasoningInProgress
+                    "
+                    :liveStartedAt="openAiCompatibleChat.reasoningStartedAt"
+                    :onCopy="copyText"
                   />
-                </template>
 
-                <!-- Tool parts -->
-                <template v-else-if="isToolUIPart(part)">
-                  <template v-if="isAipgTool(part) && toolPartNameOf(part) === 'comfyUI'">
-                    <div>
-                      <span
-                        v-if="part.state === 'input-streaming' && !toolInputRecord(part).workflow"
-                        >Generating…</span
-                      >
-                      <span v-else
-                        >Generating using the preset
-                        <b>{{ toolInputRecord(part).workflow ?? 'unknown' }}</b></span
-                      >
-                      <br />
-                      <br />
-                      <span
-                        ><em>{{ toolInputRecord(part).prompt ?? '' }}</em></span
-                      >
-                      <ChatWorkflowResult v-bind="toolMediaCard(part)" />
-                    </div>
-                  </template>
-                  <template
-                    v-else-if="isAipgTool(part) && toolPartNameOf(part) === 'comfyUiImageEdit'"
-                  >
-                    <div>
-                      <span
-                        v-if="part.state === 'input-streaming' && !toolInputRecord(part).workflow"
-                        >Editing…</span
-                      >
-                      <span v-else
-                        >Editing using the preset
-                        <b>{{ toolInputRecord(part).workflow ?? 'unknown' }}</b></span
-                      >
-                      <br />
-                      <br />
-                      <span
-                        ><em>{{ toolInputRecord(part).prompt ?? '' }}</em></span
-                      >
-                      <ChatWorkflowResult v-bind="toolMediaCard(part)" />
-                    </div>
-                  </template>
-                  <template v-else-if="isAipgTool(part) && toolPartNameOf(part) === 'media'">
-                    <div>
-                      <span
-                        v-if="part.state === 'input-streaming' && !toolInputRecord(part).request"
-                        >Creating media…</span
-                      >
-                      <span v-else>
-                        Creating media:
-                        <em>{{ toolInputRecord(part).request ?? '' }}</em>
-                      </span>
-                      <MediaAgentTimeline
-                        class="mt-2"
-                        :tool-call-id="(part as any).toolCallId"
-                        :fallback-steps="(part as any).output?.steps"
-                      />
-                      <div
-                        v-if="
-                          part.state === 'output-available' &&
-                          (part as any).output?.success === false
-                        "
-                        class="mt-2 text-sm text-destructive"
-                      >
-                        {{ (part as any).output?.message ?? 'Media generation failed.' }}
-                      </div>
-                      <ChatWorkflowResult v-bind="toolMediaCard(part)" />
-                    </div>
-                  </template>
-                  <template
-                    v-else-if="
-                      isAipgTool(part) && toolPartNameOf(part) === 'visualizeObjectDetections'
-                    "
-                  >
-                    <div>
-                      <div
-                        v-if="
-                          part.state === 'output-available' &&
-                          (part as any).output?.annotatedImageUrl
-                        "
-                      >
-                        <img
-                          :src="(part as any).output.annotatedImageUrl"
-                          alt="Annotated image with object detections"
-                          class="max-w-full rounded-md border-2 border-border"
-                        />
-                      </div>
-                      <div
-                        v-else-if="
-                          part.state === 'input-streaming' || part.state === 'input-available'
-                        "
-                      >
-                        <span class="text-muted-foreground">Visualizing object detections...</span>
-                      </div>
-                    </div>
-                  </template>
-                  <template
-                    v-else-if="isAipgTool(part) && toolPartNameOf(part) === 'captureScreenshot'"
-                  >
-                    <div>
-                      <div
-                        v-if="part.state === 'output-available' && (part as any).output?.dataUri"
-                      >
-                        <span class="text-muted-foreground">
-                          Captured screenshot of
-                          <b>{{ (part as any).output?.windowName ?? 'window' }}</b>
-                        </span>
-                        <img
-                          :src="(part as any).output.dataUri"
-                          :alt="`Screenshot of ${(part as any).output?.windowName ?? 'window'}`"
-                          class="mt-2 max-w-full rounded-md border-2 border-border"
-                        />
-                      </div>
-                      <div
-                        v-else-if="
-                          part.state === 'input-streaming' || part.state === 'input-available'
-                        "
-                      >
-                        <span class="text-muted-foreground">Capturing screenshot...</span>
-                      </div>
-                    </div>
-                  </template>
-                  <template
-                    v-else-if="isAipgTool(part) && toolPartNameOf(part) === 'screenshotWebPage'"
-                  >
-                    <div>
-                      <div
-                        v-if="part.state === 'output-available' && (part as any).output?.dataUri"
-                      >
-                        <span class="text-muted-foreground">Captured web page</span>
-                        <img
-                          :src="(part as any).output.dataUri"
-                          alt="Screenshot of the web page"
-                          class="mt-2 max-w-full rounded-md border-2 border-border"
-                        />
-                      </div>
-                      <div
-                        v-else-if="
-                          part.state === 'input-streaming' || part.state === 'input-available'
-                        "
-                      >
-                        <span class="text-muted-foreground">Capturing web page...</span>
-                      </div>
-                    </div>
-                  </template>
-                  <template
-                    v-else-if="
-                      isAipgTool(part) && toolPartNameOf(part) === 'synthesizeTextToSpeech'
-                    "
-                  >
-                    <div>
-                      <ChatTtsToolResult
-                        v-if="part.state === 'output-available'"
-                        :output="(part as any).output"
-                      />
-                      <div
-                        v-else-if="
-                          part.state === 'input-streaming' || part.state === 'input-available'
-                        "
-                      >
-                        <span class="text-muted-foreground">Synthesizing speech…</span>
-                      </div>
-                    </div>
-                  </template>
-                  <template v-else-if="isWebBrowsePart(part)">
-                    <ChatWebBrowseDisplay
-                      v-if="isFirstWebBrowsePart(message, partIndex)"
-                      :entries="webBrowseEntriesFor(message)"
+                  <!-- Text part -->
+                  <template v-else-if="part.type === 'text'">
+                    <MarkdownRenderer
+                      role="region"
+                      aria-label="Assistant reply"
+                      :content="stripAipgMediaImages((part as any).text ?? '')"
+                      :on-copy="copyText"
                     />
                   </template>
-                  <template v-else-if="isMcpTool(part)">
-                    <ChatMcpToolDisplay :part="part" :state="part.state" />
-                  </template>
-                  <template v-else>
-                    <ChatToolDisplay :part="part" :state="part.state" :input="part.input" />
+
+                  <!-- Tool parts -->
+                  <template v-else-if="isToolUIPart(part)">
+                    <template v-if="isAipgTool(part) && toolPartNameOf(part) === 'comfyUI'">
+                      <div>
+                        <span
+                          v-if="part.state === 'input-streaming' && !toolInputRecord(part).workflow"
+                          >Generating…</span
+                        >
+                        <span v-else
+                          >Generating using the preset
+                          <b>{{ toolInputRecord(part).workflow ?? 'unknown' }}</b></span
+                        >
+                        <br />
+                        <br />
+                        <span
+                          ><em>{{ toolInputRecord(part).prompt ?? '' }}</em></span
+                        >
+                        <ChatWorkflowResult v-bind="toolMediaCard(part)" />
+                      </div>
+                    </template>
+                    <template
+                      v-else-if="isAipgTool(part) && toolPartNameOf(part) === 'comfyUiImageEdit'"
+                    >
+                      <div>
+                        <span
+                          v-if="part.state === 'input-streaming' && !toolInputRecord(part).workflow"
+                          >Editing…</span
+                        >
+                        <span v-else
+                          >Editing using the preset
+                          <b>{{ toolInputRecord(part).workflow ?? 'unknown' }}</b></span
+                        >
+                        <br />
+                        <br />
+                        <span
+                          ><em>{{ toolInputRecord(part).prompt ?? '' }}</em></span
+                        >
+                        <ChatWorkflowResult v-bind="toolMediaCard(part)" />
+                      </div>
+                    </template>
+                    <template v-else-if="isAipgTool(part) && toolPartNameOf(part) === 'media'">
+                      <div>
+                        <span
+                          v-if="part.state === 'input-streaming' && !toolInputRecord(part).request"
+                          >Creating media…</span
+                        >
+                        <span v-else>
+                          Creating media:
+                          <em>{{ toolInputRecord(part).request ?? '' }}</em>
+                        </span>
+                        <MediaAgentTimeline
+                          class="mt-2"
+                          :tool-call-id="(part as any).toolCallId"
+                          :fallback-steps="(part as any).output?.steps"
+                        />
+                        <div
+                          v-if="
+                            part.state === 'output-available' &&
+                            (part as any).output?.success === false
+                          "
+                          class="mt-2 text-sm text-destructive"
+                        >
+                          {{ (part as any).output?.message ?? 'Media generation failed.' }}
+                        </div>
+                        <ChatWorkflowResult v-bind="toolMediaCard(part)" />
+                      </div>
+                    </template>
+                    <template
+                      v-else-if="
+                        isAipgTool(part) && toolPartNameOf(part) === 'visualizeObjectDetections'
+                      "
+                    >
+                      <div>
+                        <div
+                          v-if="
+                            part.state === 'output-available' &&
+                            (part as any).output?.annotatedImageUrl
+                          "
+                        >
+                          <img
+                            :src="(part as any).output.annotatedImageUrl"
+                            alt="Annotated image with object detections"
+                            class="max-w-full rounded-md border-2 border-border"
+                          />
+                        </div>
+                        <div
+                          v-else-if="
+                            part.state === 'input-streaming' || part.state === 'input-available'
+                          "
+                        >
+                          <span class="text-muted-foreground"
+                            >Visualizing object detections...</span
+                          >
+                        </div>
+                      </div>
+                    </template>
+                    <template
+                      v-else-if="isAipgTool(part) && toolPartNameOf(part) === 'captureScreenshot'"
+                    >
+                      <div>
+                        <div
+                          v-if="part.state === 'output-available' && (part as any).output?.dataUri"
+                        >
+                          <span class="text-muted-foreground">
+                            Captured screenshot of
+                            <b>{{ (part as any).output?.windowName ?? 'window' }}</b>
+                          </span>
+                          <img
+                            :src="(part as any).output.dataUri"
+                            :alt="`Screenshot of ${(part as any).output?.windowName ?? 'window'}`"
+                            class="mt-2 max-w-full rounded-md border-2 border-border"
+                          />
+                        </div>
+                        <div
+                          v-else-if="
+                            part.state === 'input-streaming' || part.state === 'input-available'
+                          "
+                        >
+                          <span class="text-muted-foreground">Capturing screenshot...</span>
+                        </div>
+                      </div>
+                    </template>
+                    <template
+                      v-else-if="isAipgTool(part) && toolPartNameOf(part) === 'screenshotWebPage'"
+                    >
+                      <div>
+                        <div
+                          v-if="part.state === 'output-available' && (part as any).output?.dataUri"
+                        >
+                          <span class="text-muted-foreground">Captured web page</span>
+                          <img
+                            :src="(part as any).output.dataUri"
+                            alt="Screenshot of the web page"
+                            class="mt-2 max-w-full rounded-md border-2 border-border"
+                          />
+                        </div>
+                        <div
+                          v-else-if="
+                            part.state === 'input-streaming' || part.state === 'input-available'
+                          "
+                        >
+                          <span class="text-muted-foreground">Capturing web page...</span>
+                        </div>
+                      </div>
+                    </template>
+                    <template
+                      v-else-if="
+                        isAipgTool(part) && toolPartNameOf(part) === 'synthesizeTextToSpeech'
+                      "
+                    >
+                      <div>
+                        <ChatTtsToolResult
+                          v-if="part.state === 'output-available'"
+                          :output="(part as any).output"
+                        />
+                        <div
+                          v-else-if="
+                            part.state === 'input-streaming' || part.state === 'input-available'
+                          "
+                        >
+                          <span class="text-muted-foreground">Synthesizing speech…</span>
+                        </div>
+                      </div>
+                    </template>
+                    <template v-else-if="isWebBrowsePart(part)">
+                      <ChatWebBrowseDisplay
+                        v-if="isFirstWebBrowsePart(message, partIndex)"
+                        :entries="webBrowseEntriesFor(message)"
+                      />
+                    </template>
+                    <template v-else-if="isMcpTool(part)">
+                      <ChatMcpToolDisplay :part="part" :state="part.state" />
+                    </template>
+                    <template v-else>
+                      <ChatToolDisplay :part="part" :state="part.state" :input="part.input" />
+                    </template>
                   </template>
                 </template>
-              </template>
 
-              <!-- In-turn status inside the assistant bubble: thinking / tool /
+                <!-- In-turn status inside the assistant bubble: thinking / tool /
                    post-image-gen "reloading chat model" etc. Hidden while image
                    generation is processing (ChatWorkflowResult shows that inline). -->
-              <ChatActivityIndicator
-                v-if="
-                  i === activeConversation.length - 1 &&
-                  hasActiveChatActivity &&
-                  !messageHasLiveMedia(message)
-                "
-                :conversation-key="conversations.activeKey"
-              />
+                <ChatActivityIndicator
+                  v-if="
+                    i === activeConversation.length - 1 &&
+                    hasActiveChatActivity &&
+                    !messageHasLiveMedia(message)
+                  "
+                  :conversation-key="conversations.activeKey"
+                />
 
-              <!-- Inline human-in-the-loop confirmation (e.g. Home Agent self-config).
+                <!-- Inline human-in-the-loop confirmation (e.g. Home Agent self-config).
                    Mirrors remote-channel confirmations into the desktop window so
                    the app never looks stuck while a tool awaits approval. -->
-              <ChatConfirmation
-                v-if="i === activeConversation.length - 1 && hasPendingConfirmation"
-                :conversation-key="conversations.activeKey"
-              />
-            </div>
-            <div
-              v-if="messageHasVisibleContent(message)"
-              class="answer-tools flex gap-3 items-center text-muted-foreground"
-            >
-              <button
-                class="flex items-end"
-                :title="languages.COM_COPY"
-                @click="copyText(getMessageTextForCopy(message))"
+                <ChatConfirmation
+                  v-if="i === activeConversation.length - 1 && hasPendingConfirmation"
+                  :conversation-key="conversations.activeKey"
+                />
+              </div>
+              <div
+                v-if="messageHasVisibleContent(message)"
+                class="answer-tools flex gap-3 items-center text-muted-foreground"
               >
-                <span class="svg-icon i-copy w-4 h-4"></span>
-                <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
-              </button>
-              <button
-                v-if="speakAvailable"
-                class="flex items-end"
-                title="Speak"
-                :disabled="
-                  openAiCompatibleChat.processing ||
-                  (preparingSpeech && speakingMessageId !== message.id)
-                "
-                :class="{
-                  'opacity-50 cursor-not-allowed':
+                <button
+                  class="flex items-end"
+                  :title="languages.COM_COPY"
+                  @click="copyText(getMessageTextForCopy(message))"
+                >
+                  <span class="svg-icon i-copy w-4 h-4"></span>
+                  <span class="text-xs ml-1">{{ languages.COM_COPY }}</span>
+                </button>
+                <button
+                  v-if="speakAvailable"
+                  class="flex items-end"
+                  title="Speak"
+                  :disabled="
                     openAiCompatibleChat.processing ||
-                    (preparingSpeech && speakingMessageId !== message.id),
-                }"
-                @click="toggleSpeak(message)"
+                    (preparingSpeech && speakingMessageId !== message.id)
+                  "
+                  :class="{
+                    'opacity-50 cursor-not-allowed':
+                      openAiCompatibleChat.processing ||
+                      (preparingSpeech && speakingMessageId !== message.id),
+                  }"
+                  @click="toggleSpeak(message)"
+                >
+                  <span
+                    v-if="preparingSpeech && speakingMessageId === message.id && !isSpeaking"
+                    class="svg-icon i-loading w-4 h-4 animate-spin"
+                    aria-hidden="true"
+                  ></span>
+                  <span
+                    v-else
+                    class="svg-icon w-4 h-4"
+                    :class="speakingMessageId === message.id ? 'i-stop' : 'i-speaker'"
+                  ></span>
+                  <span class="text-xs ml-1">{{
+                    preparingSpeech && speakingMessageId === message.id && !isSpeaking
+                      ? 'Starting…'
+                      : speakingMessageId === message.id && isSpeaking
+                        ? 'Stop'
+                        : 'Speak'
+                  }}</span>
+                </button>
+                <button
+                  class="flex items-end"
+                  :title="languages.COM_REGENERATE"
+                  @click="() => openAiCompatibleChat.regenerate(message.id)"
+                  v-if="i + 1 == activeConversation.length"
+                  :disabled="openAiCompatibleChat.processing"
+                  :class="{ 'opacity-50 cursor-not-allowed': openAiCompatibleChat.processing }"
+                >
+                  <span class="svg-icon i-refresh w-4 h-4"></span>
+                  <span class="text-xs ml-1">{{ languages.COM_REGENERATE }}</span>
+                </button>
+                <button
+                  class="flex items-end"
+                  :title="languages.COM_DELETE"
+                  @click="
+                    () => {
+                      openAiCompatibleChat.removeMessage(message.id)
+                    }
+                  "
+                >
+                  <span class="svg-icon i-delete w-4 h-4"></span>
+                  <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
+                </button>
+              </div>
+              <div
+                v-if="textInference.metricsEnabled && message.metadata?.timings"
+                class="metrics-info text-xs text-muted-foreground"
               >
-                <span
-                  v-if="preparingSpeech && speakingMessageId === message.id && !isSpeaking"
-                  class="svg-icon i-loading w-4 h-4 animate-spin"
-                  aria-hidden="true"
-                ></span>
-                <span
-                  v-else
-                  class="svg-icon w-4 h-4"
-                  :class="speakingMessageId === message.id ? 'i-stop' : 'i-speaker'"
-                ></span>
-                <span class="text-xs ml-1">{{
-                  preparingSpeech && speakingMessageId === message.id && !isSpeaking
-                    ? 'Starting…'
-                    : speakingMessageId === message.id && isSpeaking
-                      ? 'Stop'
-                      : 'Speak'
-                }}</span>
-              </button>
-              <button
-                class="flex items-end"
-                :title="languages.COM_REGENERATE"
-                @click="() => openAiCompatibleChat.regenerate(message.id)"
-                v-if="i + 1 == activeConversation.length"
-                :disabled="openAiCompatibleChat.processing"
-                :class="{ 'opacity-50 cursor-not-allowed': openAiCompatibleChat.processing }"
-              >
-                <span class="svg-icon i-refresh w-4 h-4"></span>
-                <span class="text-xs ml-1">{{ languages.COM_REGENERATE }}</span>
-              </button>
-              <button
-                class="flex items-end"
-                :title="languages.COM_DELETE"
-                @click="
-                  () => {
-                    openAiCompatibleChat.removeMessage(message.id)
-                  }
-                "
-              >
-                <span class="svg-icon i-delete w-4 h-4"></span>
-                <span class="text-xs ml-1">{{ languages.COM_DELETE }}</span>
-              </button>
-            </div>
-            <div
-              v-if="textInference.metricsEnabled && message.metadata?.timings"
-              class="metrics-info text-xs text-muted-foreground"
-            >
-              <span class="mr-2">{{ message.metadata?.timings.predicted_n }} Tokens</span>
-              <span class="mr-2">⋅</span>
-              <span class="mr-2"
-                >{{ message.metadata?.timings.predicted_per_second.toFixed(2) }} Tokens/s</span
-              >
-              <span class="mr-2">⋅</span>
-              <span class="mr-2"
-                >1st Token Time: {{ message.metadata?.timings.prompt_ms.toFixed(2) }}ms</span
-              >
-              <template v-if="message.metadata?.compute?.gpuMemPeakMiB != null">
+                <span class="mr-2">{{ message.metadata?.timings.predicted_n }} Tokens</span>
                 <span class="mr-2">⋅</span>
                 <span class="mr-2"
-                  >{{ formatMib(message.metadata.compute.gpuMemPeakMiB) }} vRAM peak</span
+                  >{{ message.metadata?.timings.predicted_per_second.toFixed(2) }} Tokens/s</span
                 >
-              </template>
-              <template v-else-if="message.metadata?.compute?.hostMemPeakMiB != null">
                 <span class="mr-2">⋅</span>
                 <span class="mr-2"
-                  >{{ formatMib(message.metadata.compute.hostMemPeakMiB) }} RAM peak</span
+                  >1st Token Time: {{ message.metadata?.timings.prompt_ms.toFixed(2) }}ms</span
                 >
-              </template>
-              <template
-                v-if="CHAT_ENERGY_ESTIMATES_ENABLED && message.metadata?.energy?.wattHours != null"
-              >
-                <span class="mr-2">⋅</span>
-                <span class="mr-2"
-                  >{{ formatEnergyWh(message.metadata.energy.wattHours) }} GPU energy</span
+                <template v-if="message.metadata?.compute?.gpuMemPeakMiB != null">
+                  <span class="mr-2">⋅</span>
+                  <span class="mr-2"
+                    >{{ formatMib(message.metadata.compute.gpuMemPeakMiB) }} vRAM peak</span
+                  >
+                </template>
+                <template v-else-if="message.metadata?.compute?.hostMemPeakMiB != null">
+                  <span class="mr-2">⋅</span>
+                  <span class="mr-2"
+                    >{{ formatMib(message.metadata.compute.hostMemPeakMiB) }} RAM peak</span
+                  >
+                </template>
+                <template
+                  v-if="
+                    CHAT_ENERGY_ESTIMATES_ENABLED && message.metadata?.energy?.wattHours != null
+                  "
                 >
-              </template>
-              <template
-                v-if="
-                  CHAT_ENERGY_ESTIMATES_ENABLED &&
-                  i + 1 === activeConversation.length &&
-                  conversationEnergy
-                "
-              >
-                <span class="mr-2">⋅</span>
-                <span class="mr-2"
-                  >est. {{ formatUsd(conversationEnergy.costPerMillionOutputTokensUsd) }} / 1M
-                  output tokens @ $0.35/kWh</span
+                  <span class="mr-2">⋅</span>
+                  <span class="mr-2"
+                    >{{ formatEnergyWh(message.metadata.energy.wattHours) }} GPU energy</span
+                  >
+                </template>
+                <template
+                  v-if="
+                    CHAT_ENERGY_ESTIMATES_ENABLED &&
+                    i + 1 === activeConversation.length &&
+                    conversationEnergy
+                  "
                 >
-              </template>
+                  <span class="mr-2">⋅</span>
+                  <span class="mr-2"
+                    >est. {{ formatUsd(conversationEnergy.costPerMillionOutputTokensUsd) }} / 1M
+                    output tokens @ $0.35/kWh</span
+                  >
+                </template>
+              </div>
             </div>
           </div>
-        </div>
+        </template>
       </template>
 
       <!-- Standalone status for the pre-bubble phase (backend/model prep before the
@@ -526,6 +535,10 @@ import ChatConfirmation from '@/components/ChatConfirmation.vue'
 import ChatTtsToolResult from '@/components/ChatTtsToolResult.vue'
 import ScrollToBottomButton from '@/components/ScrollToBottomButton.vue'
 import { useConversations } from '@/assets/js/store/conversations'
+import { useSessions } from '@/assets/js/store/sessions'
+import SessionTurnBlock from '@/components/SessionTurnBlock.vue'
+import { chatTimelineItems, type ChatTimelineItem } from '@/lib/sessionTimeline'
+import { sessionIdOfChatKey } from '@/lib/sessionChat'
 import { useActivities } from '@/assets/js/store/activities'
 import { useConfirmations } from '@/assets/js/store/confirmations'
 import { type MediaItem } from '@/assets/js/store/imageGenerationPresets'
@@ -554,6 +567,7 @@ const promptStore = usePromptStore()
 const mediaAgentRuns = useMediaAgentRuns()
 const artifactRuns = useArtifactRuns()
 const conversations = useConversations()
+const sessions = useSessions()
 const activities = useActivities()
 const confirmations = useConfirmations()
 const errors = useErrors()
@@ -598,6 +612,25 @@ const chatPanel = ref<HTMLElement | null>(null)
 const { showScrollButton, scrollToBottom } = useStickToBottom(chatPanel)
 
 const activeConversation = computed(() => openAiCompatibleChat.messages)
+
+type ConversationMessage = (typeof activeConversation.value)[number]
+
+/** The Session's chat transcript is open: show it inside the Session timeline. */
+const inSessionChat = computed(
+  () =>
+    !!sessions.openSessionId &&
+    sessionIdOfChatKey(conversations.activeKey) === sessions.openSessionId,
+)
+
+const items = computed<ChatTimelineItem<ConversationMessage>[]>(() =>
+  inSessionChat.value
+    ? chatTimelineItems(sessions.openTimeline, activeConversation.value)
+    : activeConversation.value.map((message, index) => ({ kind: 'message', message, index })),
+)
+
+function messageItems(item: ChatTimelineItem<ConversationMessage>) {
+  return item.kind === 'message' ? [item] : []
+}
 const conversationEnergy = computed(() => estimateConversationEnergy(activeConversation.value))
 const showRagSourcePerMessageId = reactive<Record<string, boolean>>({})
 

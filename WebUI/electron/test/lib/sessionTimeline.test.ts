@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { timelineTurns, withLiveAgentTurn } from '@/lib/sessionTimeline'
+import { chatTimelineItems, timelineTurns, withLiveAgentTurn } from '@/lib/sessionTimeline'
 
 const agentTurn = { presetName: 'Agent', harnessSessionId: 'aipg-agent-1' }
 
@@ -159,5 +159,42 @@ describe('the live agent turn in the Session timeline', () => {
   it('leaves the timeline as it is with nothing live', () => {
     const timeline = [mediaPrompt, mediaCard]
     expect(withLiveAgentTurn(timeline, agentTurn, [])).toEqual(timeline)
+  })
+})
+
+describe('Chat mode over the Session timeline', () => {
+  const live = (id: string, role: 'user' | 'assistant', text: string) => ({
+    id,
+    role,
+    parts: [{ type: 'text', text }],
+  })
+
+  it("puts the live conversation where the Session's chat turns are, other turns between", () => {
+    const items = chatTimelineItems(
+      [
+        chatMessage('u1', 'user', 'hi'),
+        chatMessage('a1', 'assistant', 'hello'),
+        mediaPrompt,
+        mediaCard,
+        agentMessage('g1', 'user', 'tidy up'),
+      ],
+      [
+        live('u1', 'user', 'hi'),
+        live('a1', 'assistant', 'hello'),
+        live('u2', 'user', 'describe it'),
+        live('a2', 'assistant', 'a f'),
+      ],
+    )
+
+    expect(
+      items.map((item) =>
+        item.kind === 'message' ? `${item.message.id}@${item.index}` : item.turn.kind,
+      ),
+    ).toEqual(['u1@0', 'a1@1', 'media', 'agent', 'u2@2', 'a2@3'])
+  })
+
+  it('shows only the conversation when the Session holds nothing else', () => {
+    const items = chatTimelineItems([], [live('u1', 'user', 'hi')])
+    expect(items).toEqual([{ kind: 'message', message: live('u1', 'user', 'hi'), index: 0 }])
   })
 })
