@@ -12,7 +12,7 @@ const HEADER = 'Session Update — what happened in this Session since your last
 export type SessionUpdateConsumer = {
   /** Its cursor's key in `session.json` `updateCursors`. */
   key: string
-  /** Entries of this preset are the consumer's own turns, not news. */
+  /** Entries of this preset are the consumer's own turns, not news — except Task Run Steps. */
   ownPreset?: string
   isOwn?: (entry: HistoryEntry) => boolean
   /** Where the consumer opens files from; Session Folder paths inside it are shown relative to it. */
@@ -77,6 +77,11 @@ function workspacePathView(sessionId: string, workspaceDir: string | undefined) 
   }
 }
 
+function isOwnTurn(entry: HistoryEntry, consumer: SessionUpdateConsumer): boolean {
+  if (entry.preset === consumer.ownPreset && !entry.taskName) return true
+  return consumer.isOwn?.(entry) ?? false
+}
+
 /**
  * The consumer's Session Update since its last turn, advancing its cursor to the
  * newest entry read — call it once when the turn starts.
@@ -88,9 +93,7 @@ export async function takeSessionUpdate(
   const [file, entries] = await Promise.all([readSession(sessionId), readHistoryEntries(sessionId)])
   const cursor = file.updateCursors[consumer.key]
   const start = cursor ? entries.findIndex((entry) => entry.id === cursor) + 1 : 0
-  const missed = entries
-    .slice(start)
-    .filter((entry) => entry.preset !== consumer.ownPreset && !(consumer.isOwn?.(entry) ?? false))
+  const missed = entries.slice(start).filter((entry) => !isOwnTurn(entry, consumer))
   const newest = entries.at(-1)
   if (newest && newest.id !== cursor) {
     await mutateSession(sessionId, (current) => ({

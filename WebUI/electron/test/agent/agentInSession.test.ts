@@ -264,6 +264,26 @@ describe('the Session Update and session_history for an agent preset', () => {
     )
   }, 30000)
 
+  it("reports a Task Run's Steps, which ran under the same preset in another Harness Session", async () => {
+    const session = await sessions.createSession()
+    await manager.startAgentTurn('t1', 'hello', await agentConfig(session.id))
+    await history.appendHistoryEntry(session.id, {
+      preset: 'Agent',
+      kind: 'agent',
+      prompt: 'summarize the inbox',
+      status: 'completed',
+      artifacts: [],
+      response: 'Three new mails.',
+      taskName: 'Morning digest',
+      stepIndex: 1,
+    })
+    bodies = []
+
+    await manager.startAgentTurn('t2', 'what did the task find?', await agentConfig(session.id))
+
+    expect(userTexts(bodies[0]).at(-1)).toContain('summarize the inbox')
+  }, 30000)
+
   it('sends no update when nothing happened since its last turn', async () => {
     const session = await sessionWithCastle()
     await manager.startAgentTurn('t1', 'describe that image', await agentConfig(session.id))
