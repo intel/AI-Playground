@@ -8,7 +8,7 @@ import { appendHistoryEntry } from './sessionHistory'
 import { mutateSession, sessionDocumentOf, sessionPaths } from './sessions'
 import { sessionMediaUrl } from '@/lib/comfyWorkflow'
 import type { MediaItem } from '@/types/mediaItem'
-import type { ArtifactMediaType, HistoryEntryKind } from '@/types/sessionIpc'
+import type { ArtifactMediaType, HistoryEntryKind, SessionDocument } from '@/types/sessionIpc'
 import type { MediaTurnData, MediaTurnStatus, TimelineMessage } from '@/types/sessionTimeline'
 
 const LOG_SCOPE = 'sessions'
@@ -40,7 +40,7 @@ export function titleFromPrompt(prompt: string): string {
   return flat.length <= TITLE_LIMIT ? flat : `${flat.slice(0, TITLE_LIMIT - 1).trimEnd()}…`
 }
 
-async function freeName(dir: string, name: string): Promise<string> {
+export async function freeName(dir: string, name: string): Promise<string> {
   const { name: stem, ext } = path.parse(name)
   for (let n = 0; ; n++) {
     const candidate = n === 0 ? name : `${stem}-${n}${ext}`
@@ -161,18 +161,36 @@ export async function recordMediaTurn(turn: MediaTurn): Promise<MediaItem[]> {
       ],
     },
   ]
-  const file = await mutateSession(turn.sessionId, (current) => ({
+  await appendTurnToTimeline(turn.sessionId, {
+    preset: turn.preset,
+    titleSource: turn.prompt,
+    messages,
+    at: now,
+  })
+  return items
+}
+
+/**
+ * Appends a settled turn's messages to the Session's display timeline, titles
+ * an untitled Session from it and tells the renderer.
+ */
+export async function appendTurnToTimeline(
+  sessionId: string,
+  turn: { preset: string; titleSource: string; messages: TimelineMessage[]; at: number },
+): Promise<SessionDocument> {
+  const file = await mutateSession(sessionId, (current) => ({
     ...current,
     title:
       current.renamed || current.title
         ? current.title
-        : titleFromPrompt(turn.prompt) || turn.preset,
+        : titleFromPrompt(turn.titleSource) || turn.preset,
     presetsUsed: current.presetsUsed.includes(turn.preset)
       ? current.presetsUsed
       : [...current.presetsUsed, turn.preset],
-    timeline: [...current.timeline, ...messages],
-    updatedAt: Math.max(now, current.updatedAt),
+    timeline: [...current.timeline, ...turn.messages],
+    updatedAt: Math.max(turn.at, current.updatedAt),
   }))
-  emitSessionChanged(sessionDocumentOf(file))
-  return items
+  const document = sessionDocumentOf(file)
+  emitSessionChanged(document)
+  return document
 }

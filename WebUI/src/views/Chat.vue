@@ -615,9 +615,7 @@ defineExpose({
   scrollToBottom,
 })
 
-// The Audio mode streams into this same view (TTS audio bubbles, STT transcripts),
-// so it submits and cancels through the same handlers.
-const chatLikeModes: ChatLikeModeType[] = ['chat', 'audio']
+const chatLikeModes: ChatLikeModeType[] = ['chat']
 
 onMounted(() => {
   ensureMediaAgentEventWiring()

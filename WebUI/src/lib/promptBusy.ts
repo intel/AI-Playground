@@ -8,6 +8,8 @@ export type PromptBusyTargets = {
   conversation: boolean
   /** The image/edit/video panel has a run in flight. */
   panelRun: boolean
+  /** The open Session has a Text-to-Speech / Speech-to-Text turn running. */
+  audioTurn: boolean
 }
 
 const CHAT_LIKE_MODES: ModeType[] = ['chat', 'agent', 'audio']
@@ -18,7 +20,8 @@ export function isChatLikeMode(mode: ModeType): boolean {
 
 export function promptBusy(mode: ModeType, targets: PromptBusyTargets): boolean {
   if (mode === 'agent') return targets.agentSession
-  if (mode === 'chat' || mode === 'audio') return targets.conversation
+  if (mode === 'audio') return targets.audioTurn
+  if (mode === 'chat') return targets.conversation
   return targets.panelRun
 }
 

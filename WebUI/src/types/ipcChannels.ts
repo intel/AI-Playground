@@ -35,7 +35,7 @@ import type {
 } from './permissionsIpc'
 import type { RagDocumentSection } from './ragDocumentIpc'
 import type { BackendLaunchSettings, BackendVersionWire } from './preferencesIpc'
-import type { SessionDocument, SessionSummary } from './sessionIpc'
+import type { AudioTurnRequest, SessionDocument, SessionSummary } from './sessionIpc'
 import type { SpeechSynthesisRequest } from './speechIpc'
 import type { ChannelMessageOwner, NotificationConfig } from './notificationsIpc'
 import type {
@@ -234,6 +234,13 @@ export const CHANNELS = {
     owner: 'main',
     args: [] as unknown as readonly [string],
     result: null as unknown as IpcMutationResult,
+  },
+  /** Settle a Text-to-Speech / Speech-to-Text turn: audio into files/, a History Entry, the timeline. */
+  'sessions:recordAudioTurn': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [AudioTurnRequest],
+    result: null as unknown as IpcOkWith<{ session: SessionDocument }>,
   },
   /** All preference sections at once; the file is small, so every store picks its own. */
   'preferences:read': {

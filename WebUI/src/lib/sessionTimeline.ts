@@ -1,4 +1,9 @@
-import type { MediaTurnData, TimelineMessage, TimelinePart } from '@/types/sessionTimeline'
+import type {
+  AudioTurnData,
+  MediaTurnData,
+  TimelineMessage,
+  TimelinePart,
+} from '@/types/sessionTimeline'
 
 /**
  * What the Session timeline renders, one block per turn. Later turn kinds
@@ -6,6 +11,7 @@ import type { MediaTurnData, TimelineMessage, TimelinePart } from '@/types/sessi
  */
 export type TimelineTurn =
   | { kind: 'media'; id: string; prompt: string; createdAt: number; media: MediaTurnData }
+  | { kind: 'audio'; id: string; prompt: string; createdAt: number; audio: AudioTurnData }
   | { kind: 'message'; id: string; message: TimelineMessage }
 
 function isTimelineMessage(value: unknown): value is TimelineMessage {
@@ -26,6 +32,14 @@ function mediaPart(message: TimelineMessage): MediaTurnData | null {
   return part?.data ?? null
 }
 
+function audioPart(message: TimelineMessage): AudioTurnData | null {
+  const part = message.parts.find(
+    (candidate): candidate is Extract<TimelinePart, { type: 'data-audio' }> =>
+      candidate.type === 'data-audio',
+  )
+  return part?.data ?? null
+}
+
 function promptOf(message: TimelineMessage): string {
   return message.parts.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('\n')
 }
@@ -37,8 +51,21 @@ export function timelineTurns(timeline: readonly unknown[]): TimelineTurn[] {
   for (let i = 0; i < messages.length; i++) {
     const message = messages[i]
     const next = messages[i + 1]
-    const media = next?.role === 'assistant' ? mediaPart(next) : null
-    if (message.role === 'user' && next && media) {
+    const answer = message.role === 'user' && next?.role === 'assistant' ? next : null
+    const media = answer ? mediaPart(answer) : null
+    const audio = answer && !media ? audioPart(answer) : null
+    if (answer && audio) {
+      turns.push({
+        kind: 'audio',
+        id: answer.id,
+        prompt: promptOf(message),
+        createdAt: message.createdAt,
+        audio,
+      })
+      i++
+      continue
+    }
+    if (next && media) {
       turns.push({
         kind: 'media',
         id: next.id,

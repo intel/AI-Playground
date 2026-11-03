@@ -520,6 +520,7 @@ import {
 } from '@/assets/js/store/imageGenerationPresets.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
 import { useAgentMode } from '@/assets/js/store/agentMode'
+import { useSessionAudio } from '@/assets/js/store/sessionAudio'
 import { useAgentTasks } from '@/assets/js/store/agentTasks'
 import {
   describeSettingsProblem as describeProblem,
@@ -573,6 +574,7 @@ const promptStore = usePromptStore()
 const imageGeneration = useImageGenerationPresets()
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 const agentMode = useAgentMode()
+const sessionAudio = useSessionAudio()
 const agentTasks = useAgentTasks()
 const oemBranding = useOemBranding()
 const settingsLabel = useModeSettingsLabel(() => promptStore.getCurrentMode())
@@ -789,24 +791,18 @@ const sttUnavailableHint = computed(() =>
     : 'Install the OpenVINO backend or standalone Whisper backend, or set an external transcription endpoint, to use voice input',
 )
 
-// Handle an uploaded audio file in the STT preset: transcribe it into a chat turn.
+// Handle an uploaded audio file in the STT preset: transcribe it into a Session turn.
 async function handleSttFileUpload(event: Event) {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   target.value = ''
   if (!file) return
-  await openAiCompatibleChat.transcribeDirect(file, {
-    conversationKey: conversations.activeKey,
-    sourceLabel: `🎤 ${file.name}`,
-  })
+  await sessionAudio.transcribeAudio(file, { label: `🎤 ${file.name}`, fileName: file.name })
 }
 
 audioRecorder.registerRecordingCompleteHandler(async (wavBlob) => {
   if (!isSttPreset.value) return
-  await openAiCompatibleChat.transcribeDirect(wavBlob, {
-    conversationKey: conversations.activeKey,
-    sourceLabel: '🎤 Recording',
-  })
+  await sessionAudio.transcribeAudio(wavBlob, { label: '🎤 Recording' })
 })
 
 audioRecorder.registerTranscriptionCallback((text) => {
@@ -966,6 +962,7 @@ const isProcessing = computed(() =>
     conversation:
       openAiCompatibleChat.processing || activities.chatActivity(conversations.activeKey) !== null,
     panelRun: imageGeneration.processing,
+    audioTurn: sessionAudio.processing,
   }),
 )
 

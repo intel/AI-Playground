@@ -223,6 +223,7 @@ import {
 } from './persist/conversationFiles'
 import { buildConversationsRegistry } from './kernel/registries/conversations'
 import { buildSessionsRegistry } from './kernel/registries/sessions'
+import { recordAudioTurn } from './session/sessionAudioTurn'
 import {
   createSession,
   deleteSession,
@@ -1811,6 +1812,7 @@ function initEventHandle() {
       openSession,
       renameSession,
       deleteSession,
+      recordAudioTurn,
     }),
   )
 

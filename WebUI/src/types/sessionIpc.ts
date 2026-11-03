@@ -70,3 +70,21 @@ export const HistoryEntrySchema = z.object({
 export type HistoryEntry = z.infer<typeof HistoryEntrySchema>
 export type HistoryEntryKind = z.infer<typeof HistoryEntryKindSchema>
 export type ArtifactMediaType = z.infer<typeof ArtifactMediaTypeSchema>
+
+/** A settled Text-to-Speech / Speech-to-Text turn the renderer hands the Session module. */
+export const AudioTurnRequestSchema = z.object({
+  sessionId: z.string(),
+  kind: z.enum(['tts', 'stt']),
+  preset: z.string(),
+  /** TTS: the text spoken; STT: what the source audio is called. */
+  prompt: z.string(),
+  status: z.enum(['completed', 'failed', 'cancelled']),
+  error: z.string().optional(),
+  /** STT only. */
+  transcript: z.string().optional(),
+  engine: z.string().optional(),
+  /** TTS: the synthesized clip; STT: the source audio. */
+  audio: z.object({ base64: z.string().min(1), fileName: z.string().min(1) }).optional(),
+})
+
+export type AudioTurnRequest = z.infer<typeof AudioTurnRequestSchema>

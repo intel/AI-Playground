@@ -187,15 +187,10 @@
     <SideModalAppSettings :isVisible="showAppSettings" @close="showAppSettings = false" />
 
     <div class="flex-1 flex flex-col relative justify-center-safe min-h-0 overflow-y-auto">
-      <!-- The Audio mode renders its turns (synthesized audio, transcripts) as chat
-           messages, so it shares this view with the Chat mode. -->
-      <Chat
-        v-if="promptStore.getCurrentMode() === 'chat' || promptStore.getCurrentMode() === 'audio'"
-        ref="chatRef"
-      />
+      <Chat v-if="promptStore.getCurrentMode() === 'chat'" ref="chatRef" />
       <AgentMode v-if="promptStore.getCurrentMode() === 'agent'" />
       <SessionTimeline
-        v-if="isMediaMode(promptStore.getCurrentMode())"
+        v-if="showsSessionTimeline(promptStore.getCurrentMode())"
         :key="promptStore.getCurrentMode()"
         :mode="promptStore.getCurrentMode()"
       />
@@ -378,8 +373,8 @@ const chatRef = ref<{
   handleSubmitPromptClick: (prompt: string) => void
   scrollToBottom: () => void
 }>()
-const isMediaMode = (mode: ModeType) =>
-  mode === 'imageGen' || mode === 'imageEdit' || mode === 'video'
+const showsSessionTimeline = (mode: ModeType) =>
+  mode === 'imageGen' || mode === 'imageEdit' || mode === 'video' || mode === 'audio'
 
 const isOpen = ref(false)
 const footerExpanded = ref(true)

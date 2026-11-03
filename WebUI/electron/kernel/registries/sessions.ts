@@ -1,5 +1,7 @@
 import type { InvokeHandlerMap, SessionsInvokeName } from '../ipcRegistries'
 import { ipcFail } from '../typedIpc'
+import type { recordAudioTurn } from '../../session/sessionAudioTurn'
+import { AudioTurnRequestSchema } from '@/types/sessionIpc'
 import type {
   createSession,
   deleteSession,
@@ -14,6 +16,7 @@ export type SessionsDeps = {
   openSession: typeof openSession
   renameSession: typeof renameSession
   deleteSession: typeof deleteSession
+  recordAudioTurn: typeof recordAudioTurn
 }
 
 function requireString(value: unknown, what: string): string {
@@ -62,6 +65,14 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
       try {
         await deps.deleteSession(requireString(id, 'session id'))
         return { success: true as const }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:recordAudioTurn': async (_event, turn) => {
+      try {
+        const session = await deps.recordAudioTurn(AudioTurnRequestSchema.parse(turn))
+        return { success: true as const, session }
       } catch (e) {
         return ipcFail(e)
       }

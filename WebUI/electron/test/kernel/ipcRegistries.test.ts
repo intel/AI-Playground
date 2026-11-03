@@ -24,9 +24,14 @@ describe('per-owner handler registries', () => {
     >()
   })
 
-  it('extracts exactly the five sessions channels and builds a registry for them', () => {
+  it('extracts exactly the sessions channels and builds a registry for them', () => {
     expectTypeOf<SessionsInvokeName>().toEqualTypeOf<
-      'sessions:list' | 'sessions:create' | 'sessions:open' | 'sessions:rename' | 'sessions:delete'
+      | 'sessions:list'
+      | 'sessions:create'
+      | 'sessions:open'
+      | 'sessions:rename'
+      | 'sessions:delete'
+      | 'sessions:recordAudioTurn'
     >()
     expectTypeOf<
       keyof ReturnType<typeof buildSessionsRegistry>

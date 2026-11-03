@@ -1,7 +1,7 @@
 <template>
   <div ref="panel" class="flex-1 overflow-y-auto px-4 py-6 flex flex-col">
     <div
-      v-if="turns.length === 0 && !pending"
+      v-if="turns.length === 0 && !pending && !pendingAudio"
       class="flex-1 flex items-center justify-center text-muted-foreground text-center"
     >
       {{ languages.SESSION_TIMELINE_EMPTY }}
@@ -16,6 +16,17 @@
           :items="turn.media.items"
           :status="turn.media.status"
           :error="turn.media.error"
+        />
+        <AudioTurnBlock
+          v-else-if="turn.kind === 'audio'"
+          :prompt="turn.prompt"
+          :preset="turn.audio.preset"
+          :kind="turn.audio.kind"
+          :audio-url="turn.audio.audioUrl"
+          :transcript="turn.audio.transcript"
+          :engine="turn.audio.engine"
+          :status="turn.audio.status"
+          :error="turn.audio.error"
         />
         <div
           v-else
@@ -34,6 +45,13 @@
         :phase="pending.run?.phase ?? 'queued'"
         :progress="pending.run?.progress"
       />
+      <AudioTurnBlock
+        v-if="pendingAudio"
+        :prompt="pendingAudio.prompt"
+        :preset="pendingAudio.preset"
+        :kind="pendingAudio.kind"
+        :phase="pendingAudio.phase"
+      />
     </div>
   </div>
 </template>
@@ -44,8 +62,11 @@ import { useArtifactRuns } from '@/assets/js/store/artifactRuns'
 import { useErrors } from '@/assets/js/store/errors'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
+import { usePresets } from '@/assets/js/store/presets'
 import { usePromptStore } from '@/assets/js/store/promptArea'
+import { useSessionAudio } from '@/assets/js/store/sessionAudio'
 import { useSessions } from '@/assets/js/store/sessions'
+import AudioTurnBlock from '@/components/AudioTurnBlock.vue'
 import MediaTurnBlock from '@/components/MediaTurnBlock.vue'
 import { isCancellation } from '@/assets/js/errors/appError'
 import { timelineTurns } from '@/lib/sessionTimeline'
@@ -58,6 +79,8 @@ const sessions = useSessions()
 const artifactRuns = useArtifactRuns()
 const imageGeneration = useImageGenerationPresets()
 const promptStore = usePromptStore()
+const presets = usePresets()
+const sessionAudio = useSessionAudio()
 const errors = useErrors()
 const languages = useI18N().state
 const panel = ref<HTMLElement | null>(null)
@@ -75,6 +98,8 @@ const pending = computed(() => {
   return { turn, run: artifactRuns.state.runs[turn.runId] }
 })
 
+const pendingAudio = computed(() => sessionAudio.pendingTurn)
+
 function messageText(message: TimelineMessage): string {
   return message.parts.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('\n')
 }
@@ -85,7 +110,10 @@ function scrollToBottom(): void {
   })
 }
 
-watch(() => [sessions.openSessionId, turns.value.length, !!pending.value], scrollToBottom)
+watch(
+  () => [sessions.openSessionId, turns.value.length, !!pending.value, !!pendingAudio.value],
+  scrollToBottom,
+)
 
 const mediaMode = computed<WorkflowModeType | null>(() =>
   props.mode === 'imageGen' || props.mode === 'imageEdit' || props.mode === 'video'
@@ -111,14 +139,25 @@ async function generate(prompt: string): Promise<void> {
   }
 }
 
+async function synthesize(text: string): Promise<void> {
+  const preset = presets.activePreset
+  if (preset?.type !== 'chat' || !preset.ttsPreset) {
+    promptStore.promptSubmitted = false
+    return
+  }
+  await sessionAudio.synthesize(text)
+}
+
 onMounted(() => {
   scrollToBottom()
+  if (props.mode === 'audio') promptStore.registerSubmitCallback('audio', synthesize)
   if (!mediaMode.value) return
   promptStore.registerSubmitCallback(mediaMode.value, generate)
   promptStore.registerCancelCallback(mediaMode.value, () => imageGeneration.stopGeneration())
 })
 
 onUnmounted(() => {
+  if (props.mode === 'audio') promptStore.unregisterSubmitCallback('audio')
   if (!mediaMode.value) return
   promptStore.unregisterSubmitCallback(mediaMode.value)
   promptStore.unregisterCancelCallback(mediaMode.value)
