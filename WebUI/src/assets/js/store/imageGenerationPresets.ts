@@ -32,6 +32,7 @@ import { getMissingComfyuiBackendModels } from './imageGenerationUtils'
 import { requestDownload } from '@/assets/js/permissions/permissions'
 import { imageUrlToDataUri, saveImageToMediaInput } from '@/lib/utils'
 import { referenceSlotToFill } from '@/lib/referenceImageFit'
+import { defaultReferenceSlots } from '@/lib/sessionDefaultInputs'
 import { withTraceSpan } from '@/lib/laminarSpans'
 import { turnQueuedLabel } from '@/lib/queueActivityProjection'
 import { runArtifact, type ArtifactKind, type ArtifactResult } from '../artifact/runArtifact'
@@ -472,6 +473,38 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
     inputs[index].current.value = imageUrl
   }
 
+  /** The mode whose default image input the active preset takes; image generation takes none. */
+  const defaultImageInputMode = computed<'imageEdit' | 'video' | null>(() => {
+    const category = activePreset.value?.category
+    const mode =
+      category === 'edit-images' ? 'imageEdit' : category === 'create-videos' ? 'video' : null
+    return mode && comfyInputs.value.some((input) => input.type === 'image') ? mode : null
+  })
+
+  /** The last input the user chose by hand (load, drop, Edit / Make-video), for the default to yield to. */
+  const inputPick = ref<{ mode: WorkflowModeType; at: number } | null>(null)
+
+  function noteInputPicked(mode: WorkflowModeType): void {
+    inputPick.value = { mode, at: Date.now() }
+  }
+
+  /**
+   * Fills the active preset's image inputs with a Session artifact. Only inside the open
+   * Session's settings, so the default never lands in the Default Settings.
+   */
+  function fillDefaultReference(imageUrl: string): boolean {
+    const settingsKey = getSettingsKey()
+    if (!defaultImageInputMode.value || !settingsKey || !sessionBinding.value?.peek(settingsKey)) {
+      return false
+    }
+    const inputs = comfyInputs.value.filter((input) => input.type === 'image')
+    const slots = inputs.map((input) => ({ optional: input.optional, value: input.current.value }))
+    for (const index of defaultReferenceSlots(slots)) {
+      if (inputs[index].current.value !== imageUrl) inputs[index].current.value = imageUrl
+    }
+    return true
+  }
+
   // History selection (and a repeat click on the already-selected row) fills the
   // primary reference slot. An image that is already in a slot was just loaded
   // there, so it must not be copied onto slot 1.
@@ -780,6 +813,7 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
   }
 
   async function copyImageAsInputForMode(image: MediaItem, mode: WorkflowModeType) {
+    noteInputPicked(mode)
     const newImage: MediaItem = { ...image, id: crypto.randomUUID(), createdAt: Date.now() }
     newImage.mode = mode
     if (image.type === 'image' && newImage.type === 'image') {
@@ -1262,6 +1296,10 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
     loadSettingsForActivePreset,
     syncSelectedReferenceImage,
     copyImageAsInputForMode,
+    defaultImageInputMode,
+    inputPick,
+    noteInputPicked,
+    fillDefaultReference,
     addGalleryItem,
     init,
   }

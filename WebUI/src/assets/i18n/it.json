@@ -12,6 +12,7 @@
   "COM_PROMPT_IMAGE_EDIT": "Inserisci un prompt per modificare l'immagine",
   "COM_PROMPT_VIDEO": "Inserisci un prompt per generare il video",
   "COM_PROMPT_TTS": "Digita il testo che vuoi far leggere ad alta voce",
+  "STT_TRANSCRIBE_ATTACHED": "Trascrivi {file}",
   "COM_LLM_HF_PROMPT": "<namespace>/<repo_name>",
   "COM_LLM_HF_PROMPT_GGUF": "<namespace>/<repo_name>/<file_path>",
   "COM_CLICK_UPLOAD": "- Clicca per caricare un'immagine -",

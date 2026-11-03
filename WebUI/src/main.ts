@@ -9,6 +9,7 @@ import { usePromptStore } from './assets/js/store/promptArea'
 import { useConversations } from './assets/js/store/conversations'
 import { useSessions } from './assets/js/store/sessions'
 import { useSessionSettings } from './assets/js/store/sessionSettings'
+import { useSessionDefaultInputs } from './assets/js/store/sessionDefaultInputs'
 import { useAgentMode } from './assets/js/store/agentMode'
 import { useAgentTasks } from './assets/js/store/agentTasks'
 import { useImageGenerationPresets } from './assets/js/store/imageGenerationPresets'
@@ -136,6 +137,8 @@ useAgentMode().adoptNotifyCapability()
 // Binds every other preset's settings to the open Session once the Default Settings
 // they copy from have hydrated (ADR-0004).
 await useSessionSettings().whenLoaded()
+// Edit, Video and Speech-to-Text presets start with the Session's newest matching artifact.
+useSessionDefaultInputs()
 
 // Relabel a parked chat tool's activity with its queue position (the
 // orchestrator's queue events, step 7). Ledger events (activity / error /

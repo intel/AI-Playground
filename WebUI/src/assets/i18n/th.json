@@ -12,6 +12,7 @@
   "COM_PROMPT_IMAGE_EDIT": "ป้อนพรอมต์เพื่อแก้ไขภาพ",
   "COM_PROMPT_VIDEO": "ป้อนพรอมต์เพื่อสร้างวิดีโอ",
   "COM_PROMPT_TTS": "พิมพ์ข้อความที่คุณต้องการให้อ่านออกเสียง",
+  "STT_TRANSCRIBE_ATTACHED": "ถอดความ {file}",
   "COM_LLM_HF_PROMPT": "<namespace>/<repo_name>",
   "COM_LLM_HF_PROMPT_GGUF": "<namespace>/<repo_name>/<file_path>",
   "COM_CLICK_UPLOAD": "- คลิกเพื่ออัปโหลดภาพ -",

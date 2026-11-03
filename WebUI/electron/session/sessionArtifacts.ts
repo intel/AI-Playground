@@ -4,7 +4,13 @@ import { serializeSession } from '../persist/sessionFiles'
 import { readHistoryEntries } from './sessionHistory'
 import { listSessions, sessionPaths } from './sessions'
 import { sessionMediaUrl } from '@/lib/comfyWorkflow'
-import type { HistoryEntry, SessionArtifact, SessionSummary } from '@/types/sessionIpc'
+import type {
+  ArtifactMediaType,
+  HistoryEntry,
+  NewestArtifact,
+  SessionArtifact,
+  SessionSummary,
+} from '@/types/sessionIpc'
 
 async function isFile(file: string): Promise<boolean> {
   try {
@@ -78,4 +84,31 @@ export async function deleteArtifact(sessionId: string, relativePath: string): P
     }
     await fs.rm(file)
   })
+}
+
+/** The Session's newest artifact of a media type, from any preset, whose file still exists. */
+export async function newestArtifact(
+  sessionId: string,
+  mediaType: ArtifactMediaType,
+): Promise<NewestArtifact | null> {
+  const entries = await readHistoryEntries(sessionId)
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const artifacts = entries[i].artifacts.filter((artifact) => artifact.mediaType === mediaType)
+    for (let j = artifacts.length - 1; j >= 0; j--) {
+      const relativePath = artifacts[j].path
+      let file: string
+      try {
+        file = resolveArtifactFile(sessionId, relativePath)
+      } catch {
+        continue
+      }
+      if (!(await isFile(file))) continue
+      return {
+        entryId: entries[i].id,
+        path: relativePath,
+        url: sessionMediaUrl(sessionId, relativePath),
+      }
+    }
+  }
+  return null
 }

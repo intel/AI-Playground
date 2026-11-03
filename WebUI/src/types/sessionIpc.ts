@@ -71,6 +71,9 @@ export type HistoryEntry = z.infer<typeof HistoryEntrySchema>
 export type HistoryEntryKind = z.infer<typeof HistoryEntryKindSchema>
 export type ArtifactMediaType = z.infer<typeof ArtifactMediaTypeSchema>
 
+/** The newest artifact of one media type in a Session, as the History Entry that holds it. */
+export type NewestArtifact = { entryId: string; path: string; url: string }
+
 export type HistoryArtifact = HistoryEntry['artifacts'][number]
 
 /** A Session's Harness Session for one agent preset, and the workspace it runs in. */

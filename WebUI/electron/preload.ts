@@ -9,7 +9,7 @@ import type { PhisonKmIngestConfig, WarmupRequest } from '@/types/phisonKmRag'
 import type { AgentModeTurnConfig, AgentToolExecuteRequest, AgentToolSpec } from '@/types/agentIpc'
 import type { AgentMediaFileAction, AgentMediaFileRef } from '@/types/agentMediaDetails'
 import type { AgentSessionRecordWire } from '@/types/agentSessionIpc'
-import type { AudioTurnRequest } from '@/types/sessionIpc'
+import type { ArtifactMediaType, AudioTurnRequest } from '@/types/sessionIpc'
 import type { AgentTask } from '@/types/agentTaskIpc'
 import type { PresetSessionSettings } from '@/types/sessionSettings'
 import type { ArtifactRunRequest } from '@/types/artifactIpc'
@@ -285,6 +285,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     readSettings: (id: string) => invoke('sessions:readSettings', id),
     writePresetSettings: (id: string, presetName: string, entry: PresetSessionSettings) =>
       invoke('sessions:writePresetSettings', id, presetName, cloneForIpc(entry)),
+    newestArtifact: (id: string, mediaType: ArtifactMediaType) =>
+      invoke('sessions:newestArtifact', id, mediaType),
   },
   conversations: {
     bootstrap: () => invoke('conversations:bootstrap'),

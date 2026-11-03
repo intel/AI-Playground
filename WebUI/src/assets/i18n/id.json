@@ -12,6 +12,7 @@
   "COM_PROMPT_IMAGE_EDIT": "Masukkan prompt untuk menyunting gambar",
   "COM_PROMPT_VIDEO": "Masukkan prompt untuk membuat video",
   "COM_PROMPT_TTS": "Ketik teks yang ingin diucapkan",
+  "STT_TRANSCRIBE_ATTACHED": "Transkripsikan {file}",
   "COM_LLM_HF_PROMPT": "<namespace>/<repo_name>",
   "COM_LLM_HF_PROMPT_GGUF": "<namespace>/<repo_name>/<file_path>",
   "COM_CLICK_UPLOAD": "- Klik Untuk Unggah Gambar -",

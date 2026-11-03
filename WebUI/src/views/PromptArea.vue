@@ -153,6 +153,21 @@
             </p>
             <template v-else>
               <Button
+                v-if="sttAttachedClip"
+                variant="outline"
+                class="rounded-lg px-4 py-2"
+                :disabled="sessionAudio.processing || preparingStt"
+                @click="transcribeAttachedClip"
+              >
+                <MusicalNoteIcon class="size-5 mr-2" aria-hidden="true" />
+                {{
+                  (languages?.STT_TRANSCRIBE_ATTACHED ?? 'Transcribe {file}').replace(
+                    '{file}',
+                    sttAttachedClip.filename ?? '',
+                  )
+                }}
+              </Button>
+              <Button
                 id="stt-record-button"
                 class="bg-primary hover:bg-primary/80 text-primary-foreground rounded-lg px-4 py-2"
                 :disabled="audioRecorder.isTranscribing || preparingStt"
@@ -812,6 +827,29 @@ async function handleSttFileUpload(event: Event) {
   await sessionAudio.transcribeAudio(file, { label: `🎤 ${file.name}`, fileName: file.name })
 }
 
+// The Session's newest audio, pre-attached as the default Speech-to-Text input.
+const sttAttachedClip = computed(() =>
+  isSttPreset.value ? audioPreview.value[0]?.part : undefined,
+)
+
+async function transcribeAttachedClip() {
+  const clip = sttAttachedClip.value
+  if (!clip) return
+  const fileName = clip.filename ?? 'audio.wav'
+  let blob: Blob
+  try {
+    blob = await (await fetch(clip.url)).blob()
+  } catch (error) {
+    errors.report(error, {
+      category: 'inference',
+      code: 'inference/audio-attach-failed',
+      userMessage: `Could not read ${fileName}.`,
+    })
+    return
+  }
+  await sessionAudio.transcribeAudio(blob, { label: `🎤 ${fileName}`, fileName })
+}
+
 audioRecorder.registerRecordingCompleteHandler(async (wavBlob) => {
   if (!isSttPreset.value) return
   await sessionAudio.transcribeAudio(wavBlob, { label: '🎤 Recording' })
@@ -1325,6 +1363,7 @@ async function handleComfyUIImageUpload(imageFiles: File[]) {
     if (firstImageInput) {
       const historyMode: WorkflowModeType =
         promptStore.getCurrentMode() === 'video' ? 'video' : 'imageEdit'
+      imageGeneration.noteInputPicked(historyMode)
       firstImageInput.current.value = aipgMediaUrl
 
       const imageItem: ImageMediaItem = {

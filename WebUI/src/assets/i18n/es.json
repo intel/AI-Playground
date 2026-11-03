@@ -12,6 +12,7 @@
   "COM_PROMPT_IMAGE_EDIT": "Escribe una indicación para editar la imagen",
   "COM_PROMPT_VIDEO": "Escribe una indicación para generar un vídeo",
   "COM_PROMPT_TTS": "Escribe el texto que quieres que se lea en voz alta",
+  "STT_TRANSCRIBE_ATTACHED": "Transcribir {file}",
   "COM_LLM_HF_PROMPT": "<namespace>/<repo_name>",
   "COM_LLM_HF_PROMPT_GGUF": "<namespace>/<repo_name>/<file_path>",
   "COM_CLICK_UPLOAD": "- Haz clic para subir una imagen -",

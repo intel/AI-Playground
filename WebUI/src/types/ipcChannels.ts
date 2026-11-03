@@ -36,9 +36,11 @@ import type {
 import type { RagDocumentSection } from './ragDocumentIpc'
 import type { BackendLaunchSettings, BackendVersionWire } from './preferencesIpc'
 import type {
+  ArtifactMediaType,
   AudioTurnRequest,
-  SessionArtifact,
   HarnessSessionRef,
+  NewestArtifact,
+  SessionArtifact,
   SessionDocument,
   SessionSummary,
 } from './sessionIpc'
@@ -290,6 +292,13 @@ export const CHANNELS = {
     owner: 'main',
     args: [] as unknown as readonly [string, string, PresetSessionSettings],
     result: null as unknown as IpcMutationResult,
+  },
+  /** The Session's newest artifact of a media type, across every preset; null when it has none. */
+  'sessions:newestArtifact': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string, ArtifactMediaType],
+    result: null as unknown as IpcOkWith<{ artifact: NewestArtifact | null }>,
   },
   /** All preference sections at once; the file is small, so every store picks its own. */
   'preferences:read': {

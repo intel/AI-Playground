@@ -12,6 +12,7 @@
   "COM_PROMPT_IMAGE_EDIT": "Görseli düzenlemek için istem girin",
   "COM_PROMPT_VIDEO": "Video oluşturmak için istem girin",
   "COM_PROMPT_TTS": "Sesli okunmasını istediğiniz metni yazın",
+  "STT_TRANSCRIBE_ATTACHED": "{file} dosyasını yazıya dök",
   "COM_LLM_HF_PROMPT": "<namespace>/<repo_name>",
   "COM_LLM_HF_PROMPT_GGUF": "<namespace>/<repo_name>/<file_path>",
   "COM_CLICK_UPLOAD": "- Görsel Yüklemek İçin Tıklayın -",

@@ -12,6 +12,7 @@
   "COM_PROMPT_IMAGE_EDIT": "Input prompt to edit image",
   "COM_PROMPT_VIDEO": "Input prompt to generate video",
   "COM_PROMPT_TTS": "Type the text you want spoken aloud",
+  "STT_TRANSCRIBE_ATTACHED": "Transcribe {file}",
   "COM_LLM_HF_PROMPT": "<namespace>/<repo_name>",
   "COM_LLM_HF_PROMPT_GGUF": "<namespace>/<repo_name>/<file_path>",
   "COM_CLICK_UPLOAD": "- Click To Upload Image -",

@@ -1,7 +1,7 @@
 import type { InvokeHandlerMap, SessionsInvokeName } from '../ipcRegistries'
 import { ipcFail } from '../typedIpc'
 import type { recordAudioTurn } from '../../session/sessionAudioTurn'
-import { AudioTurnRequestSchema } from '@/types/sessionIpc'
+import { ArtifactMediaTypeSchema, AudioTurnRequestSchema } from '@/types/sessionIpc'
 import type {
   createSession,
   deleteSession,
@@ -13,6 +13,7 @@ import type {
   deleteArtifact,
   listAllArtifacts,
   missingArtifactUrls,
+  newestArtifact,
 } from '../../session/sessionArtifacts'
 import type { harnessSessionFor } from '../../session/sessionHarness'
 import type { upsertTimelineMessages } from '../../session/sessionTimeline'
@@ -31,6 +32,7 @@ export type SessionsDeps = {
   deleteArtifact: typeof deleteArtifact
   readSessionSettings: typeof readSessionSettings
   writePresetSettings: typeof writePresetSettings
+  newestArtifact: typeof newestArtifact
   harnessSessionFor: typeof harnessSessionFor
   upsertTimelineMessages: typeof upsertTimelineMessages
 }
@@ -163,6 +165,17 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
           PresetSessionSettingsSchema.parse(entry),
         )
         return { success: true as const }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:newestArtifact': async (_event, id, mediaType) => {
+      try {
+        const artifact = await deps.newestArtifact(
+          requireString(id, 'session id'),
+          ArtifactMediaTypeSchema.parse(mediaType),
+        )
+        return { success: true as const, artifact }
       } catch (e) {
         return ipcFail(e)
       }

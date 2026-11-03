@@ -12,6 +12,7 @@
   "COM_PROMPT_IMAGE_EDIT": "이미지를 편집할 프롬프트를 입력하세요",
   "COM_PROMPT_VIDEO": "동영상을 생성할 프롬프트를 입력하세요",
   "COM_PROMPT_TTS": "음성으로 읽어줄 텍스트를 입력하세요",
+  "STT_TRANSCRIBE_ATTACHED": "{file} 받아쓰기",
   "COM_LLM_HF_PROMPT": "<namespace>/<repo_name>",
   "COM_LLM_HF_PROMPT_GGUF": "<namespace>/<repo_name>/<file_path>",
   "COM_CLICK_UPLOAD": "- 클릭하여 이미지 업로드 -",

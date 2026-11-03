@@ -12,6 +12,7 @@
   "COM_PROMPT_IMAGE_EDIT": "画像を編集するプロンプトを入力",
   "COM_PROMPT_VIDEO": "動画を生成するプロンプトを入力",
   "COM_PROMPT_TTS": "読み上げるテキストを入力",
+  "STT_TRANSCRIBE_ATTACHED": "{file} を文字起こし",
   "COM_LLM_HF_PROMPT": "<namespace>/<repo_name>",
   "COM_LLM_HF_PROMPT_GGUF": "<namespace>/<repo_name>/<file_path>",
   "COM_CLICK_UPLOAD": "- クリックして画像をアップロード -",

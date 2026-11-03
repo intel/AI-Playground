@@ -166,6 +166,7 @@ function handleImageLoaded(imageUrl: string) {
   // Video references belong in the video history; edit references stay on image edit.
   const mode: WorkflowModeType =
     imageGeneration.activePreset?.category === 'create-videos' ? 'video' : 'imageEdit'
+  imageGeneration.noteInputPicked(mode)
   const imageItem: ImageMediaItem = {
     id: crypto.randomUUID(),
     createdAt: Date.now(),

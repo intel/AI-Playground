@@ -12,6 +12,7 @@
   "COM_PROMPT_IMAGE_EDIT": "輸入提示詞以編輯圖片",
   "COM_PROMPT_VIDEO": "輸入提示詞以生成影片",
   "COM_PROMPT_TTS": "輸入您想朗讀的文字",
+  "STT_TRANSCRIBE_ATTACHED": "轉寫 {file}",
   "COM_LLM_HF_PROMPT": "<namespace>/<repo_name>",
   "COM_LLM_HF_PROMPT_GGUF": "<namespace>/<repo_name>/<file_path>",
   "COM_CLICK_UPLOAD": "- 點擊以上傳圖片 -",

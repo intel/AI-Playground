@@ -38,6 +38,7 @@ describe('per-owner handler registries', () => {
       | 'sessions:deleteArtifact'
       | 'sessions:readSettings'
       | 'sessions:writePresetSettings'
+      | 'sessions:newestArtifact'
     >()
     expectTypeOf<
       keyof ReturnType<typeof buildSessionsRegistry>

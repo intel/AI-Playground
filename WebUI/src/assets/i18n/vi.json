@@ -12,6 +12,7 @@
   "COM_PROMPT_IMAGE_EDIT": "Nhập câu lệnh để chỉnh sửa ảnh",
   "COM_PROMPT_VIDEO": "Nhập câu lệnh để tạo video",
   "COM_PROMPT_TTS": "Nhập văn bản bạn muốn đọc thành tiếng",
+  "STT_TRANSCRIBE_ATTACHED": "Chép lời {file}",
   "COM_LLM_HF_PROMPT": "<namespace>/<repo_name>",
   "COM_LLM_HF_PROMPT_GGUF": "<namespace>/<repo_name>/<file_path>",
   "COM_CLICK_UPLOAD": "- Nhấp để tải ảnh lên -",

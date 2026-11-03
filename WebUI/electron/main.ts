@@ -234,7 +234,12 @@ import {
   setSessionDeps,
   wipeDemoSessions,
 } from './session/sessions'
-import { deleteArtifact, listAllArtifacts, missingArtifactUrls } from './session/sessionArtifacts'
+import {
+  deleteArtifact,
+  listAllArtifacts,
+  missingArtifactUrls,
+  newestArtifact,
+} from './session/sessionArtifacts'
 import { cleanUpHarnessSessionsOnDelete, harnessSessionFor } from './session/sessionHarness'
 import { upsertTimelineMessages } from './session/sessionTimeline'
 import { setAppMediaPathResolver } from './agent/piCustomTools'
@@ -1830,6 +1835,7 @@ function initEventHandle() {
       deleteArtifact,
       readSessionSettings,
       writePresetSettings,
+      newestArtifact,
     }),
   )
 

@@ -12,6 +12,7 @@
   "COM_PROMPT_IMAGE_EDIT": "Prompt zur Bildbearbeitung eingeben",
   "COM_PROMPT_VIDEO": "Prompt zur Videoerzeugung eingeben",
   "COM_PROMPT_TTS": "Geben Sie den Text ein, der vorgelesen werden soll",
+  "STT_TRANSCRIBE_ATTACHED": "{file} transkribieren",
   "COM_LLM_HF_PROMPT": "<namespace>/<repo_name>",
   "COM_LLM_HF_PROMPT_GGUF": "<namespace>/<repo_name>/<file_path>",
   "COM_CLICK_UPLOAD": "- Klicken, um Bild hochzuladen -",
