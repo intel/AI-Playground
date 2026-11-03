@@ -8,7 +8,7 @@ import { useSessionSettings } from '@/assets/js/store/sessionSettings'
 import { modelDownloads } from '@/assets/js/models/modelDownloadQueue'
 import { downloadPercent } from '@/lib/downloadPercent'
 import { sessionRowStatus, type SessionRowStatus } from '@/lib/sessionRowStatus'
-import type { SessionDownload } from '@/assets/js/store/historyEntries'
+import type { SessionDownload } from '@/assets/js/store/recordRows'
 
 /**
  * What happens around a Session's turns: opening one brings back the preset and

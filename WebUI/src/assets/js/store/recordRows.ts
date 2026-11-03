@@ -6,7 +6,7 @@ import type { HeldAnswerView } from './channels/answerRouter'
 import { extractToolMedia, type ToolMediaItem } from '@/assets/js/tools/toolMedia'
 import type { PauseReason } from '@/types/kernelEvents'
 
-// One history model for every reopenable unit of work. The window filters; the
+// One row model for every reopenable record. The window filters; the
 // runtimes behind a row stay specialized (LLM chat, direct TTS, direct STT,
 // Pi + workspace, ComfyUI canvas), which is what `kind` and the preset select.
 //
@@ -32,7 +32,7 @@ export type ConversationEntry = EntryBase & {
   messages: UIMessage[]
 }
 
-/** What an Agent Session's turn is doing, or how it went while nobody was looking. */
+/** What a Harness Session's turn is doing, or how it went while nobody was looking. */
 export type AgentSessionStatus =
   'running' | 'queued' | 'paused' | 'downloading' | 'unseen' | 'unseenFailed'
 

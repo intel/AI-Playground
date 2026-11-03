@@ -11,7 +11,7 @@ export { AgentTaskStepSchema, type AgentTaskStep } from './agentSessionIpc'
 export const AgentTaskOutcomeSchema = z.object({
   kind: z.enum(['completed', 'failed', 'stopped']),
   at: z.number(),
-  /** Absent when a Scheduled Run could not start, so no Task Session exists. */
+  /** Absent when a Scheduled Run could not start, so no Harness Session exists. */
   sessionId: z.string().optional(),
   stepIndex: z.number().optional(),
   stepCount: z.number(),

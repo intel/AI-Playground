@@ -1,6 +1,6 @@
 import { useActivities } from '@/assets/js/store/activities'
 import { useI18N } from '@/assets/js/store/i18n'
-import { queueOrdinal } from '@/assets/js/store/historyEntries'
+import { queueOrdinal } from '@/assets/js/store/recordRows'
 import type { KernelQueueEvent, TurnWork } from '@/types/kernelEvents'
 
 // ── Queue-event projection (architecture-target §4.4, step 7) ──────────────────

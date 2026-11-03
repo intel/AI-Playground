@@ -218,7 +218,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useI18N } from '@/assets/js/store/i18n'
 import { useOemBranding } from '@/assets/js/store/oemBranding'
 import { usePresets } from '@/assets/js/store/presets'
-import { relativeTime } from '@/assets/js/store/historyEntries'
+import { relativeTime } from '@/assets/js/store/recordRows'
 import { sessionRowMarker, type SessionRowStatus } from '@/lib/sessionRowStatus'
 import type { SessionSummary } from '@/types/sessionIpc'
 

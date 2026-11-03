@@ -4,7 +4,7 @@ import {
   queueOrdinal,
   type AgentSessionStatus,
   type SessionDownload,
-} from '@/assets/js/store/historyEntries'
+} from '@/assets/js/store/recordRows'
 import type { AgentTurnState, PauseReason } from '@/types/kernelEvents'
 import type { SessionTurn } from '@/types/sessionIpc'
 

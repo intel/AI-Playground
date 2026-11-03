@@ -49,7 +49,7 @@ export const SAVE_TASK_BLOCKER_KEYS = {
 
 /**
  * A Task Run in flight; `stepIndex` is 1-based. `skippedSlots` counts the Schedule slots that
- * passed while its Task Session was paused; `waiting` is set while its next Step waits for the
+ * passed while its Harness Session was paused; `waiting` is set while its next Step waits for the
  * Session's own turn to end. Memory only.
  */
 export type TaskRun = {
@@ -60,7 +60,7 @@ export type TaskRun = {
   waiting?: boolean
 }
 
-/** A Task Run as shown: `paused` while its Task Session waits on the user. */
+/** A Task Run as shown: `paused` while its Harness Session waits on the user. */
 export type TaskRunState = TaskRun & { paused?: { reason?: PauseReason } }
 
 export type TaskState = { running: TaskRunState } | { idle: AgentTaskOutcome | undefined }
@@ -583,7 +583,7 @@ export const useAgentTasks = defineStore('agentTasks', () => {
   }
 
   /**
-   * Start a Task Run in the background: a new Task Session on the Task's folder and Settings
+   * Start a Task Run in the background: a new Harness Session on the Task's folder and Settings
    * Template, its Steps sent one by one as each previous turn settles. Refused, before any Task
    * Session exists, while the Settings Template has a problem or its chat model is not downloaded.
    */
@@ -802,13 +802,13 @@ export const useAgentTasks = defineStore('agentTasks', () => {
     return { taskName, signal: runContexts[taskId]?.abort.signal }
   })
 
-  /** The Agent the Open Session was loaded from or saved as, while it still exists. */
+  /** The Agent the open Harness Session was loaded from or saved as, while it still exists. */
   const openSessionTask = computed(() => {
     const taskId = agentMode.openTaskId
     return taskId ? tasks.value.find((task) => task.id === taskId) : undefined
   })
 
-  /** The Open Session's Steps run with its Task's Settings Template, so its own are not editable. */
+  /** The open Harness Session's Steps run with its Task's Settings Template: its own are locked. */
   const openSessionSettingsReadOnly = computed(() => isSessionLockedByTask(agentMode.openSessionId))
 
   agentMode.onTurnSettled((sessionId, outcome) => {
@@ -921,12 +921,12 @@ export const useAgentTasks = defineStore('agentTasks', () => {
     )
   }
 
-  /** Why the Open Session cannot be saved as an Agent under `name` yet. */
+  /** Why the open Harness Session cannot be saved as an Agent under `name` yet. */
   function saveAgentBlocker(name: string): SaveTaskBlocker | null {
     return saveBlocker({ name, steps: agentMode.openSteps })
   }
 
-  /** Save the Open Session's folder, settings and Steps as a new Agent, and link it. */
+  /** Save the open Harness Session's folder, settings and Steps as a new Agent, and link it. */
   async function saveAgent(name: string): Promise<SaveTaskResult> {
     const result = await saveTask({ name, steps: agentMode.openSteps })
     if (result.ok) agentMode.linkOpenSessionToAgent(result.task.id)
@@ -934,8 +934,8 @@ export const useAgentTasks = defineStore('agentTasks', () => {
   }
 
   /**
-   * Overwrite an Agent with the Open Session's folder, settings and Steps, keeping its identity,
-   * Schedule and last outcome. A run in flight keeps the copy it took at start.
+   * Overwrite an Agent with the open Harness Session's folder, settings and Steps, keeping its
+   * identity, Schedule and last outcome. A run in flight keeps the copy it took at start.
    */
   async function updateAgent(id: string, name: string): Promise<SaveTaskResult> {
     const current = tasks.value.find((task) => task.id === id)
@@ -980,7 +980,7 @@ export const useAgentTasks = defineStore('agentTasks', () => {
     return { ok: true, task }
   }
 
-  /** The Open Session's settings or Steps differ from the Agent it was loaded from. */
+  /** The open Harness Session's settings or Steps differ from the Agent it was loaded from. */
   const openSessionAgentChanged = computed(() => {
     const task = openSessionTask.value
     if (!task) return false
@@ -1013,7 +1013,7 @@ export const useAgentTasks = defineStore('agentTasks', () => {
     return true
   }
 
-  /** Send a prompt from the prompt bar as one turn; the Open Session's Steps are not run. */
+  /** Send a prompt from the prompt bar as one turn; the open Harness Session's Steps do not run. */
   async function submitPrompt(prompt: string): Promise<void> {
     if (isSessionLockedByTask(agentMode.openSessionId)) return
     if (promptRuns.value[agentMode.openSessionId]) return
@@ -1021,8 +1021,8 @@ export const useAgentTasks = defineStore('agentTasks', () => {
   }
 
   /**
-   * Carry out the Open Session's Steps, the prompt (which may be empty) leading the first one.
-   * Each Step is sent as the previous turn completes.
+   * Carry out the open Harness Session's Steps, the prompt (which may be empty) leading the
+   * first one. Each Step is sent as the previous turn completes.
    */
   async function runSteps(prompt: string): Promise<void> {
     if (isSessionLockedByTask(agentMode.openSessionId)) return

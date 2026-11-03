@@ -132,16 +132,17 @@ export type SendToSessionResult =
 // message chunk stream from kernel `agent-chunk` events — feeding a standard
 // @ai-sdk/vue Chat instance so the existing part renderers work unchanged.
 // The model controls are Chat's (textInference + cloudMode); for the Agent preset
-// they are bound to the Open Session's Session Settings (docs/adr/0001).
+// they are bound to the open Harness Session's Session Settings (docs/adr/0001).
 //
-// Each Agent Session gets its own turn runtime (Chat instance, busy state, tool
-// progress and images), and kernel events reach only the runtime of the session
-// they carry. The Open Session only selects which runtime Agent Mode renders.
-// Every sent turn waits in main's Turn Queue, so any number of sessions can hold
-// a queued turn while one runs. For the Agent preset, switching conversation or
-// workspace (newSession, switchSession, adoptWorkspace) leaves turns running, as
-// does leaving any agent turn of a Session; outside a Session, Game Agent and
-// Quick Coder still stop the open session's turn when left.
+// Each Harness Session gets its own turn runtime (Chat instance, busy state, tool
+// progress and images), and kernel events reach only the runtime of the Harness
+// Session they carry. The open Harness Session only selects which runtime Agent
+// Mode renders. Every sent turn waits in main's Turn Queue, so any number of
+// Harness Sessions can hold a queued turn while one runs. For the Agent preset,
+// switching Harness Session or workspace (newSession, switchSession, adoptWorkspace)
+// leaves turns running, as does leaving any agent turn of a Session; outside a
+// Session, Game Agent and Quick Coder still stop the open Harness Session's turn
+// when left.
 // Nothing is re-queued after a restart: a message whose turn never ran is marked
 // "not run" and waits for the user to resend it.
 
@@ -279,13 +280,13 @@ export const useAgentMode = defineStore(
     const presetSessions = computedPresetSessions(sessions, agentPresetName)
 
     /**
-     * The Open Session's Session Settings (Agent preset only). Null until a Draft
-     * Session has taken the Default Settings; the chat store's next load fills it.
+     * The open Harness Session's Session Settings (Agent preset only). Null until a draft
+     * has taken the Default Settings; the chat store's next load fills it.
      */
     const openSettings = ref<AgentSessionSettings | null>(null)
-    /** The Open Session's Steps (Agent preset only); a Draft Session's live here until it is sent. */
+    /** The open Harness Session's Steps (Agent preset only); a draft's live here until sent. */
     const openSteps = ref<AgentTaskStep[]>([])
-    /** The Agent the Open Session was loaded from or saved as. */
+    /** The Agent the open Harness Session was loaded from or saved as. */
     const openTaskId = ref<string | undefined>(undefined)
 
     const sessionScoped = computed(() => usesSessionSettings(activeAgentPreset.value))
@@ -310,7 +311,7 @@ export const useAgentMode = defineStore(
       })
     }
 
-    /** The Open Session's settings live in its Session, not on the Harness Session's record. */
+    /** The open Harness Session's settings live in its Session, not on its own record. */
     function heldBySession(): boolean {
       const id = openSessionId.value
       const sessionRef = sessions.value[id]?.sessionRef ?? harnessSessionRefs[id]
@@ -327,7 +328,7 @@ export const useAgentMode = defineStore(
       settingsPort.value?.write(agentPresetName.value, cloneForIpc(openSettings.value), sent)
     }
 
-    /** The Open Session has been sent: its stored settings are its own and are checked. */
+    /** The open Harness Session has been sent: its stored settings are its own and are checked. */
     const sessionSent = computed(() => {
       if (heldBySession()) return settingsPort.value?.read(agentPresetName.value)?.sent === true
       return sessionScoped.value && (sessions.value[openSessionId.value]?.messages.length ?? 0) > 0
@@ -422,7 +423,7 @@ export const useAgentMode = defineStore(
       },
       save: (bag, embeddingBackend) => {
         const stored = openSettings.value
-        // A Draft Session's first save also takes the capability and planning defaults.
+        // A draft Harness Session's first save also takes the capability and planning defaults.
         const next = updateSessionSettingsFromBag(
           stored ?? migrateAgentDefaults(),
           bag,
@@ -444,7 +445,7 @@ export const useAgentMode = defineStore(
       },
     })
 
-    /** "Save as default": the Open Session's settings become the Agent preset's defaults. */
+    /** "Save as default": the open Harness Session's settings become the preset's defaults. */
     function saveAsDefault(): void {
       const settings = openSettings.value
       if (!sessionScoped.value || !settings) return
@@ -461,8 +462,8 @@ export const useAgentMode = defineStore(
     }
 
     /**
-     * "Reset to default": the Open Session takes the Default Settings again, repaired the
-     * way a new Draft Session is. Other sessions and the stored defaults stay as they are.
+     * "Reset to default": the open Harness Session takes the Default Settings again, repaired
+     * the way a new draft is. Other sessions and the stored defaults stay as they are.
      */
     function resetToDefault(): void {
       if (!sessionScoped.value) return
@@ -535,7 +536,7 @@ export const useAgentMode = defineStore(
     }
 
     /**
-     * Put the Open Session's settings into the live controls. Nothing starts here: the
+     * Put the open Harness Session's settings into the live controls. Nothing starts here: the
      * backend and model are made ready by the next send.
      */
     function applyOpenSessionSettings(settings: AgentSessionSettings | undefined): void {
@@ -571,7 +572,7 @@ export const useAgentMode = defineStore(
       capabilities.value.some((id) => PLANNING_PHASE_CAPABILITY_IDS.includes(id)),
     )
 
-    /** Change the Open Session's own settings and keep its record (if any) in step. */
+    /** Change the open Harness Session's own settings and keep its record (if any) in step. */
     function updateOpenSettings(change: AgentSessionSettings): void {
       openSettings.value = { ...openSettings.value, ...change }
       if (heldBySession()) {
@@ -832,7 +833,7 @@ export const useAgentMode = defineStore(
         : planningThinkingOnly.value,
     )
 
-    /** The Session Settings the panel holds for the Open Session right now. */
+    /** The Session Settings the panel holds for the open Harness Session right now. */
     const openSessionSettings = computed<AgentSessionSettings>(() => ({
       ...openSettings.value,
       capabilities: [...capabilities.value],
@@ -908,7 +909,7 @@ export const useAgentMode = defineStore(
     }
     const turnContexts: Record<string, TurnContext> = {}
 
-    /** The Open Session's Session Settings are bound to the live controls (ADR 0001). */
+    /** The open Harness Session's Session Settings are bound to the live controls (ADR 0001). */
     function liveTurnContext(): TurnContext {
       return {
         workspaceDir: workspaceDir.value,
@@ -1035,11 +1036,11 @@ export const useAgentMode = defineStore(
         openRuntime.value.processing.value = value
       },
     })
-    /** Where the Open Session's turn stands in the Turn Queue; null while it has none. */
+    /** Where the open Harness Session's turn stands in the Turn Queue; null while it has none. */
     const turnState = computed(() => openRuntime.value.turnState.value)
     const toolProgress = computed(() => openRuntime.value.toolProgress.value)
     const toolImages = computed(() => openRuntime.value.toolImages.value)
-    /** Any Agent Session holds a turn, open or not. */
+    /** Any Harness Session holds a turn, open or not. */
     const anyTurnOpen = turns.anyTurnOpen
 
     /** Where each session with a turn in flight stands in the Turn Queue. */
@@ -1097,7 +1098,7 @@ export const useAgentMode = defineStore(
       notRunMessages.value = found
     }
 
-    /** The Open Session ends on a "not run" message that can be sent again. */
+    /** The open Harness Session ends on a "not run" message that can be sent again. */
     const canResendNotRun = computed(() => {
       const messageId = notRunMessages.value[openSessionId.value]
       return !!messageId && !processing.value && messages.value.at(-1)?.id === messageId
@@ -1311,7 +1312,7 @@ export const useAgentMode = defineStore(
     const lastStepUsage = computed(() => latestTurnMetadata(messages.value, 'lastStep'))
 
     /**
-     * Save a session's transcript from its runtime. The Open Session takes the live
+     * Save a session's transcript from its runtime. The open Harness Session takes the live
      * controls; any other keeps what its record (or the turn that was sent) holds.
      *
      * `presetName` is the preset that held the session, which is the current one
@@ -1401,7 +1402,7 @@ export const useAgentMode = defineStore(
       openTaskId.value = record?.taskId
     }
 
-    /** Edit the Open Session's Steps; a sent session's record keeps them. */
+    /** Edit the open Harness Session's Steps; a sent session's record keeps them. */
     function setOpenSteps(steps: AgentTaskStep[]): void {
       openSteps.value = steps.map((step) => ({ ...step }))
       const session = sessions.value[openSessionId.value]
@@ -1409,7 +1410,7 @@ export const useAgentMode = defineStore(
       rewriteSession(openSessionId.value, { ...session, steps: cloneForIpc(openSteps.value) })
     }
 
-    /** Mark the Open Session as loaded from (or saved as) an Agent; `undefined` unlinks it. */
+    /** Mark the open Harness Session as loaded from (or saved as) an Agent; `undefined` unlinks. */
     function linkOpenSessionToAgent(taskId: string | undefined): void {
       openTaskId.value = taskId
       const session = sessions.value[openSessionId.value]
@@ -1419,8 +1420,8 @@ export const useAgentMode = defineStore(
     }
 
     /**
-     * Set the Open Session up as an Agent is: its settings and Steps. Inside a Session that is
-     * the Session's own Harness Session; outside one, a new Draft Session, stored on its first
+     * Set the open Harness Session up as an Agent is: its settings and Steps. Inside a Session
+     * that is the Session's own Harness Session; outside one, a new draft, stored on its first
      * prompt like any other draft.
      */
     async function startSessionFrom(agent: {
@@ -1707,7 +1708,7 @@ export const useAgentMode = defineStore(
     }
 
     async function adoptWorkspace(dir: string): Promise<void> {
-      // A Draft Session set up before its folder was picked keeps what was set up.
+      // A draft Harness Session set up before its folder was picked keeps what was set up.
       const draft =
         sessionScoped.value && !sessions.value[openSessionId.value]
           ? { settings: openSettings.value, steps: openSteps.value, taskId: openTaskId.value }
@@ -1778,15 +1779,8 @@ export const useAgentMode = defineStore(
       { immediate: true },
     )
 
-    /**
-     * Switching agent preset never carries a conversation across: a session's
-     * capabilities are frozen on its record while the instructions are read live
-     * off the active preset. In a Session the new preset gets its own Harness
-     * Session there (a games preset with its game); outside one a games preset
-     * starts a blank game. The `offer_game_agent`
-     * hand-over is the one way a game crosses over, and it sets `movingSession`
-     * to keep its folder.
-     */
+    // A Harness Session never crosses agent presets (its capabilities are frozen on its record);
+    // only the `offer_game_agent` hand-over moves a game, under `movingSession`.
     watch(agentPresetName, async (name, previous) => {
       if (!previous || name === previous || movingSession) return
       snapshotOpenSession(previous)
@@ -1846,7 +1840,7 @@ export const useAgentMode = defineStore(
       currentGame.value = game
     }
 
-    /** Send the Open Session's "not run" message again, as a new turn. */
+    /** Send the open Harness Session's "not run" message again, as a new turn. */
     async function resendNotRun(): Promise<void> {
       if (!canResendNotRun.value) return
       if (await blockedBySettingsProblems()) return
