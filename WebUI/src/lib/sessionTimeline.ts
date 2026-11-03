@@ -9,10 +9,7 @@ import type {
 } from '@/types/sessionTimeline'
 import { asChatTranscriptMessage } from '@/lib/sessionChat'
 
-/**
- * What the Session timeline renders, one block per turn; a Task Run is an
- * agent block carrying its Task.
- */
+/** What the Session timeline renders, one block per turn; a Task Run is an agent block. */
 export type TimelineTurn =
   | { kind: 'media'; id: string; prompt: string; createdAt: number; media: MediaTurnData }
   | { kind: 'audio'; id: string; prompt: string; createdAt: number; audio: AudioTurnData }

@@ -22,12 +22,7 @@ import {
   type SessionSummary,
 } from '@/types/sessionIpc'
 
-/**
- * The Session module (ADR-0003): the one owner of every Session Folder. The
- * renderer reaches it over the `sessions:` IPC rows; turn engines call it
- * in-process. Later concerns (History Entries, Session Update, Session
- * Settings) build on `mutateSession` and `sessionPaths` in their own files.
- */
+// The Session module (ADR-0003), sole owner of every Session Folder.
 
 /** `deleted` is the Session's last `session.json`, null when it could not be read. */
 export type SessionDeletedListener = (

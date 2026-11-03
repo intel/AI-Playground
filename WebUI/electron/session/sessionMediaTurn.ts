@@ -93,11 +93,7 @@ async function adoptItem(turn: MediaTurn, item: MediaItem): Promise<AdoptedItem>
   }
 }
 
-/**
- * Settles one Image Gen / Edit / Video panel run into its Session: the outputs
- * move into `files/`, one History Entry is appended, and the prompt plus the
- * result card join the display timeline. Returns the items as they now are.
- */
+/** Settles a panel run into its Session; returns its items as moved into `files/`. */
 export async function recordMediaTurn(turn: MediaTurn): Promise<MediaItem[]> {
   const adopted: AdoptedItem[] = []
   for (const item of turn.items) adopted.push(await adoptItem(turn, item))

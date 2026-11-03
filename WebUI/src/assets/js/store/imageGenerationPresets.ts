@@ -296,11 +296,7 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
   /** A preset's saved settings and inputs in the shape both the defaults and a Session keep them. */
   type ComfySettingsValues = { settings: Record<string, unknown>; inputs: Record<string, unknown> }
 
-  /**
-   * The open Session's Session Settings (ADR-0004), bound by the Session Settings store.
-   * `use` copies the Default Settings on first use; null means no Session applies and the
-   * per-preset maps (the Default Settings) are read and written as before.
-   */
+  /** The open Session's Session Settings (ADR-0004); `use` returns null when no Session applies. */
   type ComfySessionBinding = {
     use: (settingsKey: string, defaults: ComfySettingsValues) => ComfySettingsValues | null
     peek: (settingsKey: string) => ComfySettingsValues | null

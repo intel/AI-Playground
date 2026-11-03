@@ -36,12 +36,7 @@ export type AgentTurnInSession = {
   taskRun?: { taskName: string; stepIndex: number }
 }
 
-/**
- * Follows one agent turn of a Session: collects the media its tools saved, and
- * on settling appends the turn's History Entry and names the Session after its
- * first prompt. A game folder's media counts by the Session's copy of it; a
- * file only outside the Session Folder is not the Session's artifact.
- */
+/** Collects an agent turn's media while it runs; only files inside the Session Folder count. */
 export function trackAgentTurnInSession(turn: AgentTurnInSession): {
   settle: (end: AgentTurnEnd) => Promise<void>
 } {

@@ -350,14 +350,7 @@ async function saveOne(
   }
 }
 
-/**
- * Save generated media (aipg-media:// URLs in the ComfyUI-shaped tool result)
- * into the workspace so Pi can reference the files, and annotate the result
- * with the workspace-relative paths: a Session's media moves to the root of its
- * `files/` folder, any other workspace gets a copy under `generated/`.
- * Non-media results and failures leave the result unchanged (the media still
- * rendered app-side).
- */
+/** Saves a tool result's media where Pi can read it and annotates the result with those paths. */
 export async function saveGeneratedMediaToWorkspace(
   result: unknown,
   workspaceDir: string,

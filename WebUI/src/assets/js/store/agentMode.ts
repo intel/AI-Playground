@@ -1476,12 +1476,7 @@ export const useAgentMode = defineStore(
       blankSession()
     }
 
-    /**
-     * Show the open Session's Harness Session for the agent preset, minting it on first
-     * use. The Agent preset works in the Session's `files/` folder, a games preset in its
-     * game (none until the first prompt mints it, `game` records it); leaving one never
-     * stops its turn.
-     */
+    /** Show the open Session's Harness Session for the agent preset, minting it on first use. */
     async function enterSessionHarness(game?: { gameDir: string; fresh?: boolean }): Promise<void> {
       const sessionRef = sessionsStore.openSessionId
       const presetName = agentPresetName.value

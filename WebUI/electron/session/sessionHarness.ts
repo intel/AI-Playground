@@ -43,11 +43,8 @@ function withGameHarness(
 }
 
 /**
- * One Harness Session per (Session, agent preset), so Agent → Image Gen → Agent
- * continues the same agent conversation. The Session stores only the pointer;
- * Pi's own session files stay where the Pi harness keeps them. The Agent preset
- * works in the Session's `files/`; a games preset in its game folder, which lives
- * in the games library and is never the Session's to delete.
+ * One Harness Session per (Session, agent preset). A games preset's game folder lives in the
+ * games library and is never the Session's to delete.
  */
 export async function harnessSessionFor(
   sessionId: string,
