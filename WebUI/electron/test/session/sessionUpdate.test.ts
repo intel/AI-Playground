@@ -179,6 +179,36 @@ describe('takeSessionUpdate', () => {
   })
 })
 
+describe('a consumer working in a game folder', () => {
+  async function sessionWithFox() {
+    const { id } = await createSession()
+    await fs.mkdir(sessionPaths(id).filesDir, { recursive: true })
+    await fs.writeFile(path.join(sessionPaths(id).filesDir, 'fox.png'), 'fox-bytes')
+    await appendHistoryEntry(id, imageTurn)
+    const gameDir = await fs.mkdtemp(path.join(os.tmpdir(), 'aipg-game-'))
+    return { id, gameDir }
+  }
+
+  it("names a Session file by a copy in the game's generated folder", async () => {
+    const { id, gameDir } = await sessionWithFox()
+
+    const update = await takeSessionUpdate(id, { key: 'game-1', workspaceDir: gameDir })
+
+    expect(update).toContain('→ generated/fox.png')
+    expect(await fs.readFile(path.join(gameDir, 'generated', 'fox.png'), 'utf8')).toBe('fox-bytes')
+  })
+
+  it('gives session_history the same readable path', async () => {
+    const { id, gameDir } = await sessionWithFox()
+    const [row] = await listSessionHistory(id, {})
+
+    const full = await getSessionHistoryEntry(id, row.id, gameDir)
+
+    expect(full?.artifacts).toEqual([{ path: 'generated/fox.png', mediaType: 'image' }])
+    expect(await fs.readFile(path.join(gameDir, 'generated', 'fox.png'), 'utf8')).toBe('fox-bytes')
+  })
+})
+
 describe('session_history', () => {
   async function seeded() {
     const { id } = await createSession()

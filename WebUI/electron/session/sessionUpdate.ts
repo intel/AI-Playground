@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { ensureGameMediaCopy } from '../persist/sessionMediaFiles'
 import { readHistoryEntries } from './sessionHistory'
 import { mutateSession, readSession, sessionPaths } from './sessions'
 import type { HistoryEntry } from '@/types/sessionIpc'
@@ -67,14 +68,39 @@ export function buildSessionUpdate(
   return [HEADER, ...kept, ...(omitted > 0 ? [omittedLine(omitted)] : [])].join('\n')
 }
 
+function isInside(root: string, candidate: string): boolean {
+  const relative = path.relative(root, candidate)
+  return !relative.startsWith('..') && !path.isAbsolute(relative)
+}
+
+/** A games preset works outside the Session Folder, so its files reach it as game-folder copies. */
 function workspacePathView(sessionId: string, workspaceDir: string | undefined) {
-  if (!workspaceDir) return (p: string) => p
-  const { root } = sessionPaths(sessionId)
-  return (sessionRelative: string) => {
-    const relative = path.relative(workspaceDir, path.resolve(root, sessionRelative))
-    if (relative.startsWith('..') || path.isAbsolute(relative)) return sessionRelative
-    return relative.split(path.sep).join('/')
+  if (!workspaceDir) return async (p: string) => p
+  const { root, filesDir } = sessionPaths(sessionId)
+  return async (sessionRelative: string) => {
+    const absolute = path.resolve(root, sessionRelative)
+    if (isInside(workspaceDir, absolute)) {
+      return path.relative(workspaceDir, absolute).split(path.sep).join('/')
+    }
+    if (!isInside(filesDir, absolute)) return sessionRelative
+    return (await ensureGameMediaCopy(absolute, workspaceDir)) ?? sessionRelative
   }
+}
+
+async function asSeenFrom(
+  sessionId: string,
+  entries: HistoryEntry[],
+  workspaceDir: string | undefined,
+): Promise<HistoryEntry[]> {
+  const view = workspacePathView(sessionId, workspaceDir)
+  return Promise.all(
+    entries.map(async (entry) => ({
+      ...entry,
+      artifacts: await Promise.all(
+        entry.artifacts.map(async (artifact) => ({ ...artifact, path: await view(artifact.path) })),
+      ),
+    })),
+  )
 }
 
 function isOwnTurn(entry: HistoryEntry, consumer: SessionUpdateConsumer): boolean {
@@ -101,9 +127,7 @@ export async function takeSessionUpdate(
       updateCursors: { ...current.updateCursors, [consumer.key]: newest.id },
     }))
   }
-  return buildSessionUpdate(missed, {
-    artifactPath: workspacePathView(sessionId, consumer.workspaceDir),
-  })
+  return buildSessionUpdate(await asSeenFrom(sessionId, missed, consumer.workspaceDir))
 }
 
 export type SessionHistoryRow = { id: string; time: string; preset: string; prompt: string }
@@ -135,12 +159,6 @@ export async function getSessionHistoryEntry(
 ): Promise<HistoryEntry | null> {
   const entry = (await readHistoryEntries(sessionId)).find((candidate) => candidate.id === id)
   if (!entry) return null
-  const artifactPath = workspacePathView(sessionId, workspaceDir)
-  return {
-    ...entry,
-    artifacts: entry.artifacts.map((artifact) => ({
-      ...artifact,
-      path: artifactPath(artifact.path),
-    })),
-  }
+  const [seen] = await asSeenFrom(sessionId, [entry], workspaceDir)
+  return seen
 }
