@@ -5,7 +5,7 @@ import { getGamesDir } from '../persist/userDataPaths'
 import { mutateSession, onSessionDeleted, sessionPaths } from './sessions'
 import type { HarnessGameWorkspace, HarnessSessionRef, SessionFile } from '@/types/sessionIpc'
 
-function mintHarnessSessionId(): string {
+export function mintHarnessSessionId(): string {
   return `aipg-agent-${randomUUID()}`
 }
 
@@ -88,6 +88,7 @@ export function cleanUpHarnessSessionsOnDelete(cleanup: HarnessCleanup): () => v
     const ids = [
       ...Object.values(deleted?.harnessSessions ?? {}),
       ...(deleted?.retiredHarnessSessions ?? []),
+      ...(deleted?.taskRunHarnessSessions ?? []),
     ]
     for (const harnessSessionId of ids) {
       await cleanup(harnessSessionId)

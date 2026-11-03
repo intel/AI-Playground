@@ -287,11 +287,6 @@ export function matchesFilter(entry: RecordRow, context: FilterContext): boolean
   }
 }
 
-/** One of the Task's Task Sessions, whatever state its run ended in. */
-export function matchesTask(entry: RecordRow, taskId: string): boolean {
-  return entry.kind === 'agent' && entry.taskId === taskId
-}
-
 /**
  * Whether the row's runtime is the one on screen. Each kind remembers its own
  * selection, so under All a selected image, transcript and agent session would

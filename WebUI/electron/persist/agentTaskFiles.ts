@@ -33,14 +33,18 @@ function tasksFile(): string {
 }
 
 /**
- * OS close hides the window while this is true. Demo schedules never count, and
- * an unreadable file must not trap the app open.
+ * OS close hides the window while this is true. Demo schedules and Tasks saved before
+ * Sessions never count, and an unreadable file must not trap the app open.
  */
 export async function agentTasksKeepAppAlive(): Promise<boolean> {
   if (agentTaskFilesDeps?.isDemoMode()) return false
   try {
     const tasks = await readAgentTasks()
-    return tasks.some((task) => task.schedule?.enabled === true || task.activeRun !== undefined)
+    return tasks.some(
+      (task) =>
+        task.sessionRef !== undefined &&
+        (task.schedule?.enabled === true || task.activeRun !== undefined),
+    )
   } catch {
     return false
   }
@@ -81,6 +85,16 @@ export async function deleteAgentTask(id: unknown): Promise<void> {
   return serialize(FILE_CHAIN, async () => {
     const tasks = await readAgentTasks()
     const remaining = tasks.filter((entry) => entry.id !== id)
+    if (remaining.length === tasks.length) return
+    await writeTasks(remaining)
+  })
+}
+
+/** A deleted Session takes its Tasks with it. */
+export async function deleteAgentTasksOfSession(sessionRef: string): Promise<void> {
+  return serialize(FILE_CHAIN, async () => {
+    const tasks = await readAgentTasks()
+    const remaining = tasks.filter((entry) => entry.sessionRef !== sessionRef)
     if (remaining.length === tasks.length) return
     await writeTasks(remaining)
   })

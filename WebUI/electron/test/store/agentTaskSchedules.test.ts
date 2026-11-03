@@ -95,7 +95,7 @@ const HOUR = 60 * MINUTE
 const task = (id: string, overrides: Partial<AgentTask> = {}): AgentTask => ({
   id,
   name: `Task ${id}`,
-  workspaceDir: '/work/task',
+  sessionRef: SESSION,
   settingsTemplate: TEMPLATE,
   steps: [{ id: `${id}-s0`, prompt: 'one' }],
   createdAt: 1,
@@ -108,6 +108,9 @@ let storedTasks: AgentTask[]
 const saveTask = vi.fn(async (_task: AgentTask) => ({ success: true as boolean, error: '' }))
 
 const originalTz = process.env.TZ
+
+const SESSION = 'session-1'
+let runHarnesses = 0
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -141,6 +144,16 @@ beforeEach(() => {
         },
       })),
       existsPath: vi.fn(async () => true),
+      sessions: {
+        taskRunHarness: vi.fn(async () => ({
+          success: true,
+          harness: {
+            harnessSessionId: `aipg-agent-run-${++runHarnesses}`,
+            workspaceDir: '/work/task',
+          },
+        })),
+        saveTimelineMessages: vi.fn(async () => ({ success: true })),
+      },
       agentMode: {
         startTurn: vi.fn(async () => ({ success: true })),
         cancel: vi.fn(),

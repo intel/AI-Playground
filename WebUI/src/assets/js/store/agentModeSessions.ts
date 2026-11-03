@@ -39,6 +39,8 @@ export type AgentSessionRecord = {
   steps?: AgentTaskStep[]
   /** The Session this Harness Session belongs to, once it is one. */
   sessionRef?: string
+  /** Set when this Harness Session is one Task Run of its Session. */
+  taskRun?: { taskName: string; startedAt: number }
 }
 
 /**
@@ -230,6 +232,7 @@ export function snapshotSession(options: {
     ...((existing?.sessionRef ?? options.sessionRef)
       ? { sessionRef: existing?.sessionRef ?? options.sessionRef }
       : {}),
+    ...(existing?.taskRun ? { taskRun: existing.taskRun } : {}),
   }
 }
 

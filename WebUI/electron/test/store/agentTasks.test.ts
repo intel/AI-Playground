@@ -169,6 +169,9 @@ let storedTasks: AgentTask[]
 const saveTask = vi.fn(async (_task: AgentTask) => ({ success: true as boolean, error: '' }))
 const readTasks = vi.fn(async () => ({ success: true as const, tasks: storedTasks }))
 
+const SESSION = 'session-1'
+let runHarnesses = 0
+
 beforeEach(() => {
   vi.clearAllMocks()
   setActivePinia(createPinia())
@@ -216,6 +219,33 @@ beforeEach(() => {
         },
       })),
       existsPath: vi.fn(async () => true),
+      sessions: {
+        taskRunHarness: vi.fn(async () => ({
+          success: true,
+          harness: {
+            harnessSessionId: `aipg-agent-run-${++runHarnesses}`,
+            workspaceDir: '/work/task',
+          },
+        })),
+        harnessSession: vi.fn(async () => ({
+          success: true,
+          harness: { harnessSessionId: 'session-open', workspaceDir: '/work/open' },
+        })),
+        saveTimelineMessages: vi.fn(async () => ({ success: true })),
+        delete: vi.fn(async () => ({ success: true })),
+        list: vi.fn(async () => ({ success: true, sessions: [] })),
+        create: vi.fn(async () => ({
+          success: true,
+          session: {
+            id: SESSION,
+            title: '',
+            renamed: false,
+            createdAt: 1,
+            updatedAt: 1,
+            presetsUsed: [],
+          },
+        })),
+      },
       agentMode: {
         startTurn: vi.fn(async () => ({ success: true })),
         cancel: vi.fn(),
@@ -264,10 +294,12 @@ afterEach(async () => {
 
 const { useAgentMode } = await import('@/assets/js/store/agentMode')
 const { useAgentTasks } = await import('@/assets/js/store/agentTasks')
+const { useSessions } = await import('@/assets/js/store/sessions')
 
-async function readyStores() {
+async function readyStores(options: { session?: boolean } = {}) {
   const agentMode = useAgentMode()
   await agentMode.init()
+  if (options.session !== false) await useSessions().create()
   const tasks = useAgentTasks()
   await tasks.init()
   return { agentMode, tasks }
@@ -291,15 +323,17 @@ describe('saving a Task', () => {
     expect(tasks.tasks).toEqual([])
   })
 
-  it('refuses when the Open Session has no folder', async () => {
-    const { agentMode, tasks } = await readyStores()
-    agentMode.workspaceDir = ''
+  it('refuses while no Session is open', async () => {
+    const { tasks } = await readyStores({ session: false })
 
-    expect(await tasks.saveTask(draftOf('Docs', 'go'))).toEqual({ ok: false, reason: 'no-folder' })
+    expect(await tasks.saveTask(draftOf('Docs', 'go'))).toEqual({
+      ok: false,
+      reason: 'no-session',
+    })
     expect(saveTask).not.toHaveBeenCalled()
   })
 
-  it('persists the Steps with the Open Session’s folder and Session Settings', async () => {
+  it('persists the Steps in the open Session, with its Session Settings', async () => {
     const { tasks } = await readyStores()
 
     const result = await tasks.saveTask(draftOf(' Docs ', 'rename', `sprite${ATTACHMENT_LINE}`))
@@ -309,7 +343,7 @@ describe('saving a Task', () => {
     const saved = saveTask.mock.calls[0][0]
     expect(saved).toMatchObject({
       name: 'Docs',
-      workspaceDir: '/work/open',
+      sessionRef: SESSION,
       settingsTemplate: SETTINGS,
       steps: [{ prompt: 'rename' }, { prompt: `sprite${ATTACHMENT_LINE}` }],
     })
@@ -358,28 +392,35 @@ describe('saving a Task', () => {
   })
 
   it('reads saved Tasks back on the next start', async () => {
-    storedTasks = [
-      {
-        id: 'task-1',
-        name: 'Docs',
-        workspaceDir: '/work/open',
-        settingsTemplate: SETTINGS,
-        steps: [{ id: 's1', prompt: 'go' }],
-        createdAt: 1,
-        updatedAt: 1,
-      },
-    ]
+    storedTasks = [savedTask('task-1')]
 
     const { tasks } = await readyStores()
 
     expect(tasks.tasks).toEqual(storedTasks)
+  })
+
+  it('leaves a Task saved before Tasks belonged to a Session unlisted', async () => {
+    const { sessionRef: _none, ...legacy } = savedTask('old')
+    storedTasks = [{ ...legacy, workspaceDir: '/work/open' }, savedTask('task-1')]
+
+    const { tasks } = await readyStores()
+
+    expect(tasks.tasks.map((task) => task.id)).toEqual(['task-1'])
+  })
+
+  it("lists only the open Session's Tasks in its panel", async () => {
+    storedTasks = [savedTask('mine'), savedTask('theirs', { sessionRef: 'session-2' })]
+
+    const { tasks } = await readyStores()
+
+    expect(tasks.sessionTasks.map((task) => task.id)).toEqual(['mine'])
   })
 })
 
 const savedTask = (id: string, overrides: Partial<AgentTask> = {}): AgentTask => ({
   id,
   name: `Task ${id}`,
-  workspaceDir: '/work/open',
+  sessionRef: SESSION,
   settingsTemplate: SETTINGS,
   steps: [{ id: 's1', prompt: 'go' }],
   createdAt: 1,
@@ -407,7 +448,7 @@ describe('the Open Session’s Steps', () => {
   })
 
   it('are cleared by a new session and come back with the session they belong to', async () => {
-    const { agentMode } = await readyStores()
+    const { agentMode } = await readyStores({ session: false })
     agentMode.setOpenSteps(stepsOf('search the news'))
 
     await agentMode.newSession()
@@ -428,7 +469,7 @@ describe('saving the Open Session as an Agent', () => {
     expect(tasks.saveAgentBlocker('News')).toBe('empty-step')
   })
 
-  it('saves the folder, the panel’s settings and the Steps, and links the session', async () => {
+  it('saves the Session, the panel’s settings and the Steps, and links the session', async () => {
     const { agentMode, tasks } = await readyStores()
     agentMode.setOpenSteps(stepsOf('search the news', 'summarise it'))
     agentMode.setCapabilityEnabled('web', false)
@@ -439,7 +480,7 @@ describe('saving the Open Session as an Agent', () => {
     const saved = saveTask.mock.calls[0][0]
     expect(saved).toMatchObject({
       name: 'News',
-      workspaceDir: '/work/open',
+      sessionRef: SESSION,
       settingsTemplate: { model: 'Stored-27B', capabilities: ['files'] },
       steps: [{ prompt: 'search the news' }, { prompt: 'summarise it' }],
     })
@@ -488,7 +529,7 @@ describe('updating an Agent', () => {
     expect(saved).toMatchObject({
       id: 'task-2',
       name: 'Nightly news',
-      workspaceDir: '/work/open',
+      sessionRef: SESSION,
       settingsTemplate: SETTINGS,
       createdAt: 10,
       lastOutcome: outcome,
@@ -546,7 +587,6 @@ describe('loading an Agent', () => {
   it('opens a new Draft Session set up as the Agent is', async () => {
     storedTasks = [
       savedTask('task-1', {
-        workspaceDir: '/work/news',
         settingsTemplate: NPU_SETTINGS,
         steps: [
           { id: 's1', prompt: 'search the news' },
@@ -554,13 +594,13 @@ describe('loading an Agent', () => {
         ],
       }),
     ]
-    const { agentMode, tasks } = await readyStores()
+    const { agentMode, tasks } = await readyStores({ session: false })
 
     expect(await tasks.loadAgent('task-1')).toBe(true)
 
     expect(agentMode.openSessionId).not.toBe(openRecord.id)
     expect(agentMode.sessions[agentMode.openSessionId]).toBeUndefined()
-    expect(agentMode.workspaceDir).toBe('/work/news')
+    expect(agentMode.workspaceDir).toBe('/work/open')
     expect(agentMode.openSessionSettings).toMatchObject({ model: 'Saved-NPU', backend: 'openVINO' })
     expect(agentMode.openSteps.map((step) => step.prompt)).toEqual([
       'search the news',
@@ -598,6 +638,20 @@ describe('loading an Agent', () => {
 
     expect(await tasks.loadAgent('missing')).toBe(false)
     expect(agentMode.openSessionId).toBe(openRecord.id)
+  })
+})
+
+describe('deleting a Session', () => {
+  it('forgets its Tasks and their presets, and keeps the Tasks of other Sessions', async () => {
+    storedTasks = [savedTask('mine'), savedTask('theirs', { sessionRef: 'session-2' })]
+    const { tasks } = await readyStores()
+    await tasks.saveAgentAsPreset('mine', { description: 'x' })
+
+    await useSessions().remove(SESSION)
+
+    await vi.waitFor(() => expect(tasks.tasks.map((task) => task.id)).toEqual(['theirs']))
+    expect(removeUserPreset).toHaveBeenCalledWith('Task mine')
+    expect(window.electronAPI.agentMode.deleteTask).not.toHaveBeenCalled()
   })
 })
 
@@ -867,7 +921,7 @@ describe('saving an Agent as a Chat preset', () => {
     storedTasks = [
       savedTask('task-1', { name: 'Morning news', steps: [{ id: 's1', prompt: 'read' }] }),
     ]
-    const { agentMode, tasks } = await readyStores()
+    const { agentMode, tasks } = await readyStores({ session: false })
     const saved = await tasks.saveAgentAsPreset('task-1', { description: 'x' })
     if (!saved.ok) throw new Error('not saved')
     catalog.active = saved.preset

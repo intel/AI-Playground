@@ -1,13 +1,8 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 
-export type LeftPanel = 'history'
-
 export const useUIStore = defineStore('ui', () => {
-  const leftPanel = ref<LeftPanel | null>(null)
-  const showHistory = computed(() => leftPanel.value === 'history')
-
   // Model management overlay. Deliberately not tied to `promptArea.currentMode`:
   // closing it should return the user to exactly the view they were in.
   const showModelManager = ref(false)
@@ -18,14 +13,6 @@ export const useUIStore = defineStore('ui', () => {
 
   // The right-hand settings sidebar of the current mode.
   const showSettings = ref(false)
-
-  function openHistory() {
-    leftPanel.value = 'history'
-  }
-
-  function closeHistory() {
-    if (leftPanel.value === 'history') leftPanel.value = null
-  }
 
   function openSettings() {
     showSettings.value = true
@@ -52,10 +39,6 @@ export const useUIStore = defineStore('ui', () => {
   }
 
   return {
-    leftPanel,
-    showHistory,
-    openHistory,
-    closeHistory,
     sessionsPanelCollapsed,
     showSettings,
     openSettings,

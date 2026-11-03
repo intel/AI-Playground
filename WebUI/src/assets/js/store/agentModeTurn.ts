@@ -81,6 +81,8 @@ export async function buildTurnConfig(options: {
   sessionId: string
   /** The Session a Harness Session belongs to. */
   sessionRef?: string
+  /** A Task Run's Step: main gives it no Session Update and no `session_history`. */
+  taskRun?: AgentModeTurnConfig['taskRun']
   workspaceDir: string
   presetName: string
   instructions: string
@@ -109,6 +111,7 @@ export async function buildTurnConfig(options: {
     return {
       sessionId: options.sessionId,
       ...(options.sessionRef ? { sessionRef: options.sessionRef } : {}),
+      ...(options.taskRun ? { taskRun: options.taskRun } : {}),
       workspaceDir: options.workspaceDir,
       modelConfig: {
         source: 'cloud',
@@ -145,6 +148,7 @@ export async function buildTurnConfig(options: {
   return {
     sessionId: options.sessionId,
     ...(options.sessionRef ? { sessionRef: options.sessionRef } : {}),
+    ...(options.taskRun ? { taskRun: options.taskRun } : {}),
     workspaceDir: options.workspaceDir,
     modelConfig: {
       source: 'local',

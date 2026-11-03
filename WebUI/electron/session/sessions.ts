@@ -80,6 +80,7 @@ export async function createSession(): Promise<SessionSummary> {
     harnessSessions: {},
     harnessWorkspaces: {},
     retiredHarnessSessions: [],
+    taskRunHarnessSessions: [],
     updateCursors: {},
   }
   await serializeSession(file.id, () => createSessionFolder(file))

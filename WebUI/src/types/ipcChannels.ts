@@ -261,6 +261,13 @@ export const CHANNELS = {
     args: [] as unknown as readonly [string, string, HarnessGameWorkspace?],
     result: null as unknown as IpcOkWith<{ harness: HarnessSessionRef }>,
   },
+  /** A fresh Harness Session for one Task Run of the Session, working in its `files/`. */
+  'sessions:taskRunHarness': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string],
+    result: null as unknown as IpcOkWith<{ harness: HarnessSessionRef }>,
+  },
   /** Save settled display messages into a Session's timeline, replacing ones with the same id. */
   'sessions:saveTimelineMessages': {
     kind: 'invoke',

@@ -10,6 +10,11 @@
     :deleted-urls="sessions.openDeletedFiles"
     @delete-file="(url) => gallery.removeByUrl(url)"
   />
+  <TaskRunBlock
+    v-else-if="turn.kind === 'agent' && turn.taskRun"
+    :task-run="turn.taskRun"
+    :messages="turn.messages"
+  />
   <div v-else-if="turn.kind === 'agent'" class="flex flex-col gap-4">
     <AgentTurnBlock :messages="turn.messages" />
   </div>
@@ -42,6 +47,7 @@ import AgentTurnBlock from '@/components/AgentTurnBlock.vue'
 import AudioTurnBlock from '@/components/AudioTurnBlock.vue'
 import ChatTurnBlock from '@/components/ChatTurnBlock.vue'
 import MediaTurnBlock from '@/components/MediaTurnBlock.vue'
+import TaskRunBlock from '@/components/TaskRunBlock.vue'
 import type { TimelineTurn } from '@/lib/sessionTimeline'
 import type { TimelineMessage } from '@/types/sessionTimeline'
 

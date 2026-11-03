@@ -350,7 +350,7 @@ const USAGE_SAMPLE_EVENTS = new Set([
 
 /** The Session Update rides on the user message only: the system prompt is the KV-cache prefix. */
 async function withSessionUpdate(prompt: string, config: AgentModeTurnConfig): Promise<string> {
-  if (!config.sessionRef) return prompt
+  if (!config.sessionRef || config.taskRun) return prompt
   try {
     const update = await takeSessionUpdate(config.sessionRef, {
       key: config.sessionId,
@@ -398,6 +398,7 @@ export async function startAgentTurn(
         presetName: config.presetName ?? '',
         workspaceDir: config.workspaceDir,
         prompt,
+        ...(config.taskRun ? { taskRun: config.taskRun } : {}),
       })
     : null
   const translator = createStreamTranslator({

@@ -5,7 +5,7 @@ export { AgentTaskStepSchema, type AgentTaskStep } from './agentSessionIpc'
 
 /**
  * Wire shapes for the kernel-owned Agents file (`AI-Playground/agent-tasks.json`): the
- * Agent preset's named settings — a folder, a Settings Template and ordered Steps.
+ * Agent preset's named settings — its Session, a Settings Template and ordered Steps.
  */
 
 export const AgentTaskOutcomeSchema = z.object({
@@ -54,7 +54,10 @@ export type AgentTaskSchedule = z.infer<typeof AgentTaskScheduleSchema>
 export const AgentTaskSchema = z.object({
   id: z.string().min(1),
   name: z.string(),
-  workspaceDir: z.string(),
+  /** The Session the Task belongs to and runs in; absent on a Task saved before Sessions. */
+  sessionRef: z.string().min(1).optional(),
+  /** Only on a Task saved before Sessions, which stays on disk unlisted. */
+  workspaceDir: z.string().optional(),
   settingsTemplate: AgentSessionSettingsSchema,
   steps: z.array(AgentTaskStepSchema),
   createdAt: z.number(),

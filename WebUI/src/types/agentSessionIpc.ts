@@ -55,6 +55,8 @@ export const AgentSessionFileSchema = z.object({
   steps: z.array(AgentTaskStepSchema).optional(),
   /** The Session this Harness Session belongs to. */
   sessionRef: z.string().optional(),
+  /** Set when this Harness Session is one Task Run of its Session. */
+  taskRun: z.object({ taskName: z.string(), startedAt: z.number() }).optional(),
   messages: z.array(z.unknown()),
 })
 export type AgentSessionFile = z.infer<typeof AgentSessionFileSchema>

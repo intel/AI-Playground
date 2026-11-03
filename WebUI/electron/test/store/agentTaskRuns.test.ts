@@ -171,7 +171,7 @@ const TEMPLATE: AgentSessionSettings = {
 const task = (id: string, prompts: string[], overrides: Partial<AgentTask> = {}): AgentTask => ({
   id,
   name: `Task ${id}`,
-  workspaceDir: '/work/task',
+  sessionRef: SESSION,
   settingsTemplate: TEMPLATE,
   steps: prompts.map((prompt, index) => ({ id: `${id}-s${index}`, prompt })),
   createdAt: 1,
@@ -205,6 +205,9 @@ const startTurn = vi.fn(async (_turnId: string, _prompt: string, _config: AgentM
 const saveSession = vi.fn(async (_record: Record<string, unknown>) => ({ success: true }))
 const saveTask = vi.fn(async (_task: AgentTask) => ({ success: true as boolean, error: '' }))
 const deleteTask = vi.fn(async (_id: string) => ({ success: true as boolean, error: '' }))
+
+const SESSION = 'session-1'
+let runHarnesses = 0
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -245,6 +248,16 @@ beforeEach(() => {
         },
       })),
       existsPath: vi.fn(async () => true),
+      sessions: {
+        taskRunHarness: vi.fn(async () => ({
+          success: true,
+          harness: {
+            harnessSessionId: `aipg-agent-run-${++runHarnesses}`,
+            workspaceDir: '/work/task',
+          },
+        })),
+        saveTimelineMessages: vi.fn(async () => ({ success: true })),
+      },
       agentMode: {
         startTurn,
         cancel: vi.fn(async () => {}),
@@ -1315,21 +1328,6 @@ describe('locking the Task Session', () => {
     expect(await tasks.deleteTask('t1')).toBe(true)
     expect(tasks.openSessionTask).toBeUndefined()
   })
-
-  it('takes the user’s own message in the Task Session once the run is over', async () => {
-    const { agentMode, tasks } = await readyStores(task('t1', ['one']))
-    await tasks.runTask('t1')
-    await finishTurn(0)
-    await settledOutcome(tasks, 't1')
-    const sessionId = sentConfig(0).sessionId
-    await agentMode.switchSession(sessionId)
-
-    void agentMode.generate('my own follow-up')
-
-    await turnIdOf(1)
-    expect(sentSteps()).toEqual(['one', 'my own follow-up'])
-    expect(sentConfig(1).sessionId).toBe(sessionId)
-  })
 })
 
 describe('updating an Agent while it runs', () => {
@@ -1341,7 +1339,6 @@ describe('updating an Agent while it runs', () => {
 
     await agentMode.startSessionFrom({
       taskId: 't1',
-      workspaceDir: '/work/edited',
       settings: { ...TEMPLATE, model: 'Edited-9B' },
       steps: [
         { id: 'n1', prompt: 'first' },
@@ -1375,10 +1372,7 @@ describe('updating an Agent while it runs', () => {
     expect(await tasks.runTask('t1')).toEqual({ ok: true })
     await turnIdOf(2)
     expect(sentSteps().at(-1)).toBe('first')
-    expect(sentConfig(2)).toMatchObject({
-      workspaceDir: '/work/edited',
-      modelConfig: { model: 'Edited-9B' },
-    })
+    expect(sentConfig(2)).toMatchObject({ modelConfig: { model: 'Edited-9B' } })
   })
 
   it('saves an Agent whose settings have a problem, which then refuses Run now', async () => {
@@ -1386,7 +1380,6 @@ describe('updating an Agent while it runs', () => {
     const { agentMode, tasks } = await readyStores(task('t1', ['one']))
     await agentMode.startSessionFrom({
       taskId: 't1',
-      workspaceDir: '/work/task',
       settings: { ...TEMPLATE, model: 'Deleted-4B' },
       steps: [{ id: 'n1', prompt: 'one' }],
     })

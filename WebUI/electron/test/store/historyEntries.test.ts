@@ -11,7 +11,6 @@ import {
   entryRuntimeShown,
   isEmptyDraft,
   matchesFilter,
-  matchesTask,
   mediaTimes,
   mediaTitle,
   mediaSettings,
@@ -220,16 +219,6 @@ describe('matchesFilter', () => {
     expect(remote(conversation())).toBe(false)
     expect(remote(agent())).toBe(false)
     expect(remote(media())).toBe(false)
-  })
-})
-
-describe('matchesTask', () => {
-  it('matches only agent sessions created by that Task', () => {
-    expect(matchesTask(agent({ taskId: 'a' }), 'a')).toBe(true)
-    expect(matchesTask(agent({ taskId: 'b' }), 'a')).toBe(false)
-    expect(matchesTask(agent(), 'a')).toBe(false)
-    expect(matchesTask(conversation(), 'a')).toBe(false)
-    expect(matchesTask(media(), 'a')).toBe(false)
   })
 })
 

@@ -57,6 +57,18 @@
         <span class="text-xs text-muted-foreground shrink-0">{{
           relativeTime(session.updatedAt)
         }}</span>
+        <Tooltip v-if="scheduled">
+          <TooltipTrigger as-child>
+            <span
+              role="img"
+              :aria-label="languages.SESSIONS_SCHEDULED"
+              class="inline-flex flex-none"
+            >
+              <ClockIcon class="size-3.5 text-muted-foreground" aria-hidden="true" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{{ languages.SESSIONS_SCHEDULED }}</TooltipContent>
+        </Tooltip>
         <span
           v-if="presetIcons.length > 0"
           role="list"
@@ -214,6 +226,8 @@ const props = defineProps<{
   session: SessionSummary
   active: boolean
   status: SessionRowStatus
+  /** One of the Session's Tasks has an enabled Schedule. */
+  scheduled?: boolean
 }>()
 
 const emit = defineEmits<{

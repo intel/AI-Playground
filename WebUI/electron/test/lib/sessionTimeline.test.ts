@@ -70,6 +70,44 @@ const chatMessage = (id: string, role: 'user' | 'assistant', text: string) => ({
   metadata: { chatTurn: true },
 })
 
+describe('Task Runs in the timeline', () => {
+  const taskRunTag = {
+    presetName: 'Agent',
+    harnessSessionId: 'aipg-agent-run',
+    taskRun: { taskName: 'Morning digest', startedAt: 500 },
+  }
+  const runMessage = (id: string, role: 'user' | 'assistant') => ({
+    id,
+    role,
+    parts: [{ type: 'text', text: id }],
+    metadata: { agentTurn: taskRunTag },
+  })
+
+  it("groups a run's Steps under its Task name and start time, apart from the Agent's own turns", () => {
+    const turns = timelineTurns([
+      agentMessage('u1', 'user', 'hello'),
+      agentMessage('a1', 'assistant', 'hi'),
+      runMessage('r1', 'user'),
+      runMessage('r2', 'assistant'),
+      runMessage('r3', 'user'),
+      runMessage('r4', 'assistant'),
+    ])
+
+    expect(turns).toHaveLength(2)
+    expect(turns[0]).not.toHaveProperty('taskRun')
+    expect(turns[1]).toMatchObject({
+      kind: 'agent',
+      taskRun: { taskName: 'Morning digest', startedAt: 500 },
+    })
+    expect(turns[1].kind === 'agent' && turns[1].messages.map((message) => message.id)).toEqual([
+      'r1',
+      'r2',
+      'r3',
+      'r4',
+    ])
+  })
+})
+
 describe('chat turns in the timeline', () => {
   it('keeps a run of the chat transcript together as one chat block', () => {
     const turns = timelineTurns([

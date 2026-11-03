@@ -164,7 +164,7 @@ const every10Minutes = (overrides: Partial<AgentTaskSchedule> = {}): AgentTaskSc
 const task = (id: string, overrides: Partial<AgentTask> = {}): AgentTask => ({
   id,
   name: `Task ${id}`,
-  workspaceDir: '/work/task',
+  sessionRef: SESSION,
   settingsTemplate: TEMPLATE,
   steps: [
     { id: `${id}-s0`, prompt: `${id} one` },
@@ -191,7 +191,10 @@ const openRecord = {
 }
 
 let storedTasks: AgentTask[]
-let pushKernelEvent: (event: KernelEvent) => void = () => {}
+const kernelListeners = new Set<(event: KernelEvent) => void>()
+const pushKernelEvent = (event: KernelEvent) => {
+  for (const listener of [...kernelListeners]) listener(event)
+}
 let seq = 10
 
 function pushEvent(payload: Record<string, unknown>): void {
@@ -205,8 +208,12 @@ const startTurn = vi.fn(async (_turnId: string, _prompt: string, _config: AgentM
 const saveTask = vi.fn(async (_task: AgentTask) => ({ success: true as boolean, error: '' }))
 const setLifecycleBusy = vi.fn((_busy: boolean) => {})
 
+const SESSION = 'session-1'
+let runHarnesses = 0
+
 beforeEach(() => {
   vi.clearAllMocks()
+  kernelListeners.clear()
   vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
   vi.setSystemTime(NOW)
   setActivePinia(createPinia())
@@ -227,8 +234,8 @@ beforeEach(() => {
   globalThis.window = {
     electronAPI: {
       onKernelEvent: vi.fn((listener: (event: KernelEvent) => void) => {
-        pushKernelEvent = listener
-        return () => {}
+        kernelListeners.add(listener)
+        return () => kernelListeners.delete(listener)
       }),
       getKernelSnapshot: vi.fn(async (): Promise<KernelSnapshot> => ({
         scope: { kind: 'global' },
@@ -244,6 +251,16 @@ beforeEach(() => {
       })),
       existsPath: vi.fn(async () => true),
       setLifecycleBusy,
+      sessions: {
+        taskRunHarness: vi.fn(async () => ({
+          success: true,
+          harness: {
+            harnessSessionId: `aipg-agent-run-${++runHarnesses}`,
+            workspaceDir: '/work/task',
+          },
+        })),
+        saveTimelineMessages: vi.fn(async () => ({ success: true })),
+      },
       agentMode: {
         startTurn,
         cancel: vi.fn(async () => {}),
@@ -333,6 +350,87 @@ const savedCopies = (id: string) =>
   saveTask.mock.calls.map(([saved]) => saved).filter((saved) => saved.id === id)
 
 const lastSavedTask = (id: string) => savedCopies(id).at(-1)
+
+/** Main's one-turn-per-Session ledger, as its kernel event reports it. */
+function setSessionTurns(turns: Record<string, { turnId: string; kind: 'chat' }>): void {
+  pushEvent({ type: 'session-turns', turns })
+}
+
+describe('a Scheduled Run in its Session', () => {
+  it('runs in the Session on a fresh Harness Session, with no Session context', async () => {
+    await readyStores(scheduledTask('t1'))
+
+    await runClockTo(NOW + 10 * MINUTE)
+
+    await turnIdOf(0)
+    expect(window.electronAPI.sessions.taskRunHarness).toHaveBeenCalledWith(SESSION)
+    expect(sentConfig(0)).toMatchObject({
+      sessionRef: SESSION,
+      workspaceDir: '/work/task',
+      taskRun: { taskName: 'Task t1', stepIndex: 1 },
+    })
+    expect(sentConfig(0).sessionId).toMatch(/^aipg-agent-run-/)
+  })
+
+  it('tags every Step with the Task and its index', async () => {
+    await readyStores(scheduledTask('t1'))
+    await runClockTo(NOW + 10 * MINUTE)
+
+    await finishTurn(0)
+    await turnIdOf(1)
+
+    expect(sentConfig(1).taskRun).toEqual({ taskName: 'Task t1', stepIndex: 2 })
+    expect(sentConfig(1).sessionId).toBe(sentConfig(0).sessionId)
+  })
+
+  it('waits while the Session has a turn in flight, then runs once it is idle', async () => {
+    const { tasks } = await readyStores(scheduledTask('t1'))
+    setSessionTurns({ [SESSION]: { turnId: 'chat-1', kind: 'chat' } })
+
+    await runClockTo(NOW + 10 * MINUTE)
+    await settleMicrotasks()
+
+    expect(startTurn).not.toHaveBeenCalled()
+    expect(tasks.taskState('t1')).toEqual({
+      running: expect.objectContaining({ stepIndex: 1, waiting: true }),
+    })
+
+    setSessionTurns({})
+
+    await turnIdOf(0)
+    expect(sentSteps()).toEqual(['t1 one'])
+  })
+
+  it('lets the next Step wait for a turn the user started in between', async () => {
+    await readyStores(scheduledTask('t1'))
+    await runClockTo(NOW + 10 * MINUTE)
+    await turnIdOf(0)
+    setSessionTurns({ [SESSION]: { turnId: 'chat-1', kind: 'chat' } })
+
+    await finishTurn(0)
+    await settleMicrotasks()
+    expect(startTurn).toHaveBeenCalledTimes(1)
+
+    setSessionTurns({})
+
+    await turnIdOf(1)
+    expect(sentSteps()).toEqual(['t1 one', 't1 two'])
+  })
+
+  it('still skips a slot that falls while its run waits for the Session', async () => {
+    const { tasks } = await readyStores(scheduledTask('t1'))
+    setSessionTurns({ [SESSION]: { turnId: 'chat-1', kind: 'chat' } })
+    await runClockTo(NOW + 10 * MINUTE)
+
+    await runClockTo(NOW + 20 * MINUTE)
+    setSessionTurns({})
+
+    await turnIdOf(0)
+    await settleMicrotasks()
+    expect(startTurn).toHaveBeenCalledTimes(1)
+    expect(tasks.taskSchedule('t1').nextRunAt).toBe(NOW + 30 * MINUTE)
+  })
+})
 
 describe('a Schedule reaching its Next Run', () => {
   it('starts a Scheduled Run: a new Task Session sending the first Step', async () => {
@@ -613,6 +711,15 @@ const reported = (code: string) =>
 /** A template the app cannot serve: Cloud Mode is off. */
 const UNUSABLE_TEMPLATE: AgentSessionSettings = { backend: 'cloud', model: 'gpt-x' }
 
+function mintedHarness(success: boolean) {
+  return success
+    ? {
+        success: true as const,
+        harness: { harnessSessionId: 'aipg-agent-run', workspaceDir: '/work/task' },
+      }
+    : { success: false as const, error: 'no such session: session-1' }
+}
+
 describe('a Scheduled Run that cannot start', () => {
   it('records a failed outcome with the reason, toasts, and keeps the Schedule', async () => {
     const { agentMode, tasks } = await readyStores(
@@ -639,9 +746,12 @@ describe('a Scheduled Run that cannot start', () => {
     })
   })
 
-  it('is refused when the workspace folder is missing', async () => {
+  it('is refused when its Session is gone', async () => {
     const { agentMode, tasks } = await readyStores(scheduledTask('t1'))
-    vi.mocked(window.electronAPI.existsPath).mockResolvedValue(false)
+    vi.mocked(window.electronAPI.sessions.taskRunHarness).mockResolvedValue({
+      success: false,
+      error: 'no such session: session-1',
+    })
     const sessionsBefore = Object.keys(agentMode.sessions)
 
     await runClockTo(NOW + 10 * MINUTE)
@@ -651,7 +761,7 @@ describe('a Scheduled Run that cannot start', () => {
         idle: expect.objectContaining({ kind: 'failed', reason: 'not-started' }),
       }),
     )
-    expect(lastSavedTask('t1')?.lastOutcome?.message).toContain('/work/task')
+    expect(lastSavedTask('t1')?.lastOutcome?.message).toContain('session-1')
     expect(Object.keys(agentMode.sessions)).toEqual(sessionsBefore)
     expect(startTurn).not.toHaveBeenCalled()
     expect(reportedCodes()).toEqual(['agent-tasks/scheduled-run-not-started'])
@@ -696,11 +806,12 @@ describe('a Scheduled Run that cannot start', () => {
   })
 
   it('neither starts nor writes back a Task deleted while its start is checked', async () => {
-    let folderChecked: (found: boolean) => void = () => {}
+    let harnessMinted: (success: boolean) => void = () => {}
     let finishDelete: () => void = () => {}
     const { agentMode, tasks } = await readyStores(scheduledTask('t1'))
-    vi.mocked(window.electronAPI.existsPath).mockImplementation(
-      () => new Promise((resolve) => (folderChecked = resolve)),
+    vi.mocked(window.electronAPI.sessions.taskRunHarness).mockImplementation(
+      () =>
+        new Promise((resolve) => (harnessMinted = (success) => resolve(mintedHarness(success)))),
     )
     vi.mocked(window.electronAPI.agentMode.deleteTask).mockImplementation(
       () => new Promise((resolve) => (finishDelete = () => resolve({ success: true }))),
@@ -710,7 +821,7 @@ describe('a Scheduled Run that cannot start', () => {
     saveTask.mockClear()
 
     const deleted = tasks.deleteTask('t1')
-    folderChecked(false)
+    harnessMinted(false)
     await settleMicrotasks()
     finishDelete()
 
@@ -722,15 +833,16 @@ describe('a Scheduled Run that cannot start', () => {
   })
 
   it('does not start once paused while its start is checked', async () => {
-    let folderChecked: (found: boolean) => void = () => {}
+    let harnessMinted: (success: boolean) => void = () => {}
     const { tasks } = await readyStores(scheduledTask('t1'))
-    vi.mocked(window.electronAPI.existsPath).mockImplementation(
-      () => new Promise((resolve) => (folderChecked = resolve)),
+    vi.mocked(window.electronAPI.sessions.taskRunHarness).mockImplementation(
+      () =>
+        new Promise((resolve) => (harnessMinted = (success) => resolve(mintedHarness(success)))),
     )
     await runClockTo(NOW + 10 * MINUTE)
 
     await tasks.setSchedule('t1', every10Minutes({ enabled: false }))
-    folderChecked(true)
+    harnessMinted(true)
     await settleMicrotasks()
 
     expect(startTurn).not.toHaveBeenCalled()
@@ -739,7 +851,9 @@ describe('a Scheduled Run that cannot start', () => {
 
   it('tries again at its Next Run', async () => {
     const { tasks } = await readyStores(scheduledTask('t1'))
-    vi.mocked(window.electronAPI.existsPath).mockResolvedValueOnce(false)
+    vi.mocked(window.electronAPI.sessions.taskRunHarness).mockResolvedValueOnce(
+      mintedHarness(false),
+    )
     await runClockTo(NOW + 10 * MINUTE)
     await vi.waitFor(() => expect(tasks.taskState('t1')).toHaveProperty('idle.kind', 'failed'))
 

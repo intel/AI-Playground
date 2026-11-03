@@ -23,6 +23,7 @@ vi.mock('../../observability/logger', () => ({
 const {
   agentTasksKeepAppAlive,
   deleteAgentTask,
+  deleteAgentTasksOfSession,
   readAgentTasks,
   resetAgentTaskFilesForTest,
   saveAgentTask,
@@ -34,7 +35,7 @@ function task(id: string, overrides: Partial<AgentTask> = {}): AgentTask {
   return {
     id,
     name: `Task ${id}`,
-    workspaceDir: '/work/project',
+    sessionRef: 'session-1',
     settingsTemplate: { backend: 'llamaCPP', model: 'Qwen-9B', capabilities: ['files'] },
     steps: [
       { id: 's1', prompt: 'first' },
@@ -148,6 +149,28 @@ describe('the kernel Tasks file', () => {
     expect(read).not.toHaveProperty('nextRunAt')
   })
 
+  it('reads a Task saved before Tasks belonged to a Session, and keeps it on an upsert', async () => {
+    const { sessionRef: _none, ...legacy } = task('old')
+    const old = { ...legacy, workspaceDir: '/work/project' }
+    await fs.writeFile(files.real, JSON.stringify({ schemaVersion: 1, tasks: [old] }), 'utf8')
+
+    await saveAgentTask(task('new'))
+
+    expect(await readAgentTasks()).toEqual([old, task('new')])
+  })
+
+  it("deletes a Session's Tasks and leaves every other one", async () => {
+    const { sessionRef: _none, ...legacy } = task('old')
+    await saveAgentTask(task('a'))
+    await saveAgentTask(task('b', { sessionRef: 'session-2' }))
+    await saveAgentTask(task('c'))
+    await saveAgentTask(legacy)
+
+    await deleteAgentTasksOfSession('session-1')
+
+    expect(await readAgentTasks()).toEqual([task('b', { sessionRef: 'session-2' }), legacy])
+  })
+
   it('deletes one Task and keeps the others', async () => {
     await saveAgentTask(task('a'))
     await saveAgentTask(task('b'))
@@ -222,6 +245,14 @@ describe('the kernel Tasks file', () => {
 
     await saveAgentTask(task('a', { activeRun: { sessionId: 's', stepIndex: 1, stepCount: 2 } }))
     expect(await agentTasksKeepAppAlive()).toBe(true)
+  })
+
+  it('does not keep the app alive for a Task saved before Sessions, which no longer runs', async () => {
+    const { sessionRef: _none, ...legacy } = task('old')
+    const schedule = { every: 10, unit: 'minutes' as const, startAt: 1, enabled: true }
+    await saveAgentTask({ ...legacy, schedule })
+
+    expect(await agentTasksKeepAppAlive()).toBe(false)
   })
 
   it('does not keep the app alive for demo tasks or an unreadable file', async () => {

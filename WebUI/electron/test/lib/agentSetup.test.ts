@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { sameAgentSetup, type AgentSetup } from '@/lib/agentSetup'
 
 const setup: AgentSetup = {
-  workspaceDir: '/work/news',
   settings: { model: 'Qwen', capabilities: ['files', 'web'], thinkingEnabled: true },
   steps: [
     { id: 'a', prompt: 'search' },
@@ -14,7 +13,6 @@ describe('sameAgentSetup', () => {
   it('ignores key order, unset values, Step ids and blank Steps', () => {
     expect(
       sameAgentSetup(setup, {
-        workspaceDir: '/work/news',
         settings: {
           thinkingEnabled: true,
           embeddingModel: undefined,
@@ -31,7 +29,6 @@ describe('sameAgentSetup', () => {
   })
 
   it.each([
-    ['folder', { ...setup, workspaceDir: '/work/other' }],
     ['a setting', { ...setup, settings: { ...setup.settings, thinkingEnabled: false } }],
     ['a tool', { ...setup, settings: { ...setup.settings, capabilities: ['files'] } }],
     ['the Step order', { ...setup, steps: [...setup.steps].reverse() }],

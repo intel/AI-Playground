@@ -122,10 +122,6 @@
                     <PencilIcon />
                     {{ i18n.AGENT_AGENTS_RENAME }}
                   </DropdownMenuItem>
-                  <DropdownMenuItem @select="history.showTaskSessions(row.id)">
-                    <QueueListIcon />
-                    {{ i18n.AGENT_AGENTS_SHOW_SESSIONS }}
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     class="text-destructive focus:text-destructive"
@@ -156,15 +152,6 @@
               </Button>
             </div>
           </div>
-
-          <button
-            v-if="row.sessionId"
-            type="button"
-            class="self-start text-xs text-primary underline-offset-2 hover:underline"
-            @click="agentMode.openSession(row.sessionId)"
-          >
-            {{ i18n.AGENT_AGENTS_OPEN_RUN }}
-          </button>
         </li>
       </ul>
       <p v-else class="text-sm text-muted-foreground text-center py-1">
@@ -187,7 +174,6 @@ import {
   ExclamationTriangleIcon,
   PencilIcon,
   PlayIcon,
-  QueueListIcon,
   StopIcon,
   TrashIcon,
 } from '@heroicons/vue/24/outline'
@@ -199,7 +185,6 @@ import type { AgentTaskOutcome } from '@/types/agentTaskIpc'
 import { useAgentMode } from '@/assets/js/store/agentMode'
 import { useAgentTasks } from '@/assets/js/store/agentTasks'
 import { useErrors } from '@/assets/js/store/errors'
-import { useHistorySessions } from '@/assets/js/store/historySessions'
 import { useI18N } from '@/assets/js/store/i18n'
 import AgentNameField from '@/components/AgentNameField.vue'
 import AgentPresetDialog from '@/components/AgentPresetDialog.vue'
@@ -222,7 +207,6 @@ import { describeNextRun } from '@/lib/taskSchedule'
 const agentMode = useAgentMode()
 const agentTasks = useAgentTasks()
 const errors = useErrors()
-const history = useHistorySessions()
 const i18nStore = useI18N()
 const i18n = i18nStore.state
 
@@ -246,7 +230,7 @@ const confirmDeleteId = ref<string | null>(null)
 const saving = ref(false)
 
 const rows = computed(() =>
-  agentTasks.tasks.map((task) => {
+  agentTasks.sessionTasks.map((task) => {
     const state = agentTasks.taskState(task.id)
     const run = 'running' in state ? state.running : undefined
     const outcome = 'idle' in state ? state.idle : undefined
@@ -259,9 +243,12 @@ const rows = computed(() =>
       loaded: loadedId.value === task.id,
       meta: [stepCount(task.steps.length), schedule.line].filter(Boolean).join(' · '),
       running: run !== undefined,
-      sessionId: run?.sessionId,
       progress:
-        run && fill(i18n.AGENT_TASKS_RUNNING_STEP, { step: run.stepIndex, count: run.stepCount }),
+        run &&
+        fill(run.waiting ? i18n.AGENT_TASKS_WAITING_FOR_SESSION : i18n.AGENT_TASKS_RUNNING_STEP, {
+          step: run.stepIndex,
+          count: run.stepCount,
+        }),
       outcome: outcome && {
         label: [outcomeLabel(outcome), outcome.kind === 'failed' ? outcomeMessage(outcome) : '']
           .filter(Boolean)
@@ -379,11 +366,7 @@ function openSchedule(id: string): void {
 
 async function runNow(id: string): Promise<void> {
   const result = await agentTasks.runTask(id)
-  if (result.ok) {
-    const state = agentTasks.taskState(id)
-    if ('running' in state) await agentMode.openSession(state.running.sessionId)
-    return
-  }
+  if (result.ok) return
   if (result.reason !== 'settings-problems') return
   errors.report(
     createAppError({

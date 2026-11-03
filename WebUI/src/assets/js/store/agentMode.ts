@@ -904,6 +904,7 @@ export const useAgentMode = defineStore(
       quietErrors?: boolean
       /** Set for the one turn a channel Answer started. */
       answer?: AgentAnswerOrigin
+      taskRun?: AgentModeTurnConfig['taskRun']
     }
     const turnContexts: Record<string, TurnContext> = {}
 
@@ -977,6 +978,7 @@ export const useAgentMode = defineStore(
         cloudMode: stored.cloud,
         tools: stored.tools,
         answer: context.answer,
+        taskRun: context.taskRun,
       })
     }
 
@@ -1366,6 +1368,7 @@ export const useAgentMode = defineStore(
       const agentTurn = {
         presetName: record.presetName ?? AGENT_PRESET,
         harnessSessionId: record.id,
+        ...(record.taskRun ? { taskRun: record.taskRun } : {}),
       }
       const messages = settleStreamingParts(record.messages).map((message) => ({
         ...message,
@@ -1416,24 +1419,22 @@ export const useAgentMode = defineStore(
     }
 
     /**
-     * Open a new Draft Session on an Agent's folder, settings and Steps. Nothing is stored until
-     * its first prompt, like any other draft.
+     * Set the Open Session up as an Agent is: its settings and Steps. Inside a Session that is
+     * the Session's own Harness Session; outside one, a new Draft Session, stored on its first
+     * prompt like any other draft.
      */
     async function startSessionFrom(agent: {
       taskId: string
-      workspaceDir: string
       settings: AgentSessionSettings
       steps: AgentTaskStep[]
     }): Promise<void> {
-      openSessionId.value = mintSessionId()
+      const inSession = heldBySession()
+      if (!inSession) openSessionId.value = mintSessionId()
       sessionCapabilities.value = null
-      if (agent.workspaceDir) {
-        workspaceDir.value = agent.workspaceDir
-        lastWorkspaceByKind.value = { ...lastWorkspaceByKind.value, pick: agent.workspaceDir }
-      }
       openSteps.value = agent.steps.map((step) => ({ ...step }))
       openTaskId.value = agent.taskId
       applyOpenSessionSettings(cloneForIpc(agent.settings))
+      if (inSession) writeSessionSettings(sessionSent.value)
       await refreshCurrentGame()
     }
 
@@ -1897,15 +1898,19 @@ export const useAgentMode = defineStore(
      * explicit title is kept when the session's first message arrives.
      */
     function createSession(input: {
+      /** A Harness Session main minted; a new id otherwise. */
+      id?: string
+      sessionRef?: string
       workspaceDir: string
       settings: AgentSessionSettings
       capabilities?: string[]
       presetName?: string
       title: string
       taskId?: string
+      taskRun?: AgentSessionRecord['taskRun']
       steps?: AgentTaskStep[]
     }): string {
-      const id = mintSessionId()
+      const id = input.id ?? mintSessionId()
       const now = Date.now()
       const settings = input.capabilities
         ? { ...input.settings, capabilities: [...input.capabilities] }
@@ -1921,6 +1926,8 @@ export const useAgentMode = defineStore(
         settings,
         ...(input.taskId ? { taskId: input.taskId } : {}),
         ...(input.steps ? { steps: cloneForIpc(input.steps) } : {}),
+        ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
+        ...(input.taskRun ? { taskRun: input.taskRun } : {}),
       })
       return id
     }
@@ -1972,6 +1979,8 @@ export const useAgentMode = defineStore(
         quietErrors?: boolean
         /** A channel Answer: the turn's result is replied under it. */
         answer?: AgentAnswerOrigin
+        /** A Task Run's Step. */
+        taskRun?: AgentModeTurnConfig['taskRun']
       } = {},
     ): Promise<SendToSessionResult> {
       const record = sessions.value[sessionId]
@@ -2028,6 +2037,7 @@ export const useAgentMode = defineStore(
       if (options.signal?.aborted) return refuseSend('aborted', 'The send was cancelled.')
       if (options.quietErrors) context.quietErrors = true
       if (options.answer) context.answer = options.answer
+      if (options.taskRun) context.taskRun = options.taskRun
       const metadata: AgentMessageMetadata | undefined = options.answer
         ? { origin: options.answer.channel }
         : undefined

@@ -280,6 +280,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (id: string) => invoke('sessions:delete', id),
     harnessSession: (id: string, presetName: string, game?: HarnessGameWorkspace) =>
       invoke('sessions:harnessSession', id, presetName, game),
+    taskRunHarness: (id: string) => invoke('sessions:taskRunHarness', id),
     saveTimelineMessages: (id: string, messages: unknown[]) =>
       invoke('sessions:saveTimelineMessages', id, cloneForIpc(messages)),
     saveChatTranscript: (id: string, messages: unknown[]) =>

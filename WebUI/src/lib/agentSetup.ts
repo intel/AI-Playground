@@ -2,7 +2,6 @@ import type { AgentSessionSettings } from '@/types/agentSessionIpc'
 import type { AgentTaskStep } from '@/types/agentTaskIpc'
 
 export type AgentSetup = {
-  workspaceDir: string
   settings: AgentSessionSettings
   steps: readonly AgentTaskStep[]
 }
@@ -19,12 +18,11 @@ function canonical(value: unknown): unknown {
   )
 }
 
-/** Same folder, settings and Step prompts; Step ids and blank Steps do not count. */
+/** Same settings and Step prompts; Step ids and blank Steps do not count. */
 export function sameAgentSetup(a: AgentSetup, b: AgentSetup): boolean {
   const prompts = (steps: readonly AgentTaskStep[]) =>
     steps.map((step) => step.prompt.trim()).filter(Boolean)
   return (
-    a.workspaceDir === b.workspaceDir &&
     JSON.stringify(prompts(a.steps)) === JSON.stringify(prompts(b.steps)) &&
     JSON.stringify(canonical(a.settings)) === JSON.stringify(canonical(b.settings))
   )

@@ -26,6 +26,8 @@ export const SessionFileSchema = z.object({
   harnessWorkspaces: z.record(z.string(), z.string()).default({}),
   /** Harness Sessions a hand-over replaced; still the Session's, so deleted with it. */
   retiredHarnessSessions: z.array(z.string()).default([]),
+  /** One fresh Harness Session per Task Run; never resumed, deleted with the Session. */
+  taskRunHarnessSessions: z.array(z.string()).default([]),
   /** Last History Entry id each Session Update consumer has seen. */
   updateCursors: z.record(z.string(), z.string()).default({}),
 })

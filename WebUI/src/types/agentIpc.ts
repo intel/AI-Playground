@@ -99,6 +99,8 @@ export const AgentModeTurnConfigSchema = z.object({
   readiness: ChatModelConfigSchema.shape.readiness,
   /** Set when a channel Answer started this turn: its result is replied under the Answer. */
   answer: AgentAnswerOriginSchema.optional(),
+  /** A Task Run's Step: no Session Update, no `session_history`, its entry tagged with the Task. */
+  taskRun: z.object({ taskName: z.string(), stepIndex: z.number().int().positive() }).optional(),
 })
 
 export type AgentModeModelConfig = z.infer<typeof AgentModeModelConfigSchema>

@@ -27,6 +27,7 @@ import type {
   newestArtifact,
 } from '../../session/sessionArtifacts'
 import type { harnessSessionFor } from '../../session/sessionHarness'
+import type { taskRunHarnessFor } from '../../session/sessionTaskRuns'
 import type { upsertTimelineMessages } from '../../session/sessionTimeline'
 import type { ChatTranscriptMessage, saveChatTranscript } from '../../session/sessionChatTurn'
 import type { readSessionSettings, writePresetSettings } from '../../session/sessionSettings'
@@ -46,6 +47,7 @@ export type SessionsDeps = {
   writePresetSettings: typeof writePresetSettings
   newestArtifact: typeof newestArtifact
   harnessSessionFor: typeof harnessSessionFor
+  taskRunHarnessFor: typeof taskRunHarnessFor
   upsertTimelineMessages: typeof upsertTimelineMessages
   lastTurnPreset: typeof lastTurnPreset
   claimSessionTurn: typeof claimSessionTurn
@@ -123,6 +125,14 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
           requireString(presetName, 'preset name'),
           game === undefined ? undefined : HarnessGameWorkspaceSchema.parse(game),
         )
+        return { success: true as const, harness }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:taskRunHarness': async (_event, id) => {
+      try {
+        const harness = await deps.taskRunHarnessFor(requireString(id, 'session id'))
         return { success: true as const, harness }
       } catch (e) {
         return ipcFail(e)

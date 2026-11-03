@@ -44,4 +44,7 @@ export type TimelineMessage = {
 }
 
 /** Set on an agent turn's timeline messages: the agent preset and Harness Session they came from. */
-export type AgentTurnTag = { presetName: string; harnessSessionId: string }
+/** The Task Run a Harness Session's messages belong to, when it is one. */
+export type TaskRunTag = { taskName: string; startedAt: number }
+
+export type AgentTurnTag = { presetName: string; harnessSessionId: string; taskRun?: TaskRunTag }

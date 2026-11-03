@@ -59,6 +59,7 @@
           :session="session"
           :active="session.id === sessions.openSessionId"
           :status="lifecycle.rowStatus(session.id)"
+          :scheduled="agentTasks.scheduledSessionIds.has(session.id)"
           @open="lifecycle.openSession(session.id)"
           @rename="(title) => sessions.rename(session.id, title)"
           @delete="sessions.remove(session.id)"
@@ -76,6 +77,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon, PlusIcon } from '@heroicons/vue/24/outline'
+import { useAgentTasks } from '@/assets/js/store/agentTasks'
 import { useSessions } from '@/assets/js/store/sessions'
 import { useSessionLifecycle } from '@/assets/js/store/sessionLifecycle'
 import { useUIStore } from '@/assets/js/store/ui'
@@ -84,6 +86,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 const sessions = useSessions()
+const agentTasks = useAgentTasks()
 const lifecycle = useSessionLifecycle()
 const ui = useUIStore()
 

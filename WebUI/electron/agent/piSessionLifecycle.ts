@@ -74,7 +74,7 @@ function configKeyOf(config: AgentModeTurnConfig): string {
     config.embeddingModel ?? '',
     config.embeddingBackend ?? '',
     // Decides whether session_history is among the frozen tools.
-    config.sessionRef ?? '',
+    config.taskRun ? '' : (config.sessionRef ?? ''),
   ])
 }
 
@@ -338,7 +338,7 @@ async function createSession(config: AgentModeTurnConfig): Promise<ActiveSession
     noTools: 'builtin',
     customTools: [
       ...access.definitions,
-      ...(config.sessionRef
+      ...(config.sessionRef && !config.taskRun
         ? [await buildSessionHistoryTool(config.sessionRef, workspaceDir)]
         : []),
     ],

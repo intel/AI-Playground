@@ -33,6 +33,7 @@ export type AgentTurnInSession = {
   presetName: string
   workspaceDir: string
   prompt: string
+  taskRun?: { taskName: string; stepIndex: number }
 }
 
 /**
@@ -73,6 +74,7 @@ export function trackAgentTurnInSession(turn: AgentTurnInSession): {
           status: end.outcome,
           artifacts,
           ...(end.outcome === 'completed' && end.reply ? { response: end.reply } : {}),
+          ...(turn.taskRun ? turn.taskRun : {}),
         })
         const file = await mutateSession(turn.sessionRef, (current) => ({
           ...current,

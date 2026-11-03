@@ -3,14 +3,15 @@ import type {
   AgentTurnTag,
   AudioTurnData,
   MediaTurnData,
+  TaskRunTag,
   TimelineMessage,
   TimelinePart,
 } from '@/types/sessionTimeline'
 import { asChatTranscriptMessage } from '@/lib/sessionChat'
 
 /**
- * What the Session timeline renders, one block per turn. Later turn kinds
- * (chat replies, agent turns, Task Runs) add their own block here.
+ * What the Session timeline renders, one block per turn; a Task Run is an
+ * agent block carrying its Task.
  */
 export type TimelineTurn =
   | { kind: 'media'; id: string; prompt: string; createdAt: number; media: MediaTurnData }
@@ -22,6 +23,7 @@ export type TimelineTurn =
       presetName: string
       harnessSessionId: string
       messages: UIMessage[]
+      taskRun?: TaskRunTag
     }
   | { kind: 'chat'; id: string; messages: UIMessage[] }
 
@@ -158,6 +160,7 @@ export function timelineTurns(timeline: readonly unknown[]): TimelineTurn[] {
           presetName: tag.presetName,
           harnessSessionId: tag.harnessSessionId,
           messages: [message as unknown as UIMessage],
+          ...(tag.taskRun ? { taskRun: tag.taskRun } : {}),
         })
       }
       continue
