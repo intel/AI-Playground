@@ -1,117 +1,118 @@
 <template>
   <ScrollToBottomButton v-if="showScrollButton" @click="scrollToBottom()" />
-  <div ref="panel" class="flex-1 overflow-y-auto px-4 py-6 flex flex-col relative">
-    <slot name="top" />
-    <template v-if="turns.length === 0 && !pending && !pendingAudio">
-      <slot name="empty">
-        <div class="flex-1 flex items-center justify-center text-muted-foreground text-center">
-          {{ languages.SESSION_TIMELINE_EMPTY }}
-        </div>
-      </slot>
+  <div id="chatPanel" ref="panel" class="flex-1 overflow-y-auto px-4 py-6 flex flex-col relative">
+    <!-- Game Agent works on one game at a time, and what to do with that game
+         belongs next to it, reachable once the timeline has scrolled past it. -->
+    <div v-if="showsGameBar" class="sticky top-0 z-5 flex justify-end pl-32 pr-32">
+      <GameBar />
+    </div>
+    <template v-if="items.length === 0 && !chatBusy">
+      <AgentEmptyState v-if="inAgentMode && !agentMode.processing" />
+      <div v-else class="flex-1 flex items-center justify-center text-muted-foreground text-center">
+        {{ languages.SESSION_TIMELINE_EMPTY }}
+      </div>
     </template>
     <div v-else class="w-full max-w-4xl mx-auto flex flex-col gap-6">
-      <template v-for="turn in turns" :key="turn.id">
-        <div v-if="turn.kind === 'agent' && isLiveBlock(turn)" class="flex flex-col gap-4">
-          <AgentTurnBlock
-            :messages="turn.messages"
-            :live="liveAgent?.live"
-            :queued-message-id="liveAgent?.queuedMessageId"
-            :not-run-message-id="liveAgent?.notRunMessageId"
-            :can-resend="liveAgent?.canResend"
-            @resend="emit('resend')"
-          />
-        </div>
-        <SessionTurnBlock v-else :turn="turn" />
-      </template>
-      <MediaTurnBlock
-        v-if="pending"
-        :prompt="pending.turn.prompt"
-        :preset="pending.turn.preset"
-        :mode="pending.turn.mode"
-        :items="pending.run?.items ?? []"
-        :phase="pending.run?.phase ?? 'queued'"
-        :progress="pending.run?.progress"
+      <SessionTurnBlock
+        v-for="item in items"
+        :key="item.id"
+        :item="item"
+        :last-chat-message-id="lastChatMessageId"
+        :chat-key="chatKey"
+        @resend="agentMode.resendNotRun()"
       />
-      <AudioTurnBlock
-        v-if="pendingAudio"
-        :prompt="pendingAudio.prompt"
-        :preset="pendingAudio.preset"
-        :kind="pendingAudio.kind"
-        :phase="pendingAudio.phase"
+      <!-- The chat turn's status before its answer bubble exists (backend and model prep). -->
+      <ChatActivityIndicator
+        v-if="chatActivity && !chatAnswerShown"
+        :conversation-key="chatKey"
+        with-avatar
+      />
+      <ChatConfirmation
+        v-if="chatConfirmation && !chatAnswerShown"
+        :conversation-key="chatKey"
+        with-avatar
       />
     </div>
-    <div class="w-full max-w-4xl mx-auto flex flex-col gap-4" :class="{ 'mt-4': turns.length }">
-      <slot name="bottom" />
+    <div
+      v-if="showsAgentStatus"
+      class="w-full max-w-4xl mx-auto flex flex-col gap-4"
+      :class="{ 'mt-4': items.length }"
+    >
+      <AgentTurnStatus />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useArtifactRuns } from '@/assets/js/store/artifactRuns'
-import { useErrors } from '@/assets/js/store/errors'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useActivities } from '@/assets/js/store/activities'
+import { useAgentMode } from '@/assets/js/store/agentMode'
+import { useConfirmations } from '@/assets/js/store/confirmations'
+import { useConversations } from '@/assets/js/store/conversations'
 import { useI18N } from '@/assets/js/store/i18n'
-import { useImageGenerationPresets } from '@/assets/js/store/imageGenerationPresets'
-import { usePresets } from '@/assets/js/store/presets'
+import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
 import { usePromptStore } from '@/assets/js/store/promptArea'
 import { useSessionAudio } from '@/assets/js/store/sessionAudio'
 import { useSessions } from '@/assets/js/store/sessions'
-import AudioTurnBlock from '@/components/AudioTurnBlock.vue'
-import MediaTurnBlock from '@/components/MediaTurnBlock.vue'
-import AgentTurnBlock from '@/components/AgentTurnBlock.vue'
-import SessionTurnBlock from '@/components/SessionTurnBlock.vue'
-import { isCancellation } from '@/assets/js/errors/appError'
+import AgentEmptyState from '@/components/AgentEmptyState.vue'
+import AgentTurnStatus from '@/components/AgentTurnStatus.vue'
+import ChatActivityIndicator from '@/components/ChatActivityIndicator.vue'
+import ChatConfirmation from '@/components/ChatConfirmation.vue'
+import GameBar from '@/components/GameBar.vue'
 import ScrollToBottomButton from '@/components/ScrollToBottomButton.vue'
-import {
-  timelineTurns,
-  withLiveAgentTurn,
-  type LiveAgentTurn,
-  type TimelineTurn,
-} from '@/lib/sessionTimeline'
+import SessionTurnBlock from '@/components/SessionTurnBlock.vue'
+import { sessionChatKey } from '@/lib/sessionChat'
+import { sessionTimelineItems } from '@/lib/sessionTimeline'
 import { useStickToBottom } from '@/lib/useStickToBottom'
 
-/** The main area for a Session: every turn of its display timeline, in order. */
-const props = defineProps<{ mode: ModeType; liveAgent?: LiveAgentTurn }>()
-const emit = defineEmits<{ resend: [] }>()
-
+/**
+ * The main area for a Session in every mode: each turn of its timeline, settled or
+ * still running, drawn the same way whichever preset is active.
+ */
 const sessions = useSessions()
-const artifactRuns = useArtifactRuns()
-const imageGeneration = useImageGenerationPresets()
-const promptStore = usePromptStore()
-const presets = usePresets()
+const chat = useOpenAiCompatibleChat()
+const agentMode = useAgentMode()
 const sessionAudio = useSessionAudio()
-const errors = useErrors()
+const promptStore = usePromptStore()
+const activities = useActivities()
+const confirmations = useConfirmations()
+const conversations = useConversations()
 const languages = useI18N().state
 const panel = ref<HTMLElement | null>(null)
 
-const turns = computed(() => {
-  const live = props.liveAgent
-  const timeline = live
-    ? withLiveAgentTurn(sessions.openTimeline, live.tag, live.messages)
-    : sessions.openTimeline
-  return timelineTurns(timeline)
+const chatKey = computed(() => sessionChatKey(sessions.openSessionId ?? ''))
+const chatLive = computed(() => {
+  if (!sessions.openSessionId) return []
+  if (conversations.activeKey === chatKey.value) return chat.messages ?? []
+  return chat.getMessagesForKey(chatKey.value) ?? []
 })
+const agentLive = computed(() =>
+  sessions.openSessionId ? agentMode.liveTurnsIn(sessions.openSessionId) : [],
+)
 
-/** The last block of the live Harness Session carries its queued / not-run markers. */
-function isLiveBlock(turn: TimelineTurn): boolean {
-  const live = props.liveAgent
-  if (!live || turn.kind !== 'agent') return false
-  const last = turns.value.findLast((candidate) => candidate.kind === 'agent')
-  return last === turn && turn.harnessSessionId === live.tag.harnessSessionId
-}
+const items = computed(() =>
+  sessionTimelineItems(sessions.openTimeline, {
+    chat: chatLive.value,
+    agents: agentLive.value,
+    media: sessions.openSessionId ? sessions.pendingTurns[sessions.openSessionId] : null,
+    audio: sessionAudio.pendingTurn,
+  }),
+)
 
-const pending = computed(() => {
-  const id = sessions.openSessionId
-  const turn = id ? sessions.pendingTurns[id] : undefined
-  if (!turn) return null
-  const settled = turns.value.some(
-    (candidate) => candidate.kind === 'media' && candidate.media.runId === turn.runId,
-  )
-  if (settled) return null
-  return { turn, run: artifactRuns.state.runs[turn.runId] }
-})
+const lastChatMessageId = computed(() => chatLive.value.at(-1)?.id)
+const chatAnswerShown = computed(() => chatLive.value.at(-1)?.role === 'assistant')
+const chatActivity = computed(() => activities.chatActivity(chatKey.value, ['generation']) !== null)
+const chatConfirmation = computed(() => confirmations.forConversation(chatKey.value) !== null)
+const chatBusy = computed(() => chatActivity.value || chatConfirmation.value)
 
-const pendingAudio = computed(() => sessionAudio.pendingTurn)
+const inAgentMode = computed(() => promptStore.getCurrentMode() === 'agent')
+const openHarnessInSession = computed(() =>
+  agentLive.value.some((turn) => turn.tag.harnessSessionId === agentMode.openSessionId),
+)
+const showsGameBar = computed(() => inAgentMode.value && agentMode.agentWorkspaceKind === 'games')
+const showsAgentStatus = computed(
+  () => openHarnessInSession.value && (inAgentMode.value || agentMode.processing),
+)
 
 const { showScrollButton, scrollToBottom } = useStickToBottom(panel)
 
@@ -120,53 +121,7 @@ watch(
   () => nextTick(() => scrollToBottom(false)),
 )
 
+onMounted(() => scrollToBottom(false))
+
 defineExpose({ scrollToBottom })
-
-const mediaMode = computed<WorkflowModeType | null>(() =>
-  props.mode === 'imageGen' || props.mode === 'imageEdit' || props.mode === 'video'
-    ? props.mode
-    : null,
-)
-
-async function generate(prompt: string): Promise<void> {
-  const mode = mediaMode.value
-  if (!mode) return
-  try {
-    imageGeneration.prompt = prompt
-    await imageGeneration.generate(mode)
-  } catch (error) {
-    promptStore.promptSubmitted = false
-    imageGeneration.processing = false
-    if (isCancellation(error)) return
-    errors.report(error, {
-      category: 'generation',
-      code: 'generation/submit-failed',
-      userMessage: languages.SESSION_IMAGE_GENERATION_FAILED,
-    })
-  }
-}
-
-async function synthesize(text: string): Promise<void> {
-  const preset = presets.activePreset
-  if (preset?.type !== 'chat' || !preset.ttsPreset) {
-    promptStore.promptSubmitted = false
-    return
-  }
-  await sessionAudio.synthesize(text)
-}
-
-onMounted(() => {
-  scrollToBottom(false)
-  if (props.mode === 'audio') promptStore.registerSubmitCallback('audio', synthesize)
-  if (!mediaMode.value) return
-  promptStore.registerSubmitCallback(mediaMode.value, generate)
-  promptStore.registerCancelCallback(mediaMode.value, () => imageGeneration.stopGeneration())
-})
-
-onUnmounted(() => {
-  if (props.mode === 'audio') promptStore.unregisterSubmitCallback('audio')
-  if (!mediaMode.value) return
-  promptStore.unregisterSubmitCallback(mediaMode.value)
-  promptStore.unregisterCancelCallback(mediaMode.value)
-})
 </script>

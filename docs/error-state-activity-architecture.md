@@ -174,7 +174,9 @@ chat `inference`/`tools` activities (covers stop / stream errors where `onFinish
 - [`components/ChatActivityIndicator.vue`](../WebUI/src/components/ChatActivityIndicator.vue) — reads
   `chatActivity(conversationKey, ['generation'])` and renders an indeterminate `LoadingBar` (or a
   determinate bar when `progress` is set). It is anchored to the **bottom of the in-progress chat
-  turn** in [`views/Chat.vue`](../WebUI/src/views/Chat.vue) (it replaced the old sticky
+  turn** in [`components/ChatMessageParts.vue`](../WebUI/src/components/ChatMessageParts.vue), or
+  before the answer exists at the foot of
+  [`views/SessionTimeline.vue`](../WebUI/src/views/SessionTimeline.vue) (it replaced the old sticky
   `isPreparingBackend` bar). `generation` is excluded because the inline `ChatWorkflowResult` already
   visualizes image-gen thumbnails + steps; the indicator keeps the parent "Generating image…" line.
 - [`views/PromptArea.vue`](../WebUI/src/views/PromptArea.vue) — `isProcessing` includes

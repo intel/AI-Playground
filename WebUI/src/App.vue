@@ -201,13 +201,8 @@
     <SideModalAppSettings :isVisible="showAppSettings" @close="showAppSettings = false" />
 
     <div class="flex-1 flex flex-col relative justify-center-safe min-h-0 overflow-y-auto">
-      <Chat v-if="promptStore.getCurrentMode() === 'chat'" ref="chatRef" />
-      <AgentMode v-if="promptStore.getCurrentMode() === 'agent'" />
-      <SessionTimeline
-        v-if="showsSessionTimeline(promptStore.getCurrentMode())"
-        :key="promptStore.getCurrentMode()"
-        :mode="promptStore.getCurrentMode()"
-      />
+      <Chat v-if="showsThreadView" ref="threadView" />
+      <SessionTimeline v-else ref="timelineView" />
       <PromptArea @auto-hide-footer="handleAutoHideFooter" @open-settings="openSpecificSettings" />
       <div v-if="!footerExpanded" class="fixed bottom-4 right-4 z-5 flex items-center gap-3">
         <button
@@ -340,7 +335,6 @@ import { useDemoMode } from './assets/js/store/demoMode.ts'
 import { debugSettingsVisible } from './assets/js/store/debugSettings.ts'
 import SessionTimeline from '@/views/SessionTimeline.vue'
 import Chat from '@/views/Chat.vue'
-import AgentMode from '@/views/AgentMode.vue'
 import { computed, ref, watch } from 'vue'
 import SessionsPanel from '@/components/SessionsPanel.vue'
 import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
@@ -362,6 +356,9 @@ import { useOemBranding } from '@/assets/js/store/oemBranding'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useAgentMode } from '@/assets/js/store/agentMode'
 import { usesSessionSettings } from '@/lib/agentSessionSettings'
+import { useModePromptHandlers } from '@/lib/useModePromptHandlers'
+import { useSessions } from '@/assets/js/store/sessions'
+import { useConversations } from '@/assets/js/store/conversations'
 
 const theme = useTheme()
 const globalSetup = useGlobalSetup()
@@ -376,6 +373,8 @@ const presetSwitching = usePresetSwitching()
 const oemBranding = useOemBranding()
 const i18n = useI18N()
 const agentMode = useAgentMode()
+const sessions = useSessions()
+const conversations = useConversations()
 
 // Agent Maker sessions can notify over Home Agent; the games presets cannot.
 const showHomeAgentToggle = computed(() => {
@@ -386,12 +385,20 @@ const showHomeAgentToggle = computed(() => {
 
 const demoModeOverlayDriverJs = ref<InstanceType<typeof DemoModeOverlayDriverJsRef>>()
 const showSettingBtn = ref<HTMLButtonElement>()
-const chatRef = ref<{
-  handleSubmitPromptClick: (prompt: string) => void
-  scrollToBottom: () => void
-}>()
-const showsSessionTimeline = (mode: ModeType) =>
-  mode === 'imageGen' || mode === 'imageEdit' || mode === 'video' || mode === 'audio'
+const threadView = ref<InstanceType<typeof Chat> | null>(null)
+const timelineView = ref<InstanceType<typeof SessionTimeline> | null>(null)
+
+// A Home Agent thread is no Session's, so it keeps a view of its own.
+const showsThreadView = computed(
+  () =>
+    promptStore.getCurrentMode() === 'chat' &&
+    (!sessions.openSessionId ||
+      conversations.getThreadKind(conversations.activeKey) === 'homeAgent'),
+)
+
+useModePromptHandlers({
+  scrollToBottom: () => (timelineView.value ?? threadView.value)?.scrollToBottom(),
+})
 
 const isOpen = ref(false)
 const footerExpanded = ref(true)

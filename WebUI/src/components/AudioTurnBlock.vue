@@ -1,64 +1,52 @@
 <template>
   <div class="flex flex-col gap-6">
-    <div class="flex items-start gap-3">
-      <UserCircleIcon class="size-8 shrink-0 text-foreground/90" />
-      <div class="flex flex-col gap-2 max-w-4/5 bg-muted rounded-md px-4 py-3">
-        <p class="text-muted-foreground text-sm">{{ languages.ANSWER_USER_NAME }}</p>
-        <p class="whitespace-pre-wrap wrap-break-word">{{ prompt || preset }}</p>
-        <p v-if="kind === 'stt' && fileDeleted" class="text-sm text-muted-foreground">
+    <SessionUserBubble>
+      <p class="whitespace-pre-wrap">{{ prompt || preset }}</p>
+      <p v-if="kind === 'stt' && fileDeleted" class="text-sm text-muted-foreground">
+        {{ languages.SESSION_FILE_DELETED }}
+      </p>
+      <audio
+        v-else-if="kind === 'stt' && audioUrl"
+        controls
+        class="w-full max-w-md"
+        :src="audioUrl"
+        :aria-label="prompt"
+      />
+    </SessionUserBubble>
+    <SessionAssistantBubble :label="engine ?? preset">
+      <p v-if="phase" role="status" class="text-sm text-muted-foreground animate-pulse">
+        {{ phaseLabel }}
+      </p>
+      <template v-else-if="status === 'completed'">
+        <p v-if="kind === 'tts' && fileDeleted" class="text-sm text-muted-foreground">
           {{ languages.SESSION_FILE_DELETED }}
         </p>
         <audio
-          v-else-if="kind === 'stt' && audioUrl"
+          v-else-if="kind === 'tts' && audioUrl"
           controls
           class="w-full max-w-md"
           :src="audioUrl"
-          :aria-label="prompt"
+          aria-label="Generated speech"
         />
-      </div>
-    </div>
-    <div role="article" aria-label="Assistant response" class="flex items-start gap-3">
-      <img class="size-8 shrink-0" src="../assets/svg/ai-icon.svg" alt="" />
-      <div class="flex flex-col gap-3 min-w-0">
-        <p class="text-muted-foreground text-sm">
-          {{ languages.ANSWER_AI_NAME }} · <span>{{ engine ?? preset }}</span>
+        <p v-if="kind === 'stt'" class="whitespace-pre-wrap wrap-break-word">
+          {{ transcript }}
         </p>
-        <p v-if="phase" role="status" class="text-sm text-muted-foreground animate-pulse">
-          {{ phaseLabel }}
-        </p>
-        <template v-else-if="status === 'completed'">
-          <p v-if="kind === 'tts' && fileDeleted" class="text-sm text-muted-foreground">
-            {{ languages.SESSION_FILE_DELETED }}
-          </p>
-          <audio
-            v-else-if="kind === 'tts' && audioUrl"
-            controls
-            class="w-full max-w-md"
-            :src="audioUrl"
-            aria-label="Generated speech"
-          />
-          <p v-if="kind === 'stt'" class="whitespace-pre-wrap wrap-break-word">
-            {{ transcript }}
-          </p>
-        </template>
-        <p v-else-if="status === 'failed'" class="text-sm text-red-500 wrap-break-word">
-          {{
-            kind === 'tts'
-              ? languages.SESSION_AUDIO_TTS_FAILED
-              : languages.SESSION_AUDIO_STT_FAILED
-          }}<template v-if="error">: {{ error }}</template>
-        </p>
-        <p v-else-if="status === 'cancelled'" class="text-sm text-muted-foreground">
-          {{ languages.SESSION_AUDIO_CANCELLED }}
-        </p>
-      </div>
-    </div>
+      </template>
+      <p v-else-if="status === 'failed'" class="text-sm text-red-500 wrap-break-word">
+        {{ kind === 'tts' ? languages.SESSION_AUDIO_TTS_FAILED : languages.SESSION_AUDIO_STT_FAILED
+        }}<template v-if="error">: {{ error }}</template>
+      </p>
+      <p v-else-if="status === 'cancelled'" class="text-sm text-muted-foreground">
+        {{ languages.SESSION_AUDIO_CANCELLED }}
+      </p>
+    </SessionAssistantBubble>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { UserCircleIcon } from '@heroicons/vue/24/outline'
+import SessionAssistantBubble from '@/components/SessionAssistantBubble.vue'
+import SessionUserBubble from '@/components/SessionUserBubble.vue'
 import { useI18N } from '@/assets/js/store/i18n'
 import type { AudioTurnPhase } from '@/assets/js/store/sessionAudio'
 import type { AudioTurnData, MediaTurnStatus } from '@/types/sessionTimeline'

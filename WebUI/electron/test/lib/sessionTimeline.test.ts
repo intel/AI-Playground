@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { chatTimelineItems, timelineTurns, withLiveAgentTurn } from '@/lib/sessionTimeline'
+import { sessionTimelineItems, timelineTurns, withLiveAgentTurn } from '@/lib/sessionTimeline'
 
 const agentTurn = { presetName: 'Agent', harnessSessionId: 'aipg-agent-1' }
 
@@ -200,39 +200,91 @@ describe('the live agent turn in the Session timeline', () => {
   })
 })
 
-describe('Chat mode over the Session timeline', () => {
+describe('the one Session timeline with every live turn in it', () => {
   const live = (id: string, role: 'user' | 'assistant', text: string) => ({
     id,
     role,
     parts: [{ type: 'text', text }],
   })
+  const pendingMedia = { runId: 'r2', prompt: 'a dragon', preset: 'Draft', mode: 'imageGen' }
+  const pendingAudio = { kind: 'tts', prompt: 'read this', preset: 'Text to Speech' }
+  const kinds = (items: { kind: string }[]) => items.map((item) => item.kind)
 
-  it("puts the live conversation where the Session's chat turns are, other turns between", () => {
-    const items = chatTimelineItems(
-      [
-        chatMessage('u1', 'user', 'hi'),
-        chatMessage('a1', 'assistant', 'hello'),
-        mediaPrompt,
-        mediaCard,
-        agentMessage('g1', 'user', 'tidy up'),
-      ],
-      [
-        live('u1', 'user', 'hi'),
-        live('a1', 'assistant', 'hello'),
-        live('u2', 'user', 'describe it'),
-        live('a2', 'assistant', 'a f'),
-      ],
-    )
+  it('shows a media run in flight after a streaming chat turn of the same Session', () => {
+    const items = sessionTimelineItems([chatMessage('u1', 'user', 'hi')], {
+      chat: [live('u1', 'user', 'hi'), live('a1', 'assistant', 'hel')],
+      media: pendingMedia,
+    })
 
-    expect(
-      items.map((item) =>
-        item.kind === 'message' ? `${item.message.id}@${item.index}` : item.turn.kind,
-      ),
-    ).toEqual(['u1@0', 'a1@1', 'media', 'agent', 'u2@2', 'a2@3'])
+    expect(kinds(items)).toEqual(['chat', 'pending-media'])
+    expect(items[1]).toEqual({ kind: 'pending-media', id: 'r2', pending: pendingMedia })
   })
 
-  it('shows only the conversation when the Session holds nothing else', () => {
-    const items = chatTimelineItems([], [live('u1', 'user', 'hi')])
-    expect(items).toEqual([{ kind: 'message', message: live('u1', 'user', 'hi'), index: 0 }])
+  it('shows a streaming chat turn that the Session has not saved yet, after its media turns', () => {
+    const items = sessionTimelineItems([mediaPrompt, mediaCard], {
+      chat: [live('u1', 'user', 'describe it'), live('a1', 'assistant', 'a cas')],
+    })
+
+    expect(kinds(items)).toEqual(['media', 'chat'])
+    const chat = items[1]
+    expect(chat.kind === 'chat' && chat.messages.map((message) => message.id)).toEqual(['u1', 'a1'])
+  })
+
+  it('shows the live copy of a saved chat message in place, once', () => {
+    const items = sessionTimelineItems(
+      [
+        chatMessage('u1', 'user', 'hi'),
+        chatMessage('a1', 'assistant', 'hel'),
+        mediaPrompt,
+        mediaCard,
+      ],
+      { chat: [live('u1', 'user', 'hi'), live('a1', 'assistant', 'hello there')] },
+    )
+
+    expect(kinds(items)).toEqual(['chat', 'media'])
+    const chat = items[0]
+    expect(chat.kind === 'chat' && chat.messages.map((message) => message.parts)).toEqual([
+      [{ type: 'text', text: 'hi' }],
+      [{ type: 'text', text: 'hello there' }],
+    ])
+  })
+
+  it('drops the in-flight media run once its result card is in the timeline', () => {
+    const items = sessionTimelineItems([mediaPrompt, mediaCard], {
+      media: { ...pendingMedia, runId: 'r1' },
+    })
+
+    expect(kinds(items)).toEqual(['media'])
+  })
+
+  it('shows the running agent turn and marks its block as the live one', () => {
+    const running = { tag: agentTurn, messages: [live('u9', 'user', 'go')], live: true }
+    const items = sessionTimelineItems([mediaPrompt, mediaCard], { agents: [running] })
+
+    expect(kinds(items)).toEqual(['media', 'agent'])
+    expect(items[1]).toMatchObject({ kind: 'agent', live: running })
+  })
+
+  it("streams a Task Run's Step beside the Agent's own Harness Session", () => {
+    const taskRun = { taskName: 'Morning digest', startedAt: 500 }
+    const items = sessionTimelineItems([agentMessage('u1', 'user', 'hello')], {
+      agents: [
+        { tag: agentTurn, messages: [live('u1', 'user', 'hello')], live: false },
+        {
+          tag: { presetName: 'Agent', harnessSessionId: 'aipg-agent-run', taskRun },
+          messages: [live('s1', 'user', 'step one')],
+          live: true,
+        },
+      ],
+    })
+
+    expect(kinds(items)).toEqual(['agent', 'agent'])
+    expect(items[1]).toMatchObject({ kind: 'agent', taskRun })
+  })
+
+  it('ends with the audio turn still running', () => {
+    const items = sessionTimelineItems([mediaPrompt, mediaCard], { audio: pendingAudio })
+
+    expect(kinds(items)).toEqual(['media', 'pending-audio'])
   })
 })

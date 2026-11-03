@@ -62,6 +62,7 @@ import {
 } from '@/types/agentCapabilities'
 import type { AgentAnswerOrigin, GameLibraryEntry } from '@/types/agentIpc'
 import type { AgentTurnState, PauseReason } from '@/types/kernelEvents'
+import type { LiveAgentTurn } from '@/lib/sessionTimeline'
 import type { ChannelKind } from './channels/types'
 import type { HeldAnswerView, SessionTurnEnd } from './channels/answerRouter'
 import {
@@ -1103,6 +1104,41 @@ export const useAgentMode = defineStore(
       const messageId = notRunMessages.value[openSessionId.value]
       return !!messageId && !processing.value && messages.value.at(-1)?.id === messageId
     })
+
+    /**
+     * The Harness Sessions of a Session that the timeline streams: the open one, with
+     * its queued / not-run markers, and every other one running a turn (Task Runs).
+     */
+    function liveTurnsIn(sessionRef: string): LiveAgentTurn[] {
+      const live: LiveAgentTurn[] = []
+      for (const [id, runtime] of Object.entries(turns.runtimes.value)) {
+        if ((harnessSessionRefs[id] ?? sessions.value[id]?.sessionRef) !== sessionRef) continue
+        const open = id === openSessionId.value
+        if (!open && !runtime.processing.value) continue
+        const record = sessions.value[id]
+        const tag = {
+          presetName: open ? agentPresetName.value : (record?.presetName ?? AGENT_PRESET),
+          harnessSessionId: id,
+          ...(record?.taskRun ? { taskRun: record.taskRun } : {}),
+        }
+        if (!open) {
+          live.push({ tag, messages: runtime.chat.messages, live: true })
+          continue
+        }
+        live.push({
+          tag,
+          messages: messages.value,
+          live: processing.value,
+          queuedMessageId:
+            turnState.value === 'queued'
+              ? messages.value.findLast((entry) => entry.role === 'user')?.id
+              : undefined,
+          notRunMessageId: notRunMessages.value[id],
+          canResend: canResendNotRun.value,
+        })
+      }
+      return live
+    }
 
     /** Agent Mode is on screen; a session is in view only while it is, and open. */
     const viewShown = ref(false)
@@ -2173,6 +2209,7 @@ export const useAgentMode = defineStore(
       switchSession,
       openSession,
       setViewShown,
+      liveTurnsIn,
       sessionInView,
       deleteSession,
       restoreOpenSession,

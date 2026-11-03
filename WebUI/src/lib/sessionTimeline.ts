@@ -21,6 +21,8 @@ export type TimelineTurn =
       harnessSessionId: string
       messages: UIMessage[]
       taskRun?: TaskRunTag
+      /** Set on the last block of a Harness Session that is open or running. */
+      live?: LiveAgentTurn
     }
   | { kind: 'chat'; id: string; messages: UIMessage[] }
 
@@ -68,7 +70,7 @@ function agentTagOf(value: unknown): AgentTurnTag | null {
   return tag && typeof tag.harnessSessionId === 'string' ? tag : null
 }
 
-/** The live turn of the open Harness Session, streamed into the timeline (Agent mode). */
+/** A Harness Session's live transcript, streamed into the timeline. */
 export type LiveAgentTurn = {
   tag: AgentTurnTag
   messages: readonly { id: string }[]
@@ -105,42 +107,68 @@ export function withLiveAgentTurn(
   return [...merged, ...tagged.values()]
 }
 
-/** One row of Chat mode: a message of the live conversation, or another preset's turn. */
-export type ChatTimelineItem<M extends { id: string }> =
-  { kind: 'message'; message: M; index: number } | { kind: 'turn'; turn: TimelineTurn }
+function withLiveChatTurn(
+  timeline: readonly unknown[],
+  live: readonly { id: string }[],
+): unknown[] {
+  if (live.length === 0) return [...timeline]
+  const tagged = new Map(
+    live.map((message) => {
+      const metadata = (message as { metadata?: object }).metadata
+      return [message.id, { ...message, metadata: { ...metadata, chatTurn: true } }]
+    }),
+  )
+  const merged = timeline.map((value) => {
+    const saved = asChatTranscriptMessage(value)
+    const copy = saved ? tagged.get(saved.id) : undefined
+    if (!saved || !copy) return value
+    tagged.delete(saved.id)
+    return { ...copy, metadata: { ...saved.metadata, ...copy.metadata } }
+  })
+  return [...merged, ...tagged.values()]
+}
+
+/** Everything of the open Session still in flight, whichever preset or mode started it. */
+export type LiveTurns<M extends { runId: string }, A> = {
+  /** The Session's chat transcript as the chat store holds it, streaming turn included. */
+  chat?: readonly { id: string }[]
+  /** Each Harness Session of the Session that is open or running a turn (Task Runs too). */
+  agents?: readonly LiveAgentTurn[]
+  media?: M | null
+  audio?: A | null
+}
+
+export type SessionTimelineItem<M = unknown, A = unknown> =
+  | TimelineTurn
+  | { kind: 'pending-media'; id: string; pending: M }
+  | { kind: 'pending-audio'; id: string; pending: A }
 
 /**
- * Chat mode renders the Session timeline with the conversation live in it: each saved
- * chat message shows its live copy (`index` into `live`, -1 when it has none), every
- * other turn stays where it happened, and what the running turn adds follows last.
+ * The one main-area timeline of a Session: its saved turns with every live turn laid
+ * over them — a live copy replaces its saved message in place, what is not saved yet
+ * follows at the end — so what is on screen never depends on the active mode.
  */
-export function chatTimelineItems<M extends { id: string }>(
+export function sessionTimelineItems<M extends { runId: string }, A>(
   timeline: readonly unknown[],
-  live: readonly M[],
-): ChatTimelineItem<M>[] {
-  const indexOf = new Map(live.map((message, index) => [message.id, index]))
-  const items: ChatTimelineItem<M>[] = []
-  const shown = new Set<string>()
-  let others: unknown[] = []
-  const flush = () => {
-    for (const turn of timelineTurns(others)) items.push({ kind: 'turn', turn })
-    others = []
+  live: LiveTurns<M, A>,
+): SessionTimelineItem<M, A>[] {
+  let merged = withLiveChatTurn(timeline, live.chat ?? [])
+  for (const agent of live.agents ?? []) {
+    merged = withLiveAgentTurn(merged, agent.tag, agent.messages)
   }
-  for (const value of timeline) {
-    const saved = asChatTranscriptMessage(value)
-    if (!saved) {
-      others.push(value)
-      continue
-    }
-    flush()
-    const index = indexOf.get(saved.id) ?? -1
-    items.push({ kind: 'message', message: index >= 0 ? live[index] : (saved as M), index })
-    shown.add(saved.id)
+  const turns = timelineTurns(merged)
+  for (const agent of live.agents ?? []) {
+    const block = turns.findLast(
+      (turn) => turn.kind === 'agent' && turn.harnessSessionId === agent.tag.harnessSessionId,
+    )
+    if (block?.kind === 'agent') block.live = agent
   }
-  flush()
-  live.forEach((message, index) => {
-    if (!shown.has(message.id)) items.push({ kind: 'message', message, index })
-  })
+  const items: SessionTimelineItem<M, A>[] = [...turns]
+  const media = live.media
+  if (media && !turns.some((turn) => turn.kind === 'media' && turn.media.runId === media.runId)) {
+    items.push({ kind: 'pending-media', id: media.runId, pending: media })
+  }
+  if (live.audio) items.push({ kind: 'pending-audio', id: 'pending-audio', pending: live.audio })
   return items
 }
 

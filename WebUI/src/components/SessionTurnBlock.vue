@@ -1,63 +1,108 @@
 <template>
   <MediaTurnBlock
-    v-if="turn.kind === 'media'"
-    :prompt="turn.prompt"
-    :preset="turn.media.preset"
-    :mode="turn.media.mode"
-    :items="turn.media.items"
-    :status="turn.media.status"
-    :error="turn.media.error"
+    v-if="item.kind === 'media'"
+    :prompt="item.prompt"
+    :preset="item.media.preset"
+    :mode="item.media.mode"
+    :items="item.media.items"
+    :status="item.media.status"
+    :error="item.media.error"
     :deleted-urls="sessions.openDeletedFiles"
     @delete-file="(url) => gallery.removeByUrl(url)"
   />
-  <TaskRunBlock
-    v-else-if="turn.kind === 'agent' && turn.taskRun"
-    :task-run="turn.taskRun"
-    :messages="turn.messages"
+  <MediaTurnBlock
+    v-else-if="item.kind === 'pending-media'"
+    :prompt="item.pending.prompt"
+    :preset="item.pending.preset"
+    :mode="item.pending.mode"
+    :items="artifactRuns.state.runs[item.pending.runId]?.items ?? []"
+    :phase="artifactRuns.state.runs[item.pending.runId]?.phase ?? 'queued'"
+    :progress="artifactRuns.state.runs[item.pending.runId]?.progress"
   />
-  <div v-else-if="turn.kind === 'agent'" class="flex flex-col gap-4">
-    <AgentTurnBlock :messages="turn.messages" />
+  <TaskRunBlock
+    v-else-if="item.kind === 'agent' && item.taskRun"
+    :task-run="item.taskRun"
+    :messages="item.messages"
+    :live="item.live?.live"
+  />
+  <div v-else-if="item.kind === 'agent'" class="flex flex-col gap-6">
+    <SessionMessage
+      v-for="message in item.messages"
+      :key="message.id"
+      :message="message"
+      engine="agent"
+      :live="!!item.live?.live && message.id === item.messages.at(-1)?.id"
+      :queued="message.id === item.live?.queuedMessageId"
+      :not-run="message.id === item.live?.notRunMessageId"
+      :can-resend="!!item.live?.canResend && message.id === item.messages.at(-1)?.id"
+      @resend="emit('resend')"
+    />
   </div>
-  <ChatTurnBlock v-else-if="turn.kind === 'chat'" :messages="turn.messages" />
+  <div v-else-if="item.kind === 'chat'" class="flex flex-col gap-6">
+    <SessionMessage
+      v-for="message in item.messages"
+      :key="message.id"
+      :message="message"
+      engine="chat"
+      :last="message.id === lastChatMessageId"
+      :conversation-key="chatKey"
+    />
+  </div>
   <AudioTurnBlock
-    v-else-if="turn.kind === 'audio'"
-    :prompt="turn.prompt"
-    :preset="turn.audio.preset"
-    :kind="turn.audio.kind"
-    :audio-url="turn.audio.audioUrl"
-    :transcript="turn.audio.transcript"
-    :engine="turn.audio.engine"
-    :status="turn.audio.status"
-    :error="turn.audio.error"
-    :file-deleted="!!turn.audio.audioUrl && sessions.isFileDeleted(turn.audio.audioUrl)"
+    v-else-if="item.kind === 'audio'"
+    :prompt="item.prompt"
+    :preset="item.audio.preset"
+    :kind="item.audio.kind"
+    :audio-url="item.audio.audioUrl"
+    :transcript="item.audio.transcript"
+    :engine="item.audio.engine"
+    :status="item.audio.status"
+    :error="item.audio.error"
+    :file-deleted="!!item.audio.audioUrl && sessions.isFileDeleted(item.audio.audioUrl)"
+  />
+  <AudioTurnBlock
+    v-else-if="item.kind === 'pending-audio'"
+    :prompt="item.pending.prompt"
+    :preset="item.pending.preset"
+    :kind="item.pending.kind"
+    :phase="item.pending.phase"
   />
   <div
-    v-else
+    v-else-if="item.kind === 'message'"
     class="text-sm text-muted-foreground whitespace-pre-wrap"
-    :class="turn.message.role === 'user' ? 'self-end' : 'self-start'"
+    :class="item.message.role === 'user' ? 'self-end' : 'self-start'"
   >
-    {{ messageText(turn.message) }}
+    {{ plainText(item.message) }}
   </div>
 </template>
 
 <script setup lang="ts">
+import { useArtifactRuns } from '@/assets/js/store/artifactRuns'
 import { useGallery } from '@/assets/js/store/gallery'
-import { useSessions } from '@/assets/js/store/sessions'
-import AgentTurnBlock from '@/components/AgentTurnBlock.vue'
+import type { PendingAudioTurn } from '@/assets/js/store/sessionAudio'
+import { useSessions, type PendingMediaTurn } from '@/assets/js/store/sessions'
 import AudioTurnBlock from '@/components/AudioTurnBlock.vue'
-import ChatTurnBlock from '@/components/ChatTurnBlock.vue'
 import MediaTurnBlock from '@/components/MediaTurnBlock.vue'
+import SessionMessage from '@/components/SessionMessage.vue'
 import TaskRunBlock from '@/components/TaskRunBlock.vue'
-import type { TimelineTurn } from '@/lib/sessionTimeline'
+import type { SessionTimelineItem } from '@/lib/sessionTimeline'
 import type { TimelineMessage } from '@/types/sessionTimeline'
 
-/** One settled turn of the Session timeline, whichever preset ran it. */
-defineProps<{ turn: TimelineTurn }>()
+/** One turn of the Session timeline, settled or still running, whichever preset ran it. */
+defineProps<{
+  item: SessionTimelineItem<PendingMediaTurn, PendingAudioTurn>
+  /** The newest message of the Session's live chat transcript. */
+  lastChatMessageId?: string
+  chatKey: string
+}>()
+
+const emit = defineEmits<{ resend: [] }>()
 
 const sessions = useSessions()
 const gallery = useGallery()
+const artifactRuns = useArtifactRuns()
 
-function messageText(message: TimelineMessage): string {
+function plainText(message: TimelineMessage): string {
   return message.parts.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('\n')
 }
 </script>

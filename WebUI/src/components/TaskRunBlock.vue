@@ -22,7 +22,13 @@
       </button>
     </CollapsibleTrigger>
     <CollapsibleContent class="flex flex-col gap-4 px-3 pb-3">
-      <AgentTurnBlock :messages="messages" />
+      <SessionMessage
+        v-for="message in messages"
+        :key="message.id"
+        :message="message"
+        engine="agent"
+        :live="live && message.id === messages.at(-1)?.id"
+      />
     </CollapsibleContent>
   </Collapsible>
 </template>
@@ -32,12 +38,12 @@ import { computed, ref } from 'vue'
 import type { UIMessage } from 'ai'
 import { ChevronRightIcon, CpuChipIcon } from '@heroicons/vue/24/outline'
 import { useI18N } from '@/assets/js/store/i18n'
-import AgentTurnBlock from '@/components/AgentTurnBlock.vue'
+import SessionMessage from '@/components/SessionMessage.vue'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import type { TaskRunTag } from '@/types/sessionTimeline'
 
 /** One Task Run in the Session timeline, folded under its Task's name and start time. */
-const props = defineProps<{ taskRun: TaskRunTag; messages: UIMessage[] }>()
+const props = defineProps<{ taskRun: TaskRunTag; messages: UIMessage[]; live?: boolean }>()
 
 const i18nStore = useI18N()
 const open = ref(false)
