@@ -23,6 +23,7 @@
   "COM_SESSIONS": "세션",
   "SESSIONS_NEW": "새 세션",
   "SESSIONS_UNTITLED": "제목 없는 세션",
+  "SESSIONS_PRESETS_USED": "사용한 프리셋",
   "SESSIONS_COLLAPSE": "세션 패널 접기",
   "SESSIONS_EXPAND": "세션 패널 펼치기",
   "SESSIONS_OPTIONS": "{title} 옵션",

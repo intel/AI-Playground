@@ -23,6 +23,7 @@
   "COM_SESSIONS": "会话",
   "SESSIONS_NEW": "新建会话",
   "SESSIONS_UNTITLED": "未命名会话",
+  "SESSIONS_PRESETS_USED": "使用过的预设",
   "SESSIONS_COLLAPSE": "折叠会话面板",
   "SESSIONS_EXPAND": "展开会话面板",
   "SESSIONS_OPTIONS": "{title} 选项",

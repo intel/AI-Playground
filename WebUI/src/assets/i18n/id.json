@@ -23,6 +23,7 @@
   "COM_SESSIONS": "Sesi",
   "SESSIONS_NEW": "Sesi baru",
   "SESSIONS_UNTITLED": "Sesi tanpa judul",
+  "SESSIONS_PRESETS_USED": "Preset yang digunakan",
   "SESSIONS_COLLAPSE": "Ciutkan panel Sesi",
   "SESSIONS_EXPAND": "Luaskan panel Sesi",
   "SESSIONS_OPTIONS": "Opsi {title}",

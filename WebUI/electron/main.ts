@@ -245,6 +245,8 @@ import { upsertTimelineMessages } from './session/sessionTimeline'
 import { saveChatTranscript } from './session/sessionChatTurn'
 import { setAppMediaPathResolver } from './agent/piCustomTools'
 import { readSessionSettings, writePresetSettings } from './session/sessionSettings'
+import { lastTurnPreset } from './session/sessionHistory'
+import { claimSessionTurn, inSessionTurn, releaseSessionTurn } from './session/sessionTurns'
 import { buildAgentModeRegistry } from './kernel/registries/agentMode'
 import { buildChatRegistry } from './kernel/registries/chat'
 import { buildComfyuiRegistry } from './kernel/registries/comfyui'
@@ -1783,6 +1785,7 @@ function initEventHandle() {
       cancelArtifactRun,
       cancelActiveArtifactRun,
       handleMediaResponse,
+      inSessionTurn,
     }),
   )
 
@@ -1838,6 +1841,9 @@ function initEventHandle() {
       deleteArtifact,
       readSessionSettings,
       writePresetSettings,
+      lastTurnPreset,
+      claimSessionTurn,
+      releaseSessionTurn,
       newestArtifact,
     }),
   )

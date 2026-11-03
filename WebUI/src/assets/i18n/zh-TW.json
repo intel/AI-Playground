@@ -23,6 +23,7 @@
   "COM_SESSIONS": "工作階段",
   "SESSIONS_NEW": "新增工作階段",
   "SESSIONS_UNTITLED": "未命名的工作階段",
+  "SESSIONS_PRESETS_USED": "使用過的預設",
   "SESSIONS_COLLAPSE": "收合工作階段面板",
   "SESSIONS_EXPAND": "展開工作階段面板",
   "SESSIONS_OPTIONS": "{title} 選項",

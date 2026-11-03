@@ -29,6 +29,7 @@ const sessionModule = await import('../../session/sessions')
 const kernelBus = await import('../../kernel/kernelBus')
 const { recordMediaTurn } = await import('../../session/sessionMediaTurn')
 const { useSessions } = await import('@/assets/js/store/sessions')
+const ledger = await import('../../session/sessionTurns')
 
 function ok<T extends object>(run: () => Promise<T>) {
   return async () => ({ success: true as const, ...(await run()) })
@@ -40,6 +41,7 @@ beforeEach(async () => {
   dirs.demo = path.join(root, 'sessions-demo')
   sessionModule.setSessionDeps({ isDemoMode: () => false })
   kernelBus.resetKernelBusForTest()
+  ledger.resetSessionTurnsForTest()
   vi.stubGlobal('window', {
     electronAPI: {
       onKernelEvent: kernelBus.onKernelEvent,
@@ -151,5 +153,36 @@ describe('Sessions store', () => {
       title: 'a red fox',
       presetsUsed: ['Dummy Image (test)'],
     })
+  })
+
+  it("knows each Session's turn in flight, and marks one that ended out of sight as unseen", async () => {
+    const store = useSessions()
+    await store.init()
+    const background = store.openSessionId!
+    await store.create()
+    const open = store.openSessionId!
+
+    ledger.claimSessionTurn(background, { turnId: 'a', kind: 'agent' })
+    ledger.claimSessionTurn(open, { turnId: 'b', kind: 'media' })
+    await vi.waitFor(() => expect(store.openTurn?.kind).toBe('media'))
+    expect(store.turns[background]?.kind).toBe('agent')
+
+    ledger.releaseSessionTurn(background, 'a')
+    ledger.releaseSessionTurn(open, 'b')
+    await vi.waitFor(() => expect(store.openTurn).toBeNull())
+    expect(store.unseen).toEqual({ [background]: true })
+
+    await store.open(background)
+    expect(store.unseen).toEqual({})
+  })
+
+  it('learns the turns already in flight when it connects', async () => {
+    const session = await sessionModule.createSession()
+    ledger.claimSessionTurn(session.id, { turnId: 'a', kind: 'chat' })
+    const store = useSessions()
+
+    await store.init()
+
+    await vi.waitFor(() => expect(store.openTurn?.kind).toBe('chat'))
   })
 })

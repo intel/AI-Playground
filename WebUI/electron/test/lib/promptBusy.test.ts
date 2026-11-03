@@ -27,6 +27,13 @@ describe('prompt bar busy state', () => {
     expect(promptBusy('audio', audioBusy)).toBe(true)
     expect(promptBusy('chat', audioBusy)).toBe(false)
   })
+
+  it('is busy in every mode while the open Session has a turn in flight', () => {
+    const sessionBusy = { ...idle, sessionTurn: true }
+    for (const mode of ['chat', 'agent', 'audio', 'imageGen', 'imageEdit', 'video'] as const) {
+      expect(promptBusy(mode, sessionBusy)).toBe(true)
+    }
+  })
 })
 
 describe('prompt field on a busy change', () => {

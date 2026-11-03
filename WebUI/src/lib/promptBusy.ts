@@ -1,5 +1,5 @@
-// The prompt bar is busy only for what it would send to: work elsewhere (an agent
-// turn while in Chat, a Chat turn while in Image Gen) never locks it.
+// The prompt bar is busy while the open Session has a turn and for what it would send to;
+// work in another Session or conversation never locks it.
 
 export type PromptBusyTargets = {
   /** The Open Agent Session has a turn queued or running. */
@@ -10,6 +10,8 @@ export type PromptBusyTargets = {
   panelRun: boolean
   /** The open Session has a Text-to-Speech / Speech-to-Text turn running. */
   audioTurn: boolean
+  /** The open Session has a turn in flight of any kind: one turn per Session, so Stop shows. */
+  sessionTurn?: boolean
 }
 
 const CHAT_LIKE_MODES: ModeType[] = ['chat', 'agent', 'audio']
@@ -19,6 +21,7 @@ export function isChatLikeMode(mode: ModeType): boolean {
 }
 
 export function promptBusy(mode: ModeType, targets: PromptBusyTargets): boolean {
+  if (targets.sessionTurn) return true
   if (mode === 'agent') return targets.agentSession
   if (mode === 'audio') return targets.audioTurn
   if (mode === 'chat') return targets.conversation

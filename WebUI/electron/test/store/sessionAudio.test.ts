@@ -45,6 +45,7 @@ const sessionModule = await import('../../session/sessions')
 const kernelBus = await import('../../kernel/kernelBus')
 const { recordAudioTurn } = await import('../../session/sessionAudioTurn')
 const { readHistoryEntries } = await import('../../session/sessionHistory')
+const ledger = await import('../../session/sessionTurns')
 const { useSessions } = await import('@/assets/js/store/sessions')
 const { useSessionAudio } = await import('@/assets/js/store/sessionAudio')
 
@@ -56,6 +57,7 @@ beforeEach(async () => {
   dirs.demo = path.join(root, 'sessions-demo')
   sessionModule.setSessionDeps({ isDemoMode: () => false })
   kernelBus.resetKernelBusForTest()
+  ledger.resetSessionTurnsForTest()
   speech.synthesizeClip.mockReset()
   speech.transcribe.mockReset()
   speech.readyTranscriptionForInput.mockReset().mockResolvedValue({ ready: true })
@@ -75,6 +77,14 @@ beforeEach(async () => {
           success: true,
           session: await recordAudioTurn(turn),
         }),
+        beginTurn: async (id: string, turn: Parameters<typeof ledger.claimSessionTurn>[1]) =>
+          ledger.claimSessionTurn(id, turn)
+            ? { success: true }
+            : { success: false, error: ledger.SESSION_BUSY_MESSAGE },
+        endTurn: async (id: string, turnId: string) => {
+          ledger.releaseSessionTurn(id, turnId)
+          return { success: true }
+        },
       },
     },
   })
@@ -139,6 +149,24 @@ describe('Text-to-Speech in a Session', () => {
     await running
 
     expect(audio.processing).toBe(false)
+  })
+
+  it('holds the open Session as its one turn, and refuses to start while another holds it', async () => {
+    const { sessions, id } = await openSession()
+    let finish: (value: unknown) => void = () => {}
+    speech.synthesizeClip.mockReturnValue(new Promise((resolve) => (finish = resolve)))
+    const audio = useSessionAudio()
+
+    const running = audio.synthesize('Read this aloud')
+    await vi.waitFor(() => expect(sessions.openTurn?.kind).toBe('audio'))
+    finish({ audioBase64: 'AAAA', mediaType: 'audio/wav', voice: 'v', engine: 'qwen3' })
+    await running
+    await vi.waitFor(() => expect(sessions.openTurn).toBeNull())
+
+    ledger.claimSessionTurn(id, { turnId: 'agent-turn', kind: 'agent' })
+    await audio.synthesize('Not now')
+    expect(speech.synthesizeClip).toHaveBeenCalledTimes(1)
+    expect((await readHistoryEntries(id)).map((entry) => entry.prompt)).toEqual(['Read this aloud'])
   })
 })
 

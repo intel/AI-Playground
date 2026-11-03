@@ -60,6 +60,43 @@ function agentTagOf(value: unknown): AgentTurnTag | null {
   return tag && typeof tag.harnessSessionId === 'string' ? tag : null
 }
 
+/** The live turn of the open Harness Session, streamed into the timeline (Agent mode). */
+export type LiveAgentTurn = {
+  tag: AgentTurnTag
+  messages: readonly { id: string }[]
+  live: boolean
+  queuedMessageId?: string
+  notRunMessageId?: string
+  canResend?: boolean
+}
+
+/**
+ * Lays the open Harness Session's live transcript over the saved timeline: a message
+ * the Session already holds shows its streaming copy in place, the rest of the
+ * running turn follows at the end.
+ */
+export function withLiveAgentTurn(
+  timeline: readonly unknown[],
+  tag: AgentTurnTag,
+  live: readonly { id: string }[],
+): unknown[] {
+  if (live.length === 0) return [...timeline]
+  const tagged = new Map(
+    live.map((message) => {
+      const metadata = (message as { metadata?: object }).metadata
+      return [message.id, { ...message, metadata: { ...metadata, agentTurn: tag } }]
+    }),
+  )
+  const merged = timeline.map((message) => {
+    const id = (message as { id?: unknown } | null)?.id
+    const copy = typeof id === 'string' ? tagged.get(id) : undefined
+    if (!copy) return message
+    tagged.delete(id as string)
+    return copy
+  })
+  return [...merged, ...tagged.values()]
+}
+
 /**
  * Pairs each prompt with the result card that answered it, and keeps a run of
  * one Harness Session's messages together as one agent block; anything else

@@ -44,6 +44,11 @@ import {
 import { agentRunIdentity } from './agentRunIdentity.ts'
 import { reportAgentTurnEnd, type AgentTurnEnd } from './agentTurnOutcome.ts'
 import { trackAgentTurnInSession } from '../session/sessionAgentTurns.ts'
+import {
+  claimSessionTurn,
+  releaseSessionTurn,
+  SESSION_BUSY_MESSAGE,
+} from '../session/sessionTurns.ts'
 import { takeSessionUpdate } from '../session/sessionUpdate.ts'
 import { noteAnswerTurn } from './notifier.ts'
 import { downloadedMissingReadinessModels } from './agentModelConsent.ts'
@@ -368,6 +373,18 @@ export async function startAgentTurn(
   if (agentTurns.has(sessionId)) {
     return { success: false, error: 'This session already has a turn in flight.' }
   }
+  const sessionRef = config.sessionRef
+  if (
+    sessionRef &&
+    !claimSessionTurn(sessionRef, {
+      turnId,
+      kind: 'agent',
+      presetName: config.presetName,
+      harnessSessionId: sessionId,
+    })
+  ) {
+    return { success: false, error: SESSION_BUSY_MESSAGE }
+  }
   const abortController = new AbortController()
   const turn: AgentTurn = { sessionId, turnId, abort: abortController, live: null }
   agentTurns.set(sessionId, turn)
@@ -542,6 +559,7 @@ export async function startAgentTurn(
           : { sessionId, turnId, outcome: 'completed', reply }
     reportAgentTurnEnd(end)
     if (inSession) await inSession.settle(end)
+    if (sessionRef) releaseSessionTurn(sessionRef, turnId)
     if (turn.live) await releaseTurnSession(turn.live)
     emitAgentTurnDone(sessionId, turnId)
   }

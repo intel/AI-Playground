@@ -39,6 +39,8 @@ describe('per-owner handler registries', () => {
       | 'sessions:deleteArtifact'
       | 'sessions:readSettings'
       | 'sessions:writePresetSettings'
+      | 'sessions:beginTurn'
+      | 'sessions:endTurn'
       | 'sessions:newestArtifact'
     >()
     expectTypeOf<

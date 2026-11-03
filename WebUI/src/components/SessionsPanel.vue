@@ -22,7 +22,7 @@
                 size="icon"
                 class="h-8 w-8"
                 :aria-label="languages.SESSIONS_NEW"
-                @click="sessions.create()"
+                @click="lifecycle.newSession()"
               >
                 <PlusIcon class="size-5" aria-hidden="true" />
               </Button>
@@ -51,17 +51,20 @@
       </div>
     </TooltipProvider>
 
-    <div v-if="!collapsed" class="flex-1 min-h-0 overflow-y-auto px-2 pb-2 flex flex-col gap-1.5">
-      <SessionRow
-        v-for="session in sessions.orderedSessions"
-        :key="session.id"
-        :session="session"
-        :active="session.id === sessions.openSessionId"
-        @open="sessions.open(session.id)"
-        @rename="(title) => sessions.rename(session.id, title)"
-        @delete="sessions.remove(session.id)"
-      />
-    </div>
+    <TooltipProvider v-if="!collapsed" :delay-duration="200">
+      <div class="flex-1 min-h-0 overflow-y-auto px-2 pb-2 flex flex-col gap-1.5">
+        <SessionRow
+          v-for="session in sessions.orderedSessions"
+          :key="session.id"
+          :session="session"
+          :active="session.id === sessions.openSessionId"
+          :status="lifecycle.rowStatus(session.id)"
+          @open="lifecycle.openSession(session.id)"
+          @rename="(title) => sessions.rename(session.id, title)"
+          @delete="sessions.remove(session.id)"
+        />
+      </div>
+    </TooltipProvider>
     <div v-else class="flex-1"></div>
 
     <div class="flex-none flex items-center gap-3 px-3 py-3" :class="{ 'flex-col': collapsed }">
@@ -74,12 +77,14 @@
 import { computed } from 'vue'
 import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon, PlusIcon } from '@heroicons/vue/24/outline'
 import { useSessions } from '@/assets/js/store/sessions'
+import { useSessionLifecycle } from '@/assets/js/store/sessionLifecycle'
 import { useUIStore } from '@/assets/js/store/ui'
 import SessionRow from '@/components/SessionRow.vue'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 const sessions = useSessions()
+const lifecycle = useSessionLifecycle()
 const ui = useUIStore()
 
 const collapsed = computed(() => ui.sessionsPanelCollapsed)

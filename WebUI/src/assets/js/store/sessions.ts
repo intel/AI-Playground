@@ -1,8 +1,14 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { connectKernelEventStream } from '@/assets/js/projection/kernelProjection'
 import { useErrors } from '@/assets/js/store/errors'
-import type { SessionDocument, SessionSummary } from '@/types/sessionIpc'
+import type {
+  SessionDocument,
+  SessionLastPreset,
+  SessionSummary,
+  SessionTurn,
+  SessionTurns,
+} from '@/types/sessionIpc'
 import type { MediaTurnData } from '@/types/sessionTimeline'
 
 /** A panel run submitted in a Session whose turn has not settled into its timeline yet. */
@@ -61,8 +67,38 @@ export const useSessions = defineStore('sessions', () => {
     if (openSessionId.value === document.id) openTimeline.value = timeline
   }
 
-  const projection = connectKernelEventStream((event) => {
-    if (event.type === 'session-changed') applyChanged(event.session)
+  /** Each Session's turn in flight, as main's ledger has it. */
+  const turns = ref<SessionTurns>({})
+  /** Sessions whose turn ended while another was open; cleared when opened. */
+  const unseen = ref<Record<string, true>>({})
+
+  function applyTurns(next: SessionTurns): void {
+    const ended = Object.keys(turns.value).filter(
+      (id) => !next[id] && id !== openSessionId.value && sessions.value[id],
+    )
+    turns.value = next
+    if (ended.length === 0) return
+    unseen.value = { ...unseen.value, ...Object.fromEntries(ended.map((id) => [id, true])) }
+  }
+
+  const projection = connectKernelEventStream(
+    (event) => {
+      if (event.type === 'session-changed') applyChanged(event.session)
+      if (event.type === 'session-turns') applyTurns(event.turns)
+    },
+    (snapshot) => {
+      turns.value = { ...snapshot.state.sessionTurns }
+    },
+  )
+
+  const openTurn = computed<SessionTurn | null>(() =>
+    openSessionId.value ? (turns.value[openSessionId.value] ?? null) : null,
+  )
+
+  watch(openSessionId, (id) => {
+    if (!id || !unseen.value[id]) return
+    const { [id]: _seen, ...rest } = unseen.value
+    unseen.value = rest
   })
   projection.ready.catch(() => {})
   if (import.meta.hot) {
@@ -117,14 +153,16 @@ export const useSessions = defineStore('sessions', () => {
     return result.session.id
   }
 
-  async function open(id: string): Promise<void> {
+  /** Opens a Session; resolves with the preset and variant of its last turn. */
+  async function open(id: string): Promise<SessionLastPreset | null> {
     const result = await call('sessions/open-failed', () => window.electronAPI.sessions.open(id))
-    if (!result) return
+    if (!result) return null
     const { timeline, ...summary } = result.session
     remember(summary)
     openSessionId.value = id
     openTimeline.value = timeline
     openDeletedFiles.value = result.missingFiles
+    return result.lastPreset
   }
 
   async function rename(id: string, title: string): Promise<void> {
@@ -171,6 +209,9 @@ export const useSessions = defineStore('sessions', () => {
     openTimeline,
     openDeletedFiles,
     pendingTurns,
+    turns,
+    unseen,
+    openTurn,
     orderedSessions,
     openSession,
     init,

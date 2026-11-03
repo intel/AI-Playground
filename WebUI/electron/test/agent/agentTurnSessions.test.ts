@@ -238,6 +238,47 @@ describe('agent turns, told apart by Agent Session', () => {
     expect(pending).toHaveLength(1)
   }, 30000)
 
+  it("refuses another Harness Session's turn in the same Session, while another Session queues", async () => {
+    autoRelease = false
+    const inSession = (harness: string, sessionRef: string) => ({
+      ...configFor(harness),
+      sessionRef,
+      presetName: 'Agent',
+    })
+    const first = crypto.randomUUID()
+    const requested = nextRequest()
+    const turnA = manager.startAgentTurn(first, 'hello', inSession('aipg-agent-a', 'session-1'))
+    await requested
+
+    expect(
+      await manager.startAgentTurn(
+        crypto.randomUUID(),
+        'again',
+        inSession('aipg-agent-b', 'session-1'),
+      ),
+    ).toEqual({ success: false, error: 'This Session already has a turn in flight.' })
+
+    const other = crypto.randomUUID()
+    const turnC = manager.startAgentTurn(other, 'elsewhere', inSession('aipg-agent-c', 'session-2'))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(bus.getKernelSnapshot().state.agentTurns).toEqual([
+      expect.objectContaining({ sessionId: 'aipg-agent-a', state: 'running' }),
+      expect.objectContaining({ sessionId: 'aipg-agent-c', state: 'queued' }),
+    ])
+    expect(Object.keys(bus.getKernelSnapshot().state.sessionTurns ?? {}).sort()).toEqual([
+      'session-1',
+      'session-2',
+    ])
+
+    const requestedC = nextRequest()
+    pending[0].release()
+    expect(await turnA).toEqual({ success: true })
+    await requestedC
+    pending[1].release()
+    expect(await turnC).toEqual({ success: true })
+    expect(bus.getKernelSnapshot().state.sessionTurns).toEqual({})
+  }, 30000)
+
   it('cancels a queued turn without it ever reaching the backend, leaving the running one alone', async () => {
     autoRelease = false
     const first = crypto.randomUUID()

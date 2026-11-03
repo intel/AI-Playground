@@ -110,6 +110,7 @@ export function connectKernelEventStream(
           chatTurns: [],
           activities: [],
           inferenceProfile: null,
+          sessionTurns: {},
         },
       }),
       dispose: () => {},

@@ -83,6 +83,7 @@ import {
 import { CHAT_SESSION_HISTORY_TOOL, executeChatSessionHistoryTool } from './chatSessionHistoryTool'
 import { cloneForIpc } from '@/lib/cloneForIpc'
 import { emitFailure } from '../kernel/kernelBus'
+import { claimSessionTurn, releaseSessionTurn, SESSION_BUSY_MESSAGE } from '../session/sessionTurns'
 
 // ── Main-side chat turn engine (docs/architecture-target.md §7, step 6) ──────
 //
@@ -807,6 +808,17 @@ export function submitChatTurn(request: unknown): ChatTurnSubmitResult {
     throw new Error('A chat turn is already running for this conversation')
   }
   const turnId = randomUUID()
+  if (
+    req.sessionRef &&
+    !claimSessionTurn(req.sessionRef, {
+      turnId,
+      kind: 'chat',
+      conversationKey: req.conversationKey,
+      presetName: req.presetName,
+    })
+  ) {
+    throw new Error(SESSION_BUSY_MESSAGE)
+  }
   const turn: ActiveChatTurn = {
     turnId,
     conversationKey: req.conversationKey,
@@ -1350,6 +1362,7 @@ async function runChatTurn(request: ChatTurnRequest, turn: ActiveChatTurn): Prom
         : undefined,
     })
     activeTurns.delete(conversationKey)
+    if (request.sessionRef) releaseSessionTurn(request.sessionRef, turnId)
     endChatTurn(conversationKey, turnId)
   }
 }

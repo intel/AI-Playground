@@ -402,7 +402,7 @@ describe('one turn runtime per Agent Session', () => {
   })
 })
 
-describe('games presets keep stop-on-switch', () => {
+describe('games presets never stop a turn by leaving it', () => {
   const GAME: ChatPreset = {
     type: 'chat',
     category: 'chat',
@@ -416,7 +416,7 @@ describe('games presets keep stop-on-switch', () => {
     activePreset.value = AGENT
   })
 
-  it('stops the running turn when another game session is opened', async () => {
+  it('keeps the running turn when another game session is opened', async () => {
     activePreset.value = GAME
     const gameRecord = (id: string) => ({
       ...record(id, `game ${id}`),
@@ -441,13 +441,14 @@ describe('games presets keep stop-on-switch', () => {
     const turnId = startTurn.mock.calls[0][0]
 
     await store.switchSession('game-2')
-    await sent
 
-    expect(cancel).toHaveBeenCalledWith('game-1', turnId)
-    expect(store.anyTurnOpen).toBe(false)
-    // A turn the user stopped by leaving it is not a new result.
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(store.unseenTurns).toEqual({})
+    expect(cancel).not.toHaveBeenCalled()
+    expect(store.anyTurnOpen).toBe(true)
+    expect(store.sessionTurns['game-1']).toBeDefined()
+
+    pushEvent({ type: 'agent-turn-done', sessionId: 'game-1', turnId })
+    await sent
+    await vi.waitFor(() => expect(store.unseenTurns).toEqual({ 'game-1': 'done' }))
   })
 })
 

@@ -163,6 +163,22 @@ vi.mock('@/assets/js/store/imageGenerationPresets', () => ({
 }))
 vi.mock('@/assets/js/store/presetSwitching', () => ({ usePresetSwitching: () => fakes.switching }))
 
+type AgentPort = {
+  read: (preset: string) => { settings: Record<string, unknown>; sent: boolean } | undefined
+  write: (preset: string, settings: Record<string, unknown>, sent: boolean) => void
+  drop: (preset: string) => void
+  readStored: (sessionId: string, preset: string) => Promise<Record<string, unknown> | null>
+}
+const agent = vi.hoisted(() => ({ port: null as unknown }))
+vi.mock('@/assets/js/store/agentMode', () => ({
+  useAgentMode: () => ({
+    bindSessionSettingsPort: (port: unknown) => {
+      agent.port = port
+    },
+  }),
+}))
+const agentPort = () => agent.port as AgentPort
+
 const sessionModule = await import('../../session/sessions')
 const settingsModule = await import('../../session/sessionSettings')
 const { useSessions } = await import('@/assets/js/store/sessions')
@@ -332,5 +348,30 @@ describe('Session Settings for every preset', () => {
 
     expect(fakes.chat.settingsPerPreset['Home Agent']).toEqual({ temperature: 0.1 })
     expect(await onDisk(sessions.openSessionId!)).not.toHaveProperty('Home Agent')
+  })
+
+  it("keeps the Agent preset's Session Settings in session.json like every other preset's", async () => {
+    const { sessions } = await setUp()
+    const first = sessions.openSessionId!
+    const settings = { capabilities: ['files', 'shell'], planningThinkingOnly: false }
+
+    agentPort().write('Agent', settings, false)
+    await flushPromises()
+    expect((await onDisk(first)).Agent).toEqual({
+      bags: { Agent: { values: settings, fromDefaults: true } },
+    })
+
+    agentPort().write('Agent', settings, true)
+    await flushPromises()
+    expect(agentPort().read('Agent')).toEqual({ settings, sent: true })
+
+    await openSession(sessions, null)
+    expect(agentPort().read('Agent')).toBeUndefined()
+    expect(await agentPort().readStored(first, 'Agent')).toEqual(settings)
+
+    await openSession(sessions, first)
+    agentPort().drop('Agent')
+    await flushPromises()
+    expect((await onDisk(first)).Agent).toEqual({ bags: {} })
   })
 })

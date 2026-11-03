@@ -1,11 +1,14 @@
 <template>
-  <div ref="panel" class="flex-1 overflow-y-auto px-4 py-6 flex flex-col">
-    <div
-      v-if="turns.length === 0 && !pending && !pendingAudio"
-      class="flex-1 flex items-center justify-center text-muted-foreground text-center"
-    >
-      {{ languages.SESSION_TIMELINE_EMPTY }}
-    </div>
+  <ScrollToBottomButton v-if="showScrollButton" @click="scrollToBottom()" />
+  <div ref="panel" class="flex-1 overflow-y-auto px-4 py-6 flex flex-col relative">
+    <slot name="top" />
+    <template v-if="turns.length === 0 && !pending && !pendingAudio">
+      <slot name="empty">
+        <div class="flex-1 flex items-center justify-center text-muted-foreground text-center">
+          {{ languages.SESSION_TIMELINE_EMPTY }}
+        </div>
+      </slot>
+    </template>
     <div v-else class="w-full max-w-4xl mx-auto flex flex-col gap-6">
       <template v-for="turn in turns" :key="turn.id">
         <MediaTurnBlock
@@ -20,7 +23,16 @@
           @delete-file="(url) => gallery.removeByUrl(url)"
         />
         <div v-else-if="turn.kind === 'agent'" class="flex flex-col gap-4">
-          <AgentTurnBlock :messages="turn.messages" />
+          <AgentTurnBlock
+            v-if="isLiveBlock(turn)"
+            :messages="turn.messages"
+            :live="liveAgent?.live"
+            :queued-message-id="liveAgent?.queuedMessageId"
+            :not-run-message-id="liveAgent?.notRunMessageId"
+            :can-resend="liveAgent?.canResend"
+            @resend="emit('resend')"
+          />
+          <AgentTurnBlock v-else :messages="turn.messages" />
         </div>
         <ChatTurnBlock v-else-if="turn.kind === 'chat'" :messages="turn.messages" />
         <AudioTurnBlock
@@ -60,6 +72,9 @@
         :phase="pendingAudio.phase"
       />
     </div>
+    <div class="w-full max-w-4xl mx-auto flex flex-col gap-4" :class="{ 'mt-4': turns.length }">
+      <slot name="bottom" />
+    </div>
   </div>
 </template>
 
@@ -79,11 +94,19 @@ import MediaTurnBlock from '@/components/MediaTurnBlock.vue'
 import AgentTurnBlock from '@/components/AgentTurnBlock.vue'
 import ChatTurnBlock from '@/components/ChatTurnBlock.vue'
 import { isCancellation } from '@/assets/js/errors/appError'
-import { timelineTurns } from '@/lib/sessionTimeline'
+import ScrollToBottomButton from '@/components/ScrollToBottomButton.vue'
+import {
+  timelineTurns,
+  withLiveAgentTurn,
+  type LiveAgentTurn,
+  type TimelineTurn,
+} from '@/lib/sessionTimeline'
+import { useStickToBottom } from '@/lib/useStickToBottom'
 import type { TimelineMessage } from '@/types/sessionTimeline'
 
 /** The main area for a Session: every turn of its display timeline, in order. */
-const props = defineProps<{ mode: ModeType }>()
+const props = defineProps<{ mode: ModeType; liveAgent?: LiveAgentTurn }>()
+const emit = defineEmits<{ resend: [] }>()
 
 const sessions = useSessions()
 const gallery = useGallery()
@@ -96,7 +119,21 @@ const errors = useErrors()
 const languages = useI18N().state
 const panel = ref<HTMLElement | null>(null)
 
-const turns = computed(() => timelineTurns(sessions.openTimeline))
+const turns = computed(() => {
+  const live = props.liveAgent
+  const timeline = live
+    ? withLiveAgentTurn(sessions.openTimeline, live.tag, live.messages)
+    : sessions.openTimeline
+  return timelineTurns(timeline)
+})
+
+/** The last block of the live Harness Session carries its queued / not-run markers. */
+function isLiveBlock(turn: TimelineTurn): boolean {
+  const live = props.liveAgent
+  if (!live || turn.kind !== 'agent') return false
+  const last = turns.value.findLast((candidate) => candidate.kind === 'agent')
+  return last === turn && turn.harnessSessionId === live.tag.harnessSessionId
+}
 
 const pending = computed(() => {
   const id = sessions.openSessionId
@@ -115,16 +152,14 @@ function messageText(message: TimelineMessage): string {
   return message.parts.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('\n')
 }
 
-function scrollToBottom(): void {
-  void nextTick(() => {
-    if (panel.value) panel.value.scrollTop = panel.value.scrollHeight
-  })
-}
+const { showScrollButton, scrollToBottom } = useStickToBottom(panel)
 
 watch(
-  () => [sessions.openSessionId, turns.value.length, !!pending.value, !!pendingAudio.value],
-  scrollToBottom,
+  () => sessions.openSessionId,
+  () => nextTick(() => scrollToBottom(false)),
 )
+
+defineExpose({ scrollToBottom })
 
 const mediaMode = computed<WorkflowModeType | null>(() =>
   props.mode === 'imageGen' || props.mode === 'imageEdit' || props.mode === 'video'
@@ -160,7 +195,7 @@ async function synthesize(text: string): Promise<void> {
 }
 
 onMounted(() => {
-  scrollToBottom()
+  scrollToBottom(false)
   if (props.mode === 'audio') promptStore.registerSubmitCallback('audio', synthesize)
   if (!mediaMode.value) return
   promptStore.registerSubmitCallback(mediaMode.value, generate)

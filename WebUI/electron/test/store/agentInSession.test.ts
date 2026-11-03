@@ -212,6 +212,28 @@ describe('the Agent preset in a Session', () => {
     expect(useSessions().openTimeline).toHaveLength(2)
   })
 
+  it("keeps the Agent preset's settings in the Session, not on the Harness Session's record", async () => {
+    const held: Record<string, { settings: Record<string, unknown>; sent: boolean }> = {}
+    store.bindSessionSettingsPort({
+      read: (preset) => held[preset],
+      write: (preset, settings, sent) => {
+        held[preset] = { settings, sent }
+      },
+      drop: (preset) => delete held[preset],
+      readStored: async () => null,
+      whenLoaded: async () => {},
+    })
+    await openSessionRef('s1')
+    store.setCapabilities(['files'])
+    expect(held.Agent).toEqual({ settings: { capabilities: ['files'] }, sent: false })
+
+    await store.generate('build a page')
+
+    expect(held.Agent.sent).toBe(true)
+    expect(held.Agent.settings.capabilities).toEqual(['files'])
+    expect(store.sessions['aipg-agent-s1-Agent'].settings).toBeUndefined()
+  })
+
   it('records the Session on the Harness Session it belongs to', async () => {
     await openSessionRef('s1')
 

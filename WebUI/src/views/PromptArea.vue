@@ -546,6 +546,8 @@ import {
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
 import { useAgentMode } from '@/assets/js/store/agentMode'
 import { useSessionAudio } from '@/assets/js/store/sessionAudio'
+import { useSessions } from '@/assets/js/store/sessions'
+import { useSessionLifecycle } from '@/assets/js/store/sessionLifecycle'
 import { useSessionSettings } from '@/assets/js/store/sessionSettings'
 import { useAgentTasks } from '@/assets/js/store/agentTasks'
 import {
@@ -602,6 +604,8 @@ const imageGeneration = useImageGenerationPresets()
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 const agentMode = useAgentMode()
 const sessionAudio = useSessionAudio()
+const sessions = useSessions()
+const sessionLifecycle = useSessionLifecycle()
 const sessionSettings = useSessionSettings()
 const agentTasks = useAgentTasks()
 const oemBranding = useOemBranding()
@@ -1003,6 +1007,16 @@ const promptRunNote = computed(() =>
     .replace('{count}', String(promptRun.value?.stepCount ?? '')),
 )
 
+// A Home Agent thread is outside Sessions, so the open Session's turn does not lock it.
+const sessionTurnShown = computed(
+  () =>
+    sessions.openTurn !== null &&
+    !(
+      promptStore.getCurrentMode() === 'chat' &&
+      conversations.getThreadKind(conversations.activeKey) !== 'main'
+    ),
+)
+
 // Busy state follows only what the prompt bar would send to (`promptBusy`). For the
 // open conversation that includes any chat activity on it (backend prep, a queued
 // turn, RAG search, tool resolution, thinking), so send/stop matches the in-turn
@@ -1015,6 +1029,7 @@ const isProcessing = computed(() =>
       openAiCompatibleChat.processing || activities.chatActivity(conversations.activeKey) !== null,
     panelRun: imageGeneration.processing,
     audioTurn: sessionAudio.processing,
+    sessionTurn: sessionTurnShown.value,
   }),
 )
 
@@ -1203,8 +1218,18 @@ function handleRunStepsClick() {
   void agentTasks.runSteps(prompt.value)
 }
 
-function handleCancelClick() {
-  promptStore.cancelProcessing()
+// The mode's own Stop knows its Tasks and runs; a turn from another mode goes by its engine.
+async function handleCancelClick() {
+  const turn = sessions.openTurn
+  const mode = promptStore.getCurrentMode()
+  const ownTurn =
+    !turn ||
+    (turn.kind === 'agent' &&
+      mode === 'agent' &&
+      turn.harnessSessionId === agentMode.openSessionId) ||
+    (turn.kind === 'chat' && mode === 'chat') ||
+    (turn.kind === 'media' && (mode === 'imageGen' || mode === 'imageEdit' || mode === 'video'))
+  if (ownTurn || !(await sessionLifecycle.stopOpenTurn())) promptStore.cancelProcessing()
 }
 
 async function handleRecordingClick() {

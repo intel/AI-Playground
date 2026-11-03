@@ -23,6 +23,7 @@
   "COM_SESSIONS": "Phiên",
   "SESSIONS_NEW": "Phiên mới",
   "SESSIONS_UNTITLED": "Phiên chưa đặt tên",
+  "SESSIONS_PRESETS_USED": "Các preset đã dùng",
   "SESSIONS_COLLAPSE": "Thu gọn bảng Phiên",
   "SESSIONS_EXPAND": "Mở rộng bảng Phiên",
   "SESSIONS_OPTIONS": "Tùy chọn của {title}",

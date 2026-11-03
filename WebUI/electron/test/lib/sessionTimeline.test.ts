@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { timelineTurns } from '@/lib/sessionTimeline'
+import { timelineTurns, withLiveAgentTurn } from '@/lib/sessionTimeline'
 
 const agentTurn = { presetName: 'Agent', harnessSessionId: 'aipg-agent-1' }
 
@@ -108,5 +108,56 @@ describe('timelineTurns', () => {
     ])
 
     expect(turns.map((turn) => turn.kind)).toEqual(['message', 'message'])
+  })
+})
+
+describe('the live agent turn in the Session timeline', () => {
+  const live = (id: string, role: 'user' | 'assistant', text: string) => ({
+    id,
+    role,
+    parts: [{ type: 'text', text }],
+  })
+
+  it('streams the running turn after everything the Session already settled', () => {
+    const timeline = withLiveAgentTurn(
+      [agentMessage('u1', 'user', 'describe it'), agentMessage('a1', 'assistant', 'a castle')],
+      agentTurn,
+      [
+        live('u1', 'user', 'describe it'),
+        live('a1', 'assistant', 'a castle'),
+        live('u2', 'user', 'make it blue'),
+        live('a2', 'assistant', 'paint'),
+      ],
+    )
+
+    const turns = timelineTurns(timeline)
+    expect(turns.map((turn) => turn.kind)).toEqual(['agent'])
+    expect(turns[0].kind === 'agent' && turns[0].messages.map((message) => message.id)).toEqual([
+      'u1',
+      'a1',
+      'u2',
+      'a2',
+    ])
+  })
+
+  it('shows the streaming copy of a message the Session saved earlier in the turn', () => {
+    const timeline = withLiveAgentTurn(
+      [mediaPrompt, mediaCard, agentMessage('u2', 'user', 'make it blue')],
+      agentTurn,
+      [live('u2', 'user', 'make it blue'), live('a2', 'assistant', 'painting…')],
+    )
+
+    const turns = timelineTurns(timeline)
+    expect(turns.map((turn) => turn.kind)).toEqual(['media', 'agent'])
+    const agent = turns[1]
+    expect(agent.kind === 'agent' && agent.messages.map((message) => message.id)).toEqual([
+      'u2',
+      'a2',
+    ])
+  })
+
+  it('leaves the timeline as it is with nothing live', () => {
+    const timeline = [mediaPrompt, mediaCard]
+    expect(withLiveAgentTurn(timeline, agentTurn, [])).toEqual(timeline)
   })
 })

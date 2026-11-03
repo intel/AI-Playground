@@ -72,16 +72,38 @@ export const useSessionAudio = defineStore('sessionAudio', () => {
     const sessionId = await sessions.ensureOpenSession()
     if (!sessionId || pendingTurns.value[sessionId]) return null
     const preset = presets.activePresetName ?? ''
+    const turnId = crypto.randomUUID()
+    try {
+      const claimed = await window.electronAPI.sessions.beginTurn(sessionId, {
+        turnId,
+        kind: 'audio',
+        presetName: preset,
+      })
+      if (!claimed.success) throw new Error(claimed.error)
+    } catch (error) {
+      errors.report(error, {
+        category: 'validation',
+        code: 'sessions/turn-refused',
+        surface: 'toast',
+      })
+      return null
+    }
     pendingTurns.value = {
       ...pendingTurns.value,
       [sessionId]: { ...turn, preset, createdAt: Date.now() },
     }
+    turnIds[sessionId] = turnId
     return { sessionId, preset }
   }
+
+  const turnIds: Record<string, string> = {}
 
   function end(sessionId: string): void {
     const { [sessionId]: _ended, ...rest } = pendingTurns.value
     pendingTurns.value = rest
+    const turnId = turnIds[sessionId]
+    delete turnIds[sessionId]
+    if (turnId) void window.electronAPI.sessions.endTurn(sessionId, turnId).catch(() => {})
   }
 
   async function settle(request: AudioTurnRequest): Promise<void> {

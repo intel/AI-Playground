@@ -23,6 +23,7 @@
   "COM_SESSIONS": "Sitzungen",
   "SESSIONS_NEW": "Neue Sitzung",
   "SESSIONS_UNTITLED": "Unbenannte Sitzung",
+  "SESSIONS_PRESETS_USED": "Verwendete Presets",
   "SESSIONS_COLLAPSE": "Sitzungsbereich einklappen",
   "SESSIONS_EXPAND": "Sitzungsbereich ausklappen",
   "SESSIONS_OPTIONS": "Optionen für {title}",

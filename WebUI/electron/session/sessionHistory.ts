@@ -3,7 +3,7 @@ import fs from 'node:fs/promises'
 import { appLoggerInstance } from '../observability/logger'
 import { assertSessionId, serializeSession } from '../persist/sessionFiles'
 import { sessionPaths } from './sessions'
-import { HistoryEntrySchema, type HistoryEntry } from '@/types/sessionIpc'
+import { HistoryEntrySchema, type HistoryEntry, type SessionLastPreset } from '@/types/sessionIpc'
 
 const LOG_SCOPE = 'sessions'
 
@@ -47,4 +47,11 @@ export async function readHistoryEntries(sessionId: string): Promise<HistoryEntr
     }
   }
   return entries
+}
+
+/** The preset and variant of the newest entry, which opening the Session switches back to. */
+export async function lastTurnPreset(sessionId: string): Promise<SessionLastPreset | null> {
+  const last = (await readHistoryEntries(sessionId)).at(-1)
+  if (!last) return null
+  return last.variant ? { preset: last.preset, variant: last.variant } : { preset: last.preset }
 }

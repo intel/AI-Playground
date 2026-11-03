@@ -23,6 +23,7 @@
   "COM_SESSIONS": "Sessions",
   "SESSIONS_NEW": "New Session",
   "SESSIONS_UNTITLED": "Untitled Session",
+  "SESSIONS_PRESETS_USED": "Presets used",
   "SESSIONS_COLLAPSE": "Collapse Sessions panel",
   "SESSIONS_EXPAND": "Expand Sessions panel",
   "SESSIONS_OPTIONS": "{title} options",

@@ -23,6 +23,7 @@
   "COM_SESSIONS": "Oturumlar",
   "SESSIONS_NEW": "Yeni oturum",
   "SESSIONS_UNTITLED": "Adsız oturum",
+  "SESSIONS_PRESETS_USED": "Kullanılan ön ayarlar",
   "SESSIONS_COLLAPSE": "Oturumlar panelini daralt",
   "SESSIONS_EXPAND": "Oturumlar panelini genişlet",
   "SESSIONS_OPTIONS": "{title} seçenekleri",

@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
+import { useAgentMode } from '@/assets/js/store/agentMode'
 import { useErrors } from '@/assets/js/store/errors'
 import { useSessions } from '@/assets/js/store/sessions'
 import { usePresets, type ChatPreset, type Preset } from '@/assets/js/store/presets'
@@ -22,6 +23,7 @@ import {
   withVariant,
 } from '@/lib/sessionSettings'
 import type { SessionSettingsProblem } from '@/lib/sessionSettingsProblems'
+import type { AgentSessionSettings } from '@/types/agentSessionIpc'
 import type {
   PresetSessionSettings,
   SessionSettingsBag,
@@ -39,8 +41,8 @@ type ComfyValues = { settings: Record<string, unknown>; inputs: Record<string, u
  * Session Settings for every preset (ADR-0004): binds the chat and ComfyUI settings
  * stores to the open Session, so a preset's first use in a Session copies its Default
  * Settings and coming back to it restores what the Session last used. The Agent
- * preset keeps its own binding in the agent store; the Home Agent preset, machine-level
- * settings and the TTS voice stay global.
+ * preset's settings are bound by the agent store but kept here too; the Home Agent
+ * preset, machine-level settings and the TTS voice stay global.
  */
 export const useSessionSettings = defineStore('sessionSettings', () => {
   const errors = useErrors()
@@ -49,6 +51,7 @@ export const useSessionSettings = defineStore('sessionSettings', () => {
   const presetSwitching = usePresetSwitching()
   const textInference = useTextInference()
   const imageGeneration = useImageGenerationPresets()
+  const agentMode = useAgentMode()
 
   const settings = ref<SessionSettingsMap>({})
   /** The Session `settings` were read for; null while they are being read. */
@@ -201,6 +204,44 @@ export const useSessionSettings = defineStore('sessionSettings', () => {
       if (!preset || !stored) return
       setBag(preset.name, settingsKey, { ...stored, values: clone(values) })
     },
+  })
+
+  // The Agent preset's settings keep ADR-0001's shape and rules in the agent store; only
+  // where they live is shared: one bag in the open Session, keyed by the preset name.
+  agentMode.bindSessionSettingsPort({
+    read: (presetName) => {
+      const bag = ready.value ? bagOf(presetName, presetName) : undefined
+      return bag
+        ? { settings: clone(bag.values) as AgentSessionSettings, sent: !bag.fromDefaults }
+        : undefined
+    },
+    write: (presetName, values, sent) => {
+      if (!ready.value) return
+      setBag(presetName, presetName, { values: clone(values), fromDefaults: !sent })
+    },
+    drop: (presetName) => {
+      if (ready.value) update(presetName, withoutBag(settings.value[presetName], presetName))
+    },
+    readStored: async (sessionId, presetName) => {
+      if (sessionId === loadedSessionId.value) {
+        const bag = bagOf(presetName, presetName)
+        return bag ? (clone(bag.values) as AgentSessionSettings) : null
+      }
+      try {
+        const result = await window.electronAPI.sessions.readSettings(sessionId)
+        if (!result.success) throw new Error(result.error)
+        const bag = result.settings[presetName]?.bags[presetName]
+        return bag ? (bag.values as AgentSessionSettings) : null
+      } catch (error) {
+        errors.report(error, {
+          code: 'sessions/settings-read-failed',
+          category: 'backend',
+          surface: 'toast',
+        })
+        return null
+      }
+    },
+    whenLoaded: () => loading.value,
   })
 
   function validSessionVariant(preset: Preset): string | undefined {

@@ -1,10 +1,17 @@
 import type { InvokeHandlerMap, SessionsInvokeName } from '../ipcRegistries'
 import { ipcFail } from '../typedIpc'
 import type { recordAudioTurn } from '../../session/sessionAudioTurn'
+import type { lastTurnPreset } from '../../session/sessionHistory'
+import {
+  SESSION_BUSY_MESSAGE,
+  type claimSessionTurn,
+  type releaseSessionTurn,
+} from '../../session/sessionTurns'
 import {
   ArtifactMediaTypeSchema,
   AudioTurnRequestSchema,
   HarnessGameWorkspaceSchema,
+  SessionTurnSchema,
 } from '@/types/sessionIpc'
 import type {
   createSession,
@@ -40,6 +47,9 @@ export type SessionsDeps = {
   newestArtifact: typeof newestArtifact
   harnessSessionFor: typeof harnessSessionFor
   upsertTimelineMessages: typeof upsertTimelineMessages
+  lastTurnPreset: typeof lastTurnPreset
+  claimSessionTurn: typeof claimSessionTurn
+  releaseSessionTurn: typeof releaseSessionTurn
   saveChatTranscript: typeof saveChatTranscript
 }
 
@@ -77,11 +87,12 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
     'sessions:open': async (_event, id) => {
       try {
         const sessionId = requireString(id, 'session id')
-        const [session, missingFiles] = await Promise.all([
+        const [session, missingFiles, lastPreset] = await Promise.all([
           deps.openSession(sessionId),
           deps.missingArtifactUrls(sessionId),
+          deps.lastTurnPreset(sessionId),
         ])
-        return { success: true as const, session, missingFiles }
+        return { success: true as const, session, missingFiles, lastPreset }
       } catch (e) {
         return ipcFail(e)
       }
@@ -182,6 +193,27 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
           requireString(presetName, 'preset name'),
           PresetSessionSettingsSchema.parse(entry),
         )
+        return { success: true as const }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:beginTurn': async (_event, id, turn) => {
+      try {
+        const claimed = deps.claimSessionTurn(
+          requireString(id, 'session id'),
+          SessionTurnSchema.parse(turn),
+        )
+        return claimed
+          ? { success: true as const }
+          : { success: false as const, error: SESSION_BUSY_MESSAGE }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:endTurn': async (_event, id, turnId) => {
+      try {
+        deps.releaseSessionTurn(requireString(id, 'session id'), requireString(turnId, 'turn id'))
         return { success: true as const }
       } catch (e) {
         return ipcFail(e)

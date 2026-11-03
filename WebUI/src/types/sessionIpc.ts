@@ -126,3 +126,22 @@ export type SessionArtifact = {
   mediaType: ArtifactMediaType
   url: string
 }
+
+export const SessionTurnKindSchema = z.enum(['chat', 'agent', 'media', 'audio'])
+export type SessionTurnKind = z.infer<typeof SessionTurnKindSchema>
+
+/** The one turn a Session has in flight; the engine keys say where Stop must go. */
+export const SessionTurnSchema = z.object({
+  turnId: z.string().min(1),
+  kind: SessionTurnKindSchema,
+  presetName: z.string().optional(),
+  harnessSessionId: z.string().optional(),
+  conversationKey: z.string().optional(),
+})
+export type SessionTurn = z.infer<typeof SessionTurnSchema>
+
+/** Every Session with a turn in flight, by Session id. */
+export type SessionTurns = Record<string, SessionTurn>
+
+/** The preset and variant of a Session's last turn, which opening it switches to. */
+export type SessionLastPreset = { preset: string; variant?: string }

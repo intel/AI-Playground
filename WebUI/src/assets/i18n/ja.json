@@ -23,6 +23,7 @@
   "COM_SESSIONS": "セッション",
   "SESSIONS_NEW": "新しいセッション",
   "SESSIONS_UNTITLED": "無題のセッション",
+  "SESSIONS_PRESETS_USED": "使用したプリセット",
   "SESSIONS_COLLAPSE": "セッションパネルを折りたたむ",
   "SESSIONS_EXPAND": "セッションパネルを展開",
   "SESSIONS_OPTIONS": "{title} のオプション",

@@ -5,6 +5,7 @@ import type { appLoggerInstance } from '../../observability/logger'
 import type { ArtifactRunPayload, cancelActiveArtifactRun } from '../../artifact/runner'
 import type { cancelArtifactRun, submitArtifactRun } from '../../kernel/orchestrator'
 import type { handleMediaResponse } from '../../artifact/rendererBridge'
+import { SESSION_BUSY_MESSAGE, type inSessionTurn } from '../../session/sessionTurns'
 
 /** The runner, orchestrator and bridge seams the three artifact handlers close over. */
 export type ArtifactDeps = {
@@ -13,6 +14,7 @@ export type ArtifactDeps = {
   cancelArtifactRun: typeof cancelArtifactRun
   cancelActiveArtifactRun: typeof cancelActiveArtifactRun
   handleMediaResponse: typeof handleMediaResponse
+  inSessionTurn: typeof inSessionTurn
 }
 
 export function buildArtifactRegistry(deps: ArtifactDeps) {
@@ -34,9 +36,15 @@ export function buildArtifactRegistry(deps: ArtifactDeps) {
         items: parsed.data.items as MediaItem[] | undefined,
         owner: { kind: 'panel' },
       }
-      return deps.submitArtifactRun(payload, {
-        queue: options?.queue === 'queue' ? 'queue' : 'turn',
-      })
+      const queue = options?.queue === 'queue' ? 'queue' : 'turn'
+      // A run queued inside a chat or agent turn is part of that turn, not one of its own.
+      const sessionId = queue === 'turn' ? payload.sessionId : undefined
+      return deps.inSessionTurn(
+        sessionId,
+        { turnId: payload.runId, kind: 'media', presetName: payload.preset.name },
+        () => deps.submitArtifactRun(payload, { queue }),
+        () => ({ state: 'failed' as const, items: [], error: SESSION_BUSY_MESSAGE }),
+      )
     },
 
     'artifact:cancel': (_event, runId) => {

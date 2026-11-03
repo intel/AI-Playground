@@ -21,7 +21,7 @@ import type {
   KernelSnapshot,
   KernelStoredEvent,
 } from '@/types/kernelEvents'
-import type { SessionDocument } from '@/types/sessionIpc'
+import type { SessionDocument, SessionTurns } from '@/types/sessionIpc'
 import type { MediaItem } from '@/types/mediaItem'
 import type { UIMessageChunk } from 'ai'
 import {
@@ -423,6 +423,13 @@ export function emitSessionChanged(session: SessionDocument): void {
   emit({ type: 'session-changed', session }, { kind: 'global' })
 }
 
+let sessionTurns: SessionTurns = {}
+
+export function emitSessionTurns(turns: SessionTurns): void {
+  sessionTurns = { ...turns }
+  emit({ type: 'session-turns', turns: { ...turns } }, { kind: 'global' })
+}
+
 export function setInferenceProfileSnapshot(profile: KernelInferenceProfile | null): void {
   inferenceProfile = profile
   emitStored('inference-profile', undefined, profile)
@@ -602,6 +609,7 @@ export function getKernelSnapshot(): KernelSnapshot {
       chatTurns: chatTurnSnapshots,
       activities: [...activeActivities.values()],
       inferenceProfile,
+      sessionTurns: { ...sessionTurns },
     },
   }
 }
@@ -624,4 +632,5 @@ export function resetKernelBusForTest(): void {
   taps.clear()
   activeActivities.clear()
   inferenceProfile = null
+  sessionTurns = {}
 }

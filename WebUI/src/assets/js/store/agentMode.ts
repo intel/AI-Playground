@@ -1,5 +1,5 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import type { UIMessage } from 'ai'
 import { backendToAipgBackendName, useTextInference } from './textInference'
 import { useModels } from './models'
@@ -290,10 +290,48 @@ export const useAgentMode = defineStore(
 
     const sessionScoped = computed(() => usesSessionSettings(activeAgentPreset.value))
 
+    /** Where a Session keeps the Agent preset's Session Settings (`session.json`, ADR-0004). */
+    type AgentSettingsPort = {
+      /** The open Session's copy; undefined until its settings are read or the preset ran there. */
+      read: (presetName: string) => { settings: AgentSessionSettings; sent: boolean } | undefined
+      write: (presetName: string, settings: AgentSessionSettings, sent: boolean) => void
+      drop: (presetName: string) => void
+      /** Another Session's copy, for a turn sent to a Harness Session that is not open. */
+      readStored: (sessionRef: string, presetName: string) => Promise<AgentSessionSettings | null>
+      whenLoaded: () => Promise<void>
+    }
+    const settingsPort = shallowRef<AgentSettingsPort | null>(null)
+
+    function bindSessionSettingsPort(port: AgentSettingsPort | null): void {
+      settingsPort.value = port
+      if (!port || !heldBySession()) return
+      void port.whenLoaded().then(() => {
+        if (heldBySession()) applyOpenSessionSettings(port.read(agentPresetName.value)?.settings)
+      })
+    }
+
+    /** The Open Session's settings live in its Session, not on the Harness Session's record. */
+    function heldBySession(): boolean {
+      const id = openSessionId.value
+      const sessionRef = sessions.value[id]?.sessionRef ?? harnessSessionRefs[id]
+      return (
+        !!settingsPort.value &&
+        sessionScoped.value &&
+        !!sessionRef &&
+        sessionRef === sessionsStore.openSessionId
+      )
+    }
+
+    function writeSessionSettings(sent: boolean): void {
+      if (!openSettings.value) return
+      settingsPort.value?.write(agentPresetName.value, cloneForIpc(openSettings.value), sent)
+    }
+
     /** The Open Session has been sent: its stored settings are its own and are checked. */
-    const sessionSent = computed(
-      () => sessionScoped.value && (sessions.value[openSessionId.value]?.messages.length ?? 0) > 0,
-    )
+    const sessionSent = computed(() => {
+      if (heldBySession()) return settingsPort.value?.read(agentPresetName.value)?.sent === true
+      return sessionScoped.value && (sessions.value[openSessionId.value]?.messages.length ?? 0) > 0
+    })
 
     /** Live values right after a sent session loaded; fields still equal to them were not edited. */
     let loadedBaseline: AgentSessionSettings | null = null
@@ -392,11 +430,12 @@ export const useAgentMode = defineStore(
         )
         if (!stored || !loadedBaseline) {
           openSettings.value = next
-          return
+        } else {
+          const kept = keepUneditedSettings(stored, next, loadedBaseline, editedSinceLoad)
+          editedSinceLoad = kept.edited
+          openSettings.value = kept.settings
         }
-        const kept = keepUneditedSettings(stored, next, loadedBaseline, editedSinceLoad)
-        editedSinceLoad = kept.edited
-        openSettings.value = kept.settings
+        if (heldBySession()) writeSessionSettings(sessionSent.value)
       },
       pinned: () => sessionSent.value,
       loaded: (bag, embeddingBackend) => {
@@ -427,6 +466,12 @@ export const useAgentMode = defineStore(
      */
     function resetToDefault(): void {
       if (!sessionScoped.value) return
+      if (heldBySession()) {
+        settingsPort.value?.drop(agentPresetName.value)
+        openSettings.value = null
+        textInference.loadSettingsForActivePreset()
+        return
+      }
       openSettings.value = null
       // The load hands the repaired defaults back through the binding's save.
       textInference.loadSettingsForActivePreset()
@@ -445,7 +490,9 @@ export const useAgentMode = defineStore(
       embeddingBackend: 'llamaCPP' | 'openVINO',
     ): void {
       const record = sessions.value[openSessionId.value]
-      if (!record || record.messages.length === 0 || !sessionsHydrated.value) return
+      const inSession = heldBySession()
+      if (inSession ? !sessionSent.value : !record || record.messages.length === 0) return
+      if (!sessionsHydrated.value) return
       const fromDefaults: AgentSessionSettings = {
         ...sessionSettingsFromBag(defaults, embeddingBackend),
         ...readAgentDefaults(),
@@ -453,7 +500,9 @@ export const useAgentMode = defineStore(
       const filled = fillMissingSessionSettings(openSettings.value ?? {}, fromDefaults)
       if (!filled.changed) return
       openSettings.value = filled.settings
-      rewriteSession(openSessionId.value, { ...record, settings: { ...filled.settings } })
+      if (inSession) writeSessionSettings(true)
+      else if (record)
+        rewriteSession(openSessionId.value, { ...record, settings: { ...filled.settings } })
     }
 
     /** What a record contributes on activation: a sent Agent session always has settings. */
@@ -525,6 +574,10 @@ export const useAgentMode = defineStore(
     /** Change the Open Session's own settings and keep its record (if any) in step. */
     function updateOpenSettings(change: AgentSessionSettings): void {
       openSettings.value = { ...openSettings.value, ...change }
+      if (heldBySession()) {
+        writeSessionSettings(sessionSent.value)
+        return
+      }
       const session = sessions.value[openSessionId.value]
       if (!session) return
       rewriteSession(openSessionId.value, { ...session, settings: { ...openSettings.value } })
@@ -1277,7 +1330,14 @@ export const useAgentMode = defineStore(
           ? workspaceDir.value
           : (existing?.workspaceDir ?? context?.workspaceDir)
       if (!dir || !heldWith) return
-      const settings = open ? openSettings.value : existing ? undefined : context?.settings
+      const inSession = !!harnessSessionRefs[id] && !!settingsPort.value
+      const settings = inSession
+        ? undefined
+        : open
+          ? openSettings.value
+          : existing
+            ? undefined
+            : context?.settings
       const record = snapshotSession({
         id,
         workspaceDir: dir,
@@ -1326,7 +1386,11 @@ export const useAgentMode = defineStore(
         runtime.chat.messages = settleStreamingParts((record?.messages ?? []) as UIMessage[])
       }
       applyOpenSessionAgent(record)
-      applyOpenSessionSettings(settingsOfRecord(record))
+      applyOpenSessionSettings(
+        heldBySession()
+          ? settingsPort.value?.read(agentPresetName.value)?.settings
+          : settingsOfRecord(record),
+      )
     }
 
     function applyOpenSessionAgent(record: AgentSessionRecord | undefined): void {
@@ -1361,7 +1425,6 @@ export const useAgentMode = defineStore(
       settings: AgentSessionSettings
       steps: AgentTaskStep[]
     }): Promise<void> {
-      await leaveOpenSession()
       openSessionId.value = mintSessionId()
       sessionCapabilities.value = null
       if (agent.workspaceDir) {
@@ -1393,15 +1456,7 @@ export const useAgentMode = defineStore(
       }
     }
 
-    /**
-     * Agent preset sessions, and every agent turn of a Session, run on when left.
-     * Outside a Session, Game Agent and Quick Coder keep stop-on-switch.
-     */
-    async function leaveOpenSession(heldWith = agentPresetName.value): Promise<void> {
-      if (sessionsStore.openSessionId || nameUsesSessionSettings(heldWith)) return
-      await stop()
-    }
-
+    // Leaving a session never stops its turn: its runtime is kept until the turn settles.
     function blankSession(): void {
       openSessionId.value = mintSessionId()
       sessionCapabilities.value = null
@@ -1415,7 +1470,6 @@ export const useAgentMode = defineStore(
         await sessionsStore.create()
         return
       }
-      await leaveOpenSession()
       if (await presetSessionStarter?.(agentPresetName.value)) return
       blankSession()
     }
@@ -1448,6 +1502,7 @@ export const useAgentMode = defineStore(
         })
         return
       }
+      await settingsPort.value?.whenLoaded()
       if (sessionRef !== sessionsStore.openSessionId || presetName !== agentPresetName.value) return
       const { harnessSessionId, workspaceDir: dir } = result.harness
       harnessSessionRefs[harnessSessionId] = sessionRef
@@ -1491,7 +1546,6 @@ export const useAgentMode = defineStore(
       if (id === openSessionId.value) return
       const target = sessions.value[id]
       if (!target) return
-      await leaveOpenSession()
       movingSession = true
       try {
         if (target.presetName && target.presetName !== agentPresetName.value) {
@@ -1652,7 +1706,6 @@ export const useAgentMode = defineStore(
     }
 
     async function adoptWorkspace(dir: string): Promise<void> {
-      await leaveOpenSession()
       // A Draft Session set up before its folder was picked keeps what was set up.
       const draft =
         sessionScoped.value && !sessions.value[openSessionId.value]
@@ -1697,7 +1750,6 @@ export const useAgentMode = defineStore(
         await sessionsStore.create()
         return
       }
-      await leaveOpenSession()
       blankGame()
     }
 
@@ -1740,7 +1792,6 @@ export const useAgentMode = defineStore(
       if (workspaceKindOf(previous) === 'games') {
         lastWorkspaceByKind.value = { ...lastWorkspaceByKind.value, games: workspaceDir.value }
       }
-      await leaveOpenSession(previous)
       if (sessionsStore.openSessionId) {
         await enterSessionHarness()
         return
@@ -1825,6 +1876,11 @@ export const useAgentMode = defineStore(
     ): Promise<void> {
       const runtime = turns.runtimeFor(sessionId)
       turnContexts[sessionId] = context
+      // Sending makes the Session's copy its own: from now on it is checked, never re-defaulted.
+      if (!context.stored && sessionId === openSessionId.value && heldBySession()) {
+        openSettings.value = { ...openSessionSettings.value }
+        writeSessionSettings(true)
+      }
       runtime.toolProgress.value = {}
       runtime.processing.value = true
       try {
@@ -1938,7 +1994,14 @@ export const useAgentMode = defineStore(
         }
         context = liveTurnContext()
       } else {
-        context = storedTurnContext(record!, options.settings)
+        const inSession =
+          !options.settings && record?.sessionRef && settingsPort.value
+            ? await settingsPort.value.readStored(
+                record.sessionRef,
+                record.presetName ?? AGENT_PRESET,
+              )
+            : null
+        context = storedTurnContext(record!, options.settings ?? inSession ?? undefined)
         await loadMcpServersFor(context.capabilities)
         const problems = problemsOf({ ...context.settings, capabilities: context.capabilities })
         if (problems.length > 0) {
@@ -2054,6 +2117,7 @@ export const useAgentMode = defineStore(
       linkOpenSessionToAgent,
       startSessionFrom,
       setPresetSessionStarter,
+      bindSessionSettingsPort,
       ensureOpenSessionId,
       sessionScoped,
       settingsProblems,

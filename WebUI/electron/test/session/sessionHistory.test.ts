@@ -16,7 +16,8 @@ vi.mock('../../observability/logger', () => ({
 
 const { createSession, resetSessionsForTest, setSessionDeps } =
   await import('../../session/sessions')
-const { appendHistoryEntry, readHistoryEntries } = await import('../../session/sessionHistory')
+const { appendHistoryEntry, lastTurnPreset, readHistoryEntries } =
+  await import('../../session/sessionHistory')
 
 beforeAll(async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'aipg-session-history-'))
@@ -110,5 +111,28 @@ describe('Session History', () => {
       'a red fox',
       'after the tear',
     ])
+  })
+})
+
+describe('the last turn of a Session', () => {
+  it('names the preset and variant of the newest entry', async () => {
+    const { id } = await createSession()
+    await appendHistoryEntry(id, imageTurn)
+    await appendHistoryEntry(id, {
+      preset: 'Agent',
+      kind: 'agent',
+      prompt: 'tidy the folder',
+      status: 'completed',
+      artifacts: [],
+    })
+    expect(await lastTurnPreset(id)).toEqual({ preset: 'Agent' })
+
+    await appendHistoryEntry(id, { ...imageTurn, variant: 'Quality' })
+    expect(await lastTurnPreset(id)).toEqual({ preset: 'Dummy Image (test)', variant: 'Quality' })
+  })
+
+  it('is null for a Session nothing has run in yet', async () => {
+    const { id } = await createSession()
+    expect(await lastTurnPreset(id)).toBeNull()
   })
 })

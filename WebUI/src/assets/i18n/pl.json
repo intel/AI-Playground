@@ -23,6 +23,7 @@
   "COM_SESSIONS": "Sesje",
   "SESSIONS_NEW": "Nowa sesja",
   "SESSIONS_UNTITLED": "Sesja bez tytułu",
+  "SESSIONS_PRESETS_USED": "Użyte presety",
   "SESSIONS_COLLAPSE": "Zwiń panel sesji",
   "SESSIONS_EXPAND": "Rozwiń panel sesji",
   "SESSIONS_OPTIONS": "Opcje: {title}",

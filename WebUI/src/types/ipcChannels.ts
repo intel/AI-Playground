@@ -43,7 +43,9 @@ import type {
   NewestArtifact,
   SessionArtifact,
   SessionDocument,
+  SessionLastPreset,
   SessionSummary,
+  SessionTurn,
 } from './sessionIpc'
 import type { PresetSessionSettings, SessionSettingsMap } from './sessionSettings'
 import type { SpeechSynthesisRequest } from './speechIpc'
@@ -229,7 +231,11 @@ export const CHANNELS = {
     kind: 'invoke',
     owner: 'main',
     args: [] as unknown as readonly [string],
-    result: null as unknown as IpcOkWith<{ session: SessionDocument; missingFiles: string[] }>,
+    result: null as unknown as IpcOkWith<{
+      session: SessionDocument
+      missingFiles: string[]
+      lastPreset: SessionLastPreset | null
+    }>,
   },
   /** Give a Session a user-chosen title. */
   'sessions:rename': {
@@ -302,6 +308,20 @@ export const CHANNELS = {
     kind: 'invoke',
     owner: 'main',
     args: [] as unknown as readonly [string, string, PresetSessionSettings],
+    result: null as unknown as IpcMutationResult,
+  },
+  /** Claim the Session for a turn the renderer runs itself (audio); fails while it has one. */
+  'sessions:beginTurn': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string, SessionTurn],
+    result: null as unknown as IpcMutationResult,
+  },
+  /** Release the Session from that turn (session id, turn id). */
+  'sessions:endTurn': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string, string],
     result: null as unknown as IpcMutationResult,
   },
   /** The Session's newest artifact of a media type, across every preset; null when it has none. */
