@@ -100,7 +100,10 @@ const harnessSession = vi.fn(async (sessionId: string, presetName: string) => ({
     workspaceDir: `/sessions/${sessionId}/files`,
   },
 }))
-const saveTimelineMessages = vi.fn(async () => ({ success: true as const }))
+const saveTimelineMessages = vi.fn(async (_id: string, messages: unknown) => {
+  structuredClone(messages)
+  return { success: true as const }
+})
 const agentCancel = vi.fn(async () => {})
 
 globalThis.window = {

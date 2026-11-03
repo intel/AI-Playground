@@ -227,7 +227,9 @@ beforeEach(async () => {
         readSettings: (id: string) =>
           ok(async () => ({ settings: await settingsModule.readSessionSettings(id) }))(),
         writePresetSettings: (id: string, name: string, entry: never) =>
-          ok(async () => settingsModule.writePresetSettings(id, name, entry).then(() => ({})))(),
+          ok(async () =>
+            settingsModule.writePresetSettings(id, name, structuredClone(entry)).then(() => ({})),
+          )(),
       },
     },
   })

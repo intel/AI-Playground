@@ -111,7 +111,7 @@ export const useSessionSettings = defineStore('sessionSettings', () => {
       const result = await window.electronAPI.sessions.writePresetSettings(
         sessionId,
         presetName,
-        entry,
+        clone(entry),
       )
       if (!result.success) throw new Error(result.error)
     } catch (error) {

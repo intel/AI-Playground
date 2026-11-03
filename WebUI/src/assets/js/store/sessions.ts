@@ -9,6 +9,7 @@ import type {
   SessionTurn,
   SessionTurns,
 } from '@/types/sessionIpc'
+import { cloneForIpc } from '@/lib/cloneForIpc'
 import type { MediaTurnData } from '@/types/sessionTimeline'
 
 /** A panel run submitted in a Session whose turn has not settled into its timeline yet. */
@@ -185,7 +186,7 @@ export const useSessions = defineStore('sessions', () => {
       openTimeline.value = timeline
     }
     await call('sessions/save-timeline-failed', () =>
-      window.electronAPI.sessions.saveTimelineMessages(id, messages),
+      window.electronAPI.sessions.saveTimelineMessages(id, cloneForIpc(messages)),
     )
   }
 

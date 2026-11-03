@@ -13,6 +13,7 @@ import {
 } from '@/assets/js/speech/speechIO'
 import { bytesToBase64 } from '@/lib/synthesizeSpeech'
 import { formatTtsAudioTimestamp } from '@/lib/ttsAudioFileName'
+import { cloneForIpc } from '@/lib/cloneForIpc'
 import type { AudioTurnRequest } from '@/types/sessionIpc'
 
 export type AudioTurnPhase = 'loading-model' | 'generating' | 'transcribing'
@@ -114,7 +115,7 @@ export const useSessionAudio = defineStore('sessionAudio', () => {
 
   async function settle(request: AudioTurnRequest): Promise<void> {
     try {
-      const result = await window.electronAPI.sessions.recordAudioTurn(request)
+      const result = await window.electronAPI.sessions.recordAudioTurn(cloneForIpc(request))
       if (!result.success) throw new Error(result.error)
     } catch (error) {
       errors.report(error, {

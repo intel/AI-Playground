@@ -79,7 +79,7 @@ beforeEach(async () => {
         }),
         recordAudioTurn: async (turn: Parameters<typeof recordAudioTurn>[0]) => ({
           success: true,
-          session: await recordAudioTurn(turn),
+          session: await recordAudioTurn(structuredClone(turn)),
         }),
         beginTurn: async (id: string, turn: Parameters<typeof ledger.claimSessionTurn>[1]) =>
           ledger.claimSessionTurn(id, turn)
