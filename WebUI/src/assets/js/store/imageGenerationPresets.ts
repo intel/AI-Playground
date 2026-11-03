@@ -1,5 +1,5 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, shallowRef, watch } from 'vue'
 import { demoAwareStorage } from '../demoAwareStorage'
 import { makeFileBackedPreference } from '@/lib/fileBackedPreferences'
 import { cloneForIpc } from '@/lib/cloneForIpc'
@@ -212,15 +212,12 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
     const savePerPreset = (input: ComfyInput, newValue: unknown) => {
       const settingsKey = getSettingsKey()
       if (!settingsKey) return
-      comfyInputsPerPreset.value[settingsKey] = {
-        ...comfyInputsPerPreset.value[settingsKey],
-        [inputRef(input)]: newValue,
-      }
+      patchSaved(settingsKey, 'inputs', { [inputRef(input)]: newValue })
     }
     const getSavedOrDefault = (input: ComfyInput) => {
       const settingsKey = getSettingsKey()
       const raw = settingsKey
-        ? (comfyInputsPerPreset.value[settingsKey]?.[inputRef(input)] ?? input.defaultValue)
+        ? (savedInputsFor(settingsKey)?.[inputRef(input)] ?? input.defaultValue)
         : input.defaultValue
       if (
         input.type === 'model' &&
@@ -296,6 +293,62 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
       return { ...section, comfyInputsPerPreset: filteredInputs }
     },
   })
+
+  /** A preset's saved settings and inputs in the shape both the defaults and a Session keep them. */
+  type ComfySettingsValues = { settings: Record<string, unknown>; inputs: Record<string, unknown> }
+
+  /**
+   * The open Session's Session Settings (ADR-0004), bound by the Session Settings store.
+   * `use` copies the Default Settings on first use; null means no Session applies and the
+   * per-preset maps (the Default Settings) are read and written as before.
+   */
+  type ComfySessionBinding = {
+    use: (settingsKey: string, defaults: ComfySettingsValues) => ComfySettingsValues | null
+    peek: (settingsKey: string) => ComfySettingsValues | null
+    write: (settingsKey: string, values: ComfySettingsValues) => void
+  }
+  const sessionBinding = shallowRef<ComfySessionBinding | null>(null)
+
+  function bindSessionSettings(binding: ComfySessionBinding | null): void {
+    sessionBinding.value = binding
+  }
+
+  function defaultsFor(settingsKey: string): ComfySettingsValues {
+    return {
+      settings: { ...settingsPerPreset.value[settingsKey] },
+      inputs: { ...comfyInputsPerPreset.value[settingsKey] },
+    }
+  }
+
+  function savedSettingsFor(settingsKey: string): Record<string, unknown> | undefined {
+    return sessionBinding.value?.peek(settingsKey)?.settings ?? settingsPerPreset.value[settingsKey]
+  }
+
+  /** Saved inputs for a settings key: the open Session's when it has used the preset. */
+  function savedInputsFor(settingsKey: string): Record<string, unknown> | undefined {
+    return (
+      sessionBinding.value?.peek(settingsKey)?.inputs ?? comfyInputsPerPreset.value[settingsKey]
+    )
+  }
+
+  function patchSaved(
+    settingsKey: string,
+    part: keyof ComfySettingsValues,
+    patch: Record<string, unknown>,
+  ): void {
+    const inSession = sessionBinding.value?.peek(settingsKey)
+    if (inSession) {
+      sessionBinding.value!.write(settingsKey, {
+        ...inSession,
+        [part]: { ...inSession[part], ...patch },
+      })
+      return
+    }
+    const map = part === 'settings' ? settingsPerPreset : comfyInputsPerPreset
+    map.value[settingsKey] = { ...map.value[settingsKey], ...patch }
+  }
+
+  let loadingSettings = false
 
   let modelOptionsLoadToken = 0
 
@@ -452,33 +505,34 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
     settings.height.value = h
   })
 
-  watch([inferenceSteps, width, height, batchSize], () => {
-    console.log('### watch inferenceSteps, width, height, batchSize', {
-      inferenceSteps: inferenceSteps.value,
-      width: width.value,
-      height: height.value,
-      batchSize: batchSize.value,
-    })
-    const saveToSettingsPerPreset = (settingName: keyof typeof settings) => {
-      const settingsKey = getSettingsKey()
-      if (!settingsKey) return
-      if (isModifiable(settingName)) {
-        settingsPerPreset.value[settingsKey] = {
-          ...settingsPerPreset.value[settingsKey],
-          [settingName]: settings[settingName]?.value,
+  watch(
+    [inferenceSteps, width, height, batchSize, seed, negativePrompt, safetyCheck, showPreview],
+    () => {
+      if (loadingSettings) return
+      console.log('### watch inferenceSteps, width, height, batchSize', {
+        inferenceSteps: inferenceSteps.value,
+        width: width.value,
+        height: height.value,
+        batchSize: batchSize.value,
+      })
+      const saveToSettingsPerPreset = (settingName: keyof typeof settings) => {
+        const settingsKey = getSettingsKey()
+        if (!settingsKey) return
+        if (isModifiable(settingName)) {
+          patchSaved(settingsKey, 'settings', { [settingName]: settings[settingName]?.value })
         }
       }
-    }
-    saveToSettingsPerPreset('seed')
-    saveToSettingsPerPreset('inferenceSteps')
-    saveToSettingsPerPreset('width')
-    saveToSettingsPerPreset('height')
-    saveToSettingsPerPreset('resolution')
-    saveToSettingsPerPreset('batchSize')
-    saveToSettingsPerPreset('negativePrompt')
-    saveToSettingsPerPreset('safetyCheck')
-    saveToSettingsPerPreset('showPreview')
-  })
+      saveToSettingsPerPreset('seed')
+      saveToSettingsPerPreset('inferenceSteps')
+      saveToSettingsPerPreset('width')
+      saveToSettingsPerPreset('height')
+      saveToSettingsPerPreset('resolution')
+      saveToSettingsPerPreset('batchSize')
+      saveToSettingsPerPreset('negativePrompt')
+      saveToSettingsPerPreset('safetyCheck')
+      saveToSettingsPerPreset('showPreview')
+    },
+  )
 
   const generatedImages = ref<MediaItem[]>([])
   const currentState = ref<GenerateState>('no_start')
@@ -764,14 +818,16 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
     if (!activePreset.value) return
 
     const settingsKey = getSettingsKey()
+    if (settingsKey) sessionBinding.value?.use(settingsKey, defaultsFor(settingsKey))
+    loadingSettings = true
     console.log(
       '### loadSettingsForActivePreset',
       settingsKey,
-      JSON.stringify(settingsPerPreset.value[settingsKey], null, 2),
+      JSON.stringify(savedSettingsFor(settingsKey), null, 2),
     )
     const getSavedOrDefault = (settingName: string) => {
       if (!settingsKey) return
-      const saved = settingsPerPreset.value[settingsKey]?.[settingName]
+      const saved = savedSettingsFor(settingsKey)?.[settingName]
       const presetValue = getSettingValue(settingName)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const globalDefaultValue: any =
@@ -791,6 +847,9 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
       getSavedOrDefault('negativePrompt') ?? globalDefaultSettings.negativePrompt
     safetyCheck.value = getSavedOrDefault('safetyCheck') ?? generalDefaultSettings.safetyCheck
     showPreview.value = getSavedOrDefault('showPreview') ?? generalDefaultSettings.showPreview
+    nextTick(() => {
+      loadingSettings = false
+    })
 
     syncSelectedReferenceImage()
 
@@ -1299,6 +1358,9 @@ export const useImageGenerationPresets = defineStore('imageGenerationPresets', (
     settingsPerPreset,
     comfyInputsPerPreset,
     comfyInputs,
+    bindSessionSettings,
+    defaultsFor,
+    savedInputsFor,
     resetActivePresetSettings,
     getMissingModels,
     getMissingModelsFor,

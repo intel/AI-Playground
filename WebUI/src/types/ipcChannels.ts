@@ -36,6 +36,7 @@ import type {
 import type { RagDocumentSection } from './ragDocumentIpc'
 import type { BackendLaunchSettings, BackendVersionWire } from './preferencesIpc'
 import type { AudioTurnRequest, SessionDocument, SessionSummary } from './sessionIpc'
+import type { PresetSessionSettings, SessionSettingsMap } from './sessionSettings'
 import type { SpeechSynthesisRequest } from './speechIpc'
 import type { ChannelMessageOwner, NotificationConfig } from './notificationsIpc'
 import type {
@@ -241,6 +242,20 @@ export const CHANNELS = {
     owner: 'main',
     args: [] as unknown as readonly [AudioTurnRequest],
     result: null as unknown as IpcOkWith<{ session: SessionDocument }>,
+  },
+  /** A Session's Session Settings, every preset's at once (ADR-0004). */
+  'sessions:readSettings': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string],
+    result: null as unknown as IpcOkWith<{ settings: SessionSettingsMap }>,
+  },
+  /** Replace one preset's Session Settings in a Session. */
+  'sessions:writePresetSettings': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string, string, PresetSessionSettings],
+    result: null as unknown as IpcMutationResult,
   },
   /** All preference sections at once; the file is small, so every store picks its own. */
   'preferences:read': {

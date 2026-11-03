@@ -53,7 +53,7 @@ function summaryOf(file: SessionFile): SessionSummary {
   return { id, title, renamed, createdAt, updatedAt, presetsUsed }
 }
 
-async function requireSessionFile(id: string): Promise<SessionFile> {
+export async function readSession(id: string): Promise<SessionFile> {
   const read = await readSessionFile(id)
   if (read.status === 'ok') return read.file
   throw new Error(
@@ -109,7 +109,7 @@ export function sessionDocumentOf(file: SessionFile): SessionDocument {
 }
 
 export async function openSession(id: string): Promise<SessionDocument> {
-  return sessionDocumentOf(await requireSessionFile(id))
+  return sessionDocumentOf(await readSession(id))
 }
 
 /** Read-modify-write of one `session.json` on that Session's write chain. */
@@ -119,7 +119,7 @@ export async function mutateSession(
 ): Promise<SessionFile> {
   assertSessionId(id)
   return serializeSession(id, async () => {
-    const next = mutate(await requireSessionFile(id))
+    const next = mutate(await readSession(id))
     await writeSessionFile(next)
     return next
   })

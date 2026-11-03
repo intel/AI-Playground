@@ -38,9 +38,7 @@ vi.mock('@/assets/js/store/imageGenerationPresets', () => ({
     set generatedImages(value: MediaItem[]) {
       generatedImages.value = value
     },
-    get comfyInputsPerPreset() {
-      return comfyInputsPerPreset.value
-    },
+    savedInputsFor: (settingsKey: string) => comfyInputsPerPreset.value[settingsKey],
     get lastError() {
       return lastError.value
     },

@@ -9,6 +9,8 @@ import type {
   openSession,
   renameSession,
 } from '../../session/sessions'
+import type { readSessionSettings, writePresetSettings } from '../../session/sessionSettings'
+import { PresetSessionSettingsSchema } from '@/types/sessionSettings'
 
 export type SessionsDeps = {
   listSessions: typeof listSessions
@@ -17,6 +19,8 @@ export type SessionsDeps = {
   renameSession: typeof renameSession
   deleteSession: typeof deleteSession
   recordAudioTurn: typeof recordAudioTurn
+  readSessionSettings: typeof readSessionSettings
+  writePresetSettings: typeof writePresetSettings
 }
 
 function requireString(value: unknown, what: string): string {
@@ -73,6 +77,28 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
       try {
         const session = await deps.recordAudioTurn(AudioTurnRequestSchema.parse(turn))
         return { success: true as const, session }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:readSettings': async (_event, id) => {
+      try {
+        return {
+          success: true as const,
+          settings: await deps.readSessionSettings(requireString(id, 'session id')),
+        }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:writePresetSettings': async (_event, id, presetName, entry) => {
+      try {
+        await deps.writePresetSettings(
+          requireString(id, 'session id'),
+          requireString(presetName, 'preset name'),
+          PresetSessionSettingsSchema.parse(entry),
+        )
+        return { success: true as const }
       } catch (e) {
         return ipcFail(e)
       }

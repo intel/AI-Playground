@@ -59,6 +59,13 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
   const setupWizard = useSetupWizard()
   const errors = useErrors()
 
+  /** The variant the open Session last used a preset with (ADR-0004), bound by the Session Settings store. */
+  let sessionVariant: ((presetName: string) => string | undefined) | null = null
+
+  function bindSessionVariant(resolver: ((presetName: string) => string | undefined) | null) {
+    sessionVariant = resolver
+  }
+
   // Switching state
   const isSwitching = ref(false)
   const switchingPresetName = ref<string | null>(null)
@@ -84,8 +91,9 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
   ): void {
     presets.activePresetName = presetName
 
-    if (options.variant) {
-      presets.setActiveVariant(presetName, options.variant)
+    const variant = options.variant ?? sessionVariant?.(presetName)
+    if (variant) {
+      presets.setActiveVariant(presetName, variant)
     } else if (preset.variants && preset.variants.length > 0) {
       const currentVariant = presets.activeVariantName[presetName]
       if (!currentVariant) {
@@ -292,6 +300,7 @@ export const usePresetSwitching = defineStore('presetSwitching', () => {
     // Actions
     switchPreset,
     switchVariant,
+    bindSessionVariant,
     switchToLastUsedForCategory,
     reconcileActivePresetAfterCatalogReload,
     syncModeWithActivePreset,

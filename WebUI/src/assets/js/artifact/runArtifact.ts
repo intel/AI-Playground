@@ -244,7 +244,7 @@ export async function runArtifact(
   const mode: WorkflowModeType = request.mode ?? (presetToMode(preset) as WorkflowModeType)
   const params = resolveParams(request, preset)
   const settingsKey = presetSettingsKey(preset.name, variantName)
-  const inputs = resolveInputs(preset, imageGen.comfyInputsPerPreset[settingsKey])
+  const inputs = resolveInputs(preset, imageGen.savedInputsFor(settingsKey))
 
   // 2. Edit kinds: inject the source image into the first required image
   // input, matching what the settings sidebar's LoadImage field would hold.

@@ -32,6 +32,8 @@ describe('per-owner handler registries', () => {
       | 'sessions:rename'
       | 'sessions:delete'
       | 'sessions:recordAudioTurn'
+      | 'sessions:readSettings'
+      | 'sessions:writePresetSettings'
     >()
     expectTypeOf<
       keyof ReturnType<typeof buildSessionsRegistry>

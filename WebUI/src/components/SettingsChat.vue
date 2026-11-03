@@ -273,12 +273,14 @@
           />
         </SettingsRow>
 
-        <div class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
-          <button class="mt-4" @click="textInference.resetActivePresetSettings">
-            <div class="svg-icon i-refresh">Reset</div>
-            {{ languages.COM_LOAD_PRESET_DEFAULTS || 'Reset Preset Settings' }}
-          </button>
-        </div>
+        <SessionSettingsActions>
+          <div class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
+            <button class="mt-4" @click="textInference.resetActivePresetSettings">
+              <div class="svg-icon i-refresh">Reset</div>
+              {{ languages.COM_LOAD_PRESET_DEFAULTS || 'Reset Preset Settings' }}
+            </button>
+          </div>
+        </SessionSettingsActions>
       </div>
       <rag v-if="showUploader" ref="ragPanel" @close="showUploader = false"></rag>
     </div>
@@ -316,6 +318,7 @@ import DropDownNew from '@/components/DropDownNew.vue'
 import { usePresets, type ChatPreset } from '@/assets/js/store/presets.ts'
 import { usePresetSwitching } from '@/assets/js/store/presetSwitching.ts'
 import PresetSelector from '@/components/PresetSelector.vue'
+import SessionSettingsActions from '@/components/SessionSettingsActions.vue'
 import * as toast from '@/assets/js/toast'
 import { useProductMode } from '@/assets/js/store/productMode'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from '@/assets/js/store/conversations'

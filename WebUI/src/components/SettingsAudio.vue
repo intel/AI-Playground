@@ -14,8 +14,9 @@
     <!-- Speech to Text: a direct Whisper transcriber, no LLM controls. -->
     <SettingsStt v-else-if="isSttPreset" />
 
-    <!-- Same reset affordance the Chat and workflow panels carry, so every preset
-         offers a way back to its defaults. -->
+    <SessionSettingsActions v-if="isTtsPreset || isSttPreset" />
+
+    <!-- The engine and voice are global (ADR-0004), so this resets them for every Session. -->
     <div
       v-if="isTtsPreset || isSttPreset"
       class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2"
@@ -33,6 +34,7 @@ import { computed } from 'vue'
 import PresetSelector from '@/components/PresetSelector.vue'
 import SettingsTts from '@/components/SettingsTts.vue'
 import SettingsStt from '@/components/SettingsStt.vue'
+import SessionSettingsActions from '@/components/SessionSettingsActions.vue'
 import { AUDIO_CATEGORY, usePresets, type ChatPreset } from '@/assets/js/store/presets'
 import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
 import { useI18N } from '@/assets/js/store/i18n'

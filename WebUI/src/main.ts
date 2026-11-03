@@ -8,6 +8,7 @@ import { useErrors } from './assets/js/store/errors'
 import { usePromptStore } from './assets/js/store/promptArea'
 import { useConversations } from './assets/js/store/conversations'
 import { useSessions } from './assets/js/store/sessions'
+import { useSessionSettings } from './assets/js/store/sessionSettings'
 import { useAgentMode } from './assets/js/store/agentMode'
 import { useAgentTasks } from './assets/js/store/agentTasks'
 import { useImageGenerationPresets } from './assets/js/store/imageGenerationPresets'
@@ -131,6 +132,10 @@ await Promise.all([
 
 // Reads the Agent preset's saved defaults, which hydrate with textInference above.
 useAgentMode().adoptNotifyCapability()
+
+// Binds every other preset's settings to the open Session once the Default Settings
+// they copy from have hydrated (ADR-0004).
+await useSessionSettings().whenLoaded()
 
 // Relabel a parked chat tool's activity with its queue position (the
 // orchestrator's queue events, step 7). Ledger events (activity / error /

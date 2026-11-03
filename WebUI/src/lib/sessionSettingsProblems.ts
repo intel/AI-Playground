@@ -4,7 +4,7 @@ import { MCP_CAPABILITY_PREFIX } from '@/types/agentCapabilities'
 type LocalBackend = 'llamaCPP' | 'openVINO'
 
 export type SessionSettingsProblemField =
-  'backend' | 'model' | 'device' | 'cloudProvider' | 'mcpServer' | 'embeddingModel'
+  'backend' | 'model' | 'device' | 'cloudProvider' | 'mcpServer' | 'embeddingModel' | 'variant'
 
 export type SessionSettingsProblem = { field: SessionSettingsProblemField; value: string }
 
@@ -16,6 +16,7 @@ export const PROBLEM_FIELD_LABEL_KEYS: Record<SessionSettingsProblemField, strin
   cloudProvider: 'AGENT_SETTING_PROVIDER',
   mcpServer: 'AGENT_SETTING_MCP_SERVER',
   embeddingModel: 'AGENT_SETTING_EMBEDDING_MODEL',
+  variant: 'AGENT_SETTING_VARIANT',
 }
 
 /** One problem as the user reads it, e.g. Model “Qwen3-9B” is no longer available. */

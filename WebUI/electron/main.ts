@@ -234,6 +234,7 @@ import {
   setSessionDeps,
   wipeDemoSessions,
 } from './session/sessions'
+import { readSessionSettings, writePresetSettings } from './session/sessionSettings'
 import { buildAgentModeRegistry } from './kernel/registries/agentMode'
 import { buildChatRegistry } from './kernel/registries/chat'
 import { buildComfyuiRegistry } from './kernel/registries/comfyui'
@@ -1813,6 +1814,8 @@ function initEventHandle() {
       renameSession,
       deleteSession,
       recordAudioTurn,
+      readSessionSettings,
+      writePresetSettings,
     }),
   )
 

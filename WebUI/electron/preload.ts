@@ -11,6 +11,7 @@ import type { AgentMediaFileAction, AgentMediaFileRef } from '@/types/agentMedia
 import type { AgentSessionRecordWire } from '@/types/agentSessionIpc'
 import type { AudioTurnRequest } from '@/types/sessionIpc'
 import type { AgentTask } from '@/types/agentTaskIpc'
+import type { PresetSessionSettings } from '@/types/sessionSettings'
 import type { ArtifactRunRequest } from '@/types/artifactIpc'
 import type { ChatSummarizeRequest, ChatTurnRequest } from '@/types/chatIpc'
 import type { ChatAnswerPayload, ChatAskPayload } from '@/types/chatRequests'
@@ -274,6 +275,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (id: string) => invoke('sessions:delete', id),
     recordAudioTurn: (turn: AudioTurnRequest) =>
       invoke('sessions:recordAudioTurn', cloneForIpc(turn)),
+    readSettings: (id: string) => invoke('sessions:readSettings', id),
+    writePresetSettings: (id: string, presetName: string, entry: PresetSessionSettings) =>
+      invoke('sessions:writePresetSettings', id, presetName, cloneForIpc(entry)),
   },
   conversations: {
     bootstrap: () => invoke('conversations:bootstrap'),

@@ -154,15 +154,17 @@
             {{ languages.AGENT_RESET_TO_DEFAULT }}
           </Button>
         </div>
-        <div
+        <SessionSettingsActions
           v-else-if="!agentMode.sessionScoped"
-          class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2"
+          @reset="agentMode.resetPresetSettings()"
         >
-          <button class="mt-4" @click="resetPresetSettings">
-            <div class="svg-icon i-refresh">Reset</div>
-            {{ languages.COM_LOAD_PRESET_DEFAULTS || 'Reset Preset Settings' }}
-          </button>
-        </div>
+          <div class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
+            <button class="mt-4" @click="resetPresetSettings">
+              <div class="svg-icon i-refresh">Reset</div>
+              {{ languages.COM_LOAD_PRESET_DEFAULTS || 'Reset Preset Settings' }}
+            </button>
+          </div>
+        </SessionSettingsActions>
       </template>
     </AgentSettingsForm>
 
@@ -191,6 +193,7 @@ import { storeMediaToolSettings } from '@/lib/mediaToolSettings'
 import { useAgentBackendItems } from '@/assets/js/agentBackendItems'
 import ProviderSelector from '@/components/ProviderSelector.vue'
 import PresetSelector from '@/components/PresetSelector.vue'
+import SessionSettingsActions from '@/components/SessionSettingsActions.vue'
 import AgentSettingsForm from '@/components/AgentSettingsForm.vue'
 import AgentSaveBar from '@/components/AgentSaveBar.vue'
 import SettingsAgents from '@/components/SettingsAgents.vue'

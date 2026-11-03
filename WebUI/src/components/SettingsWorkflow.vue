@@ -181,12 +181,14 @@
 
         <ComfyDynamic></ComfyDynamic>
 
-        <div class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
-          <button class="mt-4" @click="imageGeneration.resetActivePresetSettings">
-            <div class="svg-icon i-refresh">Reset</div>
-            {{ languages.COM_LOAD_PRESET_DEFAULTS || 'Reset Preset Settings' }}
-          </button>
-        </div>
+        <SessionSettingsActions>
+          <div class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
+            <button class="mt-4" @click="imageGeneration.resetActivePresetSettings">
+              <div class="svg-icon i-refresh">Reset</div>
+              {{ languages.COM_LOAD_PRESET_DEFAULTS || 'Reset Preset Settings' }}
+            </button>
+          </div>
+        </SessionSettingsActions>
 
         <div
           v-if="currentPreset?.type === 'comfy' && currentPreset?.backend === 'comfyui'"
@@ -230,6 +232,7 @@ import { useBackendServices } from '@/assets/js/store/backendServices'
 import * as toast from '@/assets/js/toast'
 import AspectRatioPicker from './AspectRatioPicker.vue'
 import PresetSelector from './PresetSelector.vue'
+import SessionSettingsActions from './SessionSettingsActions.vue'
 
 interface Props {
   categories: string[]

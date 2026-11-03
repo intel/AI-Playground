@@ -5,13 +5,23 @@
         <p class="text-red-500">{{ contextError }}</p>
       </div>
       <div
-        v-if="agentSettingsProblems.length > 0"
+        v-if="settingsProblems.length > 0"
         role="alert"
-        aria-label="Agent session settings unusable"
+        :aria-label="
+          agentSettingsProblems.length > 0
+            ? 'Agent session settings unusable'
+            : 'Session settings unusable'
+        "
         class="w-full max-w-3xl text-sm text-amber-500 flex flex-col gap-1"
       >
-        <p>{{ languages?.AGENT_SETTINGS_UNUSABLE }}</p>
-        <p v-for="problem in agentSettingsProblems" :key="`${problem.field}:${problem.value}`">
+        <p>
+          {{
+            agentSettingsProblems.length > 0
+              ? languages?.AGENT_SETTINGS_UNUSABLE
+              : languages?.SESSION_SETTINGS_UNUSABLE
+          }}
+        </p>
+        <p v-for="problem in settingsProblems" :key="`${problem.field}:${problem.value}`">
           {{ describeSettingsProblem(problem) }}
         </p>
       </div>
@@ -429,7 +439,7 @@
                     <Button
                       @click="handleRunStepsClick"
                       :aria-label="languages?.AGENT_STEPS_RUN"
-                      :disabled="agentSettingsProblems.length > 0 || isSlashCommand"
+                      :disabled="settingsProblems.length > 0 || isSlashCommand"
                       class="px-3 py-1.5 bg-primary hover:bg-primary/80 rounded-lg text-sm min-w-[44px] flex items-center justify-center"
                     >
                       <PlayIcon class="size-4" aria-hidden="true" />
@@ -443,7 +453,7 @@
                       @click="handleSubmitPromptClick"
                       id="send-button"
                       aria-label="Send"
-                      :disabled="agentSettingsProblems.length > 0"
+                      :disabled="settingsProblems.length > 0"
                       class="px-3 py-1.5 bg-primary hover:bg-primary/80 rounded-lg text-sm min-w-[44px]"
                     >
                       →
@@ -521,6 +531,7 @@ import {
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
 import { useAgentMode } from '@/assets/js/store/agentMode'
 import { useSessionAudio } from '@/assets/js/store/sessionAudio'
+import { useSessionSettings } from '@/assets/js/store/sessionSettings'
 import { useAgentTasks } from '@/assets/js/store/agentTasks'
 import {
   describeSettingsProblem as describeProblem,
@@ -575,6 +586,7 @@ const imageGeneration = useImageGenerationPresets()
 const openAiCompatibleChat = useOpenAiCompatibleChat()
 const agentMode = useAgentMode()
 const sessionAudio = useSessionAudio()
+const sessionSettings = useSessionSettings()
 const agentTasks = useAgentTasks()
 const oemBranding = useOemBranding()
 const settingsLabel = useModeSettingsLabel(() => promptStore.getCurrentMode())
@@ -1112,18 +1124,25 @@ const agentSettingsProblems = computed(() =>
   promptStore.getCurrentMode() === 'agent' ? agentMode.settingsProblems : [],
 )
 
+/** Every other preset's Session Settings block the same way (ADR-0004). */
+const settingsProblems = computed(() => [
+  ...agentSettingsProblems.value,
+  ...sessionSettings.problems,
+])
+
 function describeSettingsProblem(problem: SessionSettingsProblem): string {
   return describeProblem(problem, languages as unknown as Record<string, string>)
 }
 
 function handleSubmitPromptClick() {
-  if (agentSettingsProblems.value.length > 0 || downloadGroup.value) return
+  if (settingsProblems.value.length > 0 || downloadGroup.value) return
   const needsPrompt = isChatLikeMode.value || imageGeneration.requiresUserPrompt
   if (needsPrompt && !prompt.value.trim()) {
     toast.error(languages?.COM_ERROR_NO_MESSAGE || 'Please enter a message before sending.')
     return
   }
   emits('autoHideFooter')
+  sessionSettings.markSent()
   promptStore.submitPrompt(prompt.value)
 }
 
@@ -1138,7 +1157,7 @@ const canRunSteps = computed(
 const isSlashCommand = computed(() => prompt.value.trim().startsWith('/'))
 
 function handleRunStepsClick() {
-  if (agentSettingsProblems.value.length > 0 || isSlashCommand.value) return
+  if (settingsProblems.value.length > 0 || isSlashCommand.value) return
   emits('autoHideFooter')
   promptStore.promptSubmitted = true
   void agentTasks.runSteps(prompt.value)

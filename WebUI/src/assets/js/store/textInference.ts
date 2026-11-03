@@ -1525,7 +1525,7 @@ export const useTextInference = defineStore(
       isLoadingSettings = true
 
       const defaultSettings = settingsPerPreset.value[settingsKey] || {}
-      const binding = usesSessionSettings(activePreset.value) ? sessionSettingsBinding : null
+      const binding = activeSettingsBinding()
       const sessionSettings = binding?.load(defaultSettings, embeddingBackend.value) ?? null
       const savedSettings = sessionSettings ?? defaultSettings
       // A sent session's stored backend is applied as-is; an unusable one blocks Send instead.
@@ -1789,7 +1789,10 @@ export const useTextInference = defineStore(
       }
 
       // A session with no settings of its own (a Draft Session) takes the repaired defaults.
-      if (binding && !sessionSettings) binding.save(sessionSettingsBag(), embeddingBackend.value)
+      const repairedFromDefaults = !pinned && binding === presetSessionBinding
+      if (binding && (!sessionSettings || repairedFromDefaults)) {
+        binding.save(sessionSettingsBag(), embeddingBackend.value, true)
+      }
       if (pinned) binding.loaded(sessionSettingsBag(), embeddingBackend.value)
 
       // Defer clearing the flag so the persistence watcher (default flush:
@@ -1953,7 +1956,12 @@ export const useTextInference = defineStore(
         defaults: SettingsBag,
         embeddingBackend: Exclude<LlmBackend, 'cloud'>,
       ) => SettingsBag | null
-      save: (bag: SettingsBag, embeddingBackend: Exclude<LlmBackend, 'cloud'>) => void
+      /** `fromLoad` marks the repaired values a load hands back, as opposed to an edit. */
+      save: (
+        bag: SettingsBag,
+        embeddingBackend: Exclude<LlmBackend, 'cloud'>,
+        fromLoad?: boolean,
+      ) => void
       /** Whether the active session was already sent, so its stored values must not be swapped. */
       pinned: () => boolean
       /** The live values right after a pinned session loaded. */
@@ -1973,12 +1981,36 @@ export const useTextInference = defineStore(
       sessionSettingsBindingRef.value = binding
     }
 
-    /** True while the Agent preset shows a sent session: nothing may replace its stored model. */
-    const sessionSettingsPinned = computed(
-      () =>
-        usesSessionSettings(activePreset.value) &&
-        sessionSettingsBindingRef.value?.pinned() === true,
-    )
+    /**
+     * Every other chat preset's Session Settings (ADR-0004), bound by the Session Settings
+     * store. `applies` says whether the open Session holds the given preset's settings.
+     */
+    type PresetSessionBinding = SessionSettingsBinding & {
+      applies: (preset: ChatPreset) => boolean
+    }
+    let presetSessionBinding: PresetSessionBinding | null = null
+    const presetSessionBindingRef = shallowRef<PresetSessionBinding | null>(null)
+
+    function bindPresetSessionSettings(binding: PresetSessionBinding | null): void {
+      presetSessionBinding = binding
+      presetSessionBindingRef.value = binding
+    }
+
+    function activeSettingsBinding(): SessionSettingsBinding | null {
+      const preset = activePreset.value
+      if (!preset) return null
+      if (usesSessionSettings(preset)) return sessionSettingsBinding
+      return presetSessionBinding?.applies(preset) ? presetSessionBinding : null
+    }
+
+    /** True while the active preset shows settings the Session sent with: nothing may replace its stored model. */
+    const sessionSettingsPinned = computed(() => {
+      const preset = activePreset.value
+      if (!preset) return false
+      if (usesSessionSettings(preset)) return sessionSettingsBindingRef.value?.pinned() === true
+      const binding = presetSessionBindingRef.value
+      return binding?.applies(preset) === true && binding.pinned()
+    })
 
     /** What can be served right now, for checking a sent session's stored settings. */
     const settingsAvailability = computed(() => ({
@@ -2071,7 +2103,11 @@ export const useTextInference = defineStore(
         if (!settingsKey) return
 
         const bag = currentSettingsBag()
-        const binding = usesSessionSettings(activePreset.value) ? sessionSettingsBinding : null
+        const binding = activeSettingsBinding()
+        if (binding && binding === presetSessionBinding) {
+          binding.save(sessionSettingsBag(), embeddingBackend.value)
+          return
+        }
         if (binding) {
           // The preset's bag holds the Default Settings; session-owned values go to the session.
           binding.save(sessionSettingsBag(), embeddingBackend.value)
@@ -2097,7 +2133,7 @@ export const useTextInference = defineStore(
         if (!settingsKey) return
 
         const currentDeviceId = getCurrentDeviceId()
-        const binding = usesSessionSettings(activePreset.value) ? sessionSettingsBinding : null
+        const binding = activeSettingsBinding()
         if (currentDeviceId && binding) {
           binding.save(sessionSettingsBag(), embeddingBackend.value)
         } else if (currentDeviceId) {
@@ -2215,6 +2251,7 @@ export const useTextInference = defineStore(
 
     return {
       bindSessionSettings,
+      bindPresetSessionSettings,
       sessionSettingsPinned,
       settingsAvailability,
       inferenceForSettings,
