@@ -1679,3 +1679,21 @@ timings, `backendVersion`, the full `serverArgs`, `aipg.thinking`) and a cloud a
 (`backend=cloud` + provider id, measured speeds, no server args). OVMS could not be smoked on
 macOS — no OpenVINO LLM models are offered there — but it takes the same measured fallback as
 cloud and the same snapshot reader as llama.cpp.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs are local markdown files under `.scratch/<feature>/`. See
+`docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default triage roles, each label string the same as its role name (`needs-triage`,
+`needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`), recorded as a `Status:` line in
+each issue file. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one root `GLOSSARY.md` (created when first needed) and the ADRs in `docs/adr/`.
+See `docs/agents/domain.md`.

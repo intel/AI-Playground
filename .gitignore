@@ -56,3 +56,6 @@ WebUI/external/laminar.localhost.json
 # redistributed, so the raw scores stay on the machine that fetched them; only
 # the thresholded booleans they inform are committed.
 docs/agentic-scores.local.json
+
+# Local markdown issue tracker (docs/agents/issue-tracker.md)
+.scratch/
