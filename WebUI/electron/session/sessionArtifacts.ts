@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { serializeSession } from '../persist/sessionFiles'
+import { removeRegularFile } from '../persist/sessionMediaFiles'
 import { readHistoryEntries } from './sessionHistory'
 import { listSessions, sessionPaths } from './sessions'
 import { sessionMediaUrl } from '@/lib/comfyWorkflow'
@@ -75,15 +76,7 @@ function resolveArtifactFile(sessionId: string, relativePath: string): string {
 /** Deletes the artifact's file only: its History Entry stays, so the Session still remembers it. */
 export async function deleteArtifact(sessionId: string, relativePath: string): Promise<void> {
   const file = resolveArtifactFile(sessionId, relativePath)
-  await serializeSession(sessionId, async () => {
-    try {
-      if (!(await fs.lstat(file)).isFile()) throw new Error(`not a file: ${relativePath}`)
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
-      throw error
-    }
-    await fs.rm(file)
-  })
+  await serializeSession(sessionId, () => removeRegularFile(file))
 }
 
 /** The Session's newest artifact of a media type, from any preset, whose file still exists. */

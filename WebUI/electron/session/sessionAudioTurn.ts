@@ -1,10 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import fs from 'node:fs/promises'
 import path from 'node:path'
-import { SESSION_FILES_DIR } from '../persist/sessionFiles'
+import { writeNewSessionFile } from '../persist/sessionMediaFiles'
 import { appendHistoryEntry } from './sessionHistory'
-import { appendTurnToTimeline, freeName } from './sessionMediaTurn'
-import { sessionPaths } from './sessions'
+import { appendTurnToTimeline } from './sessionMediaTurn'
 import { sessionMediaUrl } from '@/lib/comfyWorkflow'
 import type { AudioTurnRequest, SessionDocument } from '@/types/sessionIpc'
 import type { TimelineMessage } from '@/types/sessionTimeline'
@@ -16,17 +14,15 @@ function safeAudioName(fileName: string): string {
   return path.extname(named) ? named : `${named}.wav`
 }
 
-async function saveIntoFiles(
+function saveIntoFiles(
   sessionId: string,
   audio: NonNullable<AudioTurnRequest['audio']>,
 ): Promise<string> {
-  const filesDir = sessionPaths(sessionId).filesDir
-  await fs.mkdir(filesDir, { recursive: true })
-  const name = await freeName(filesDir, safeAudioName(audio.fileName))
-  await fs.writeFile(path.join(filesDir, name), Buffer.from(audio.base64, 'base64'), {
-    flag: 'wx',
-  })
-  return `${SESSION_FILES_DIR}/${name}`
+  return writeNewSessionFile(
+    sessionId,
+    safeAudioName(audio.fileName),
+    Buffer.from(audio.base64, 'base64'),
+  )
 }
 
 /**

@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto'
-import fs from 'node:fs/promises'
 import { appLoggerInstance } from '../observability/logger'
-import { assertSessionId, serializeSession } from '../persist/sessionFiles'
-import { sessionPaths } from './sessions'
+import {
+  appendHistoryLine,
+  assertSessionId,
+  readHistoryFile,
+  serializeSession,
+} from '../persist/sessionFiles'
 import { HistoryEntrySchema, type HistoryEntry, type SessionLastPreset } from '@/types/sessionIpc'
 
 const LOG_SCOPE = 'sessions'
@@ -21,20 +24,14 @@ export async function appendHistoryEntry(
       id: `entry-${randomUUID()}`,
       timestamp: Date.now(),
     })
-    await fs.appendFile(sessionPaths(sessionId).historyFile, `${JSON.stringify(written)}\n`)
+    await appendHistoryLine(sessionId, JSON.stringify(written))
     return written
   })
 }
 
 /** Every readable entry in append order; a torn or foreign line is skipped. */
 export async function readHistoryEntries(sessionId: string): Promise<HistoryEntry[]> {
-  let raw: string
-  try {
-    raw = await fs.readFile(sessionPaths(sessionId).historyFile, 'utf8')
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
-    throw error
-  }
+  const raw = await readHistoryFile(sessionId)
   const entries: HistoryEntry[] = []
   for (const line of raw.split('\n')) {
     if (!line.trim()) continue

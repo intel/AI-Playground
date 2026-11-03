@@ -87,6 +87,20 @@ export async function createSessionFolder(file: SessionFile): Promise<void> {
   await writeSessionFile(file)
 }
 
+export async function appendHistoryLine(id: string, line: string): Promise<void> {
+  await fs.appendFile(sessionFolderPaths(id).historyFile, `${line}\n`)
+}
+
+/** The raw history file; empty when the Session has none yet. */
+export async function readHistoryFile(id: string): Promise<string> {
+  try {
+    return await fs.readFile(sessionFolderPaths(id).historyFile, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return ''
+    throw error
+  }
+}
+
 export async function removeSessionFolder(id: string): Promise<void> {
   await fs.rm(sessionFolderPaths(id).root, { recursive: true, force: true })
 }

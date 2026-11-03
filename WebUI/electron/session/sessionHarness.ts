@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import fs from 'node:fs/promises'
 import path from 'node:path'
+import { ensureSessionFilesDir } from '../persist/sessionMediaFiles'
 import { getGamesDir } from '../persist/userDataPaths'
-import { mutateSession, onSessionDeleted, sessionPaths } from './sessions'
+import { mutateSession, onSessionDeleted } from './sessions'
 import type { HarnessGameWorkspace, HarnessSessionRef, SessionFile } from '@/types/sessionIpc'
 
 export function mintHarnessSessionId(): string {
@@ -75,9 +75,8 @@ export async function harnessSessionFor(
           },
         },
   )
-  const { filesDir } = sessionPaths(sessionId)
-  await fs.mkdir(filesDir, { recursive: true })
-  return { harnessSessionId: file.harnessSessions[presetName], workspaceDir: filesDir }
+  const workspaceDir = await ensureSessionFilesDir(sessionId)
+  return { harnessSessionId: file.harnessSessions[presetName], workspaceDir }
 }
 
 export type HarnessCleanup = (harnessSessionId: string) => Promise<unknown>

@@ -1,7 +1,7 @@
-import fs from 'node:fs/promises'
 import { deleteAgentTasksOfSession } from '../persist/agentTaskFiles'
+import { ensureSessionFilesDir } from '../persist/sessionMediaFiles'
 import { mintHarnessSessionId } from './sessionHarness'
-import { mutateSession, onSessionDeleted, sessionPaths } from './sessions'
+import { mutateSession, onSessionDeleted } from './sessions'
 import type { HarnessSessionRef } from '@/types/sessionIpc'
 
 /**
@@ -14,9 +14,7 @@ export async function taskRunHarnessFor(sessionId: string): Promise<HarnessSessi
     ...current,
     taskRunHarnessSessions: [...current.taskRunHarnessSessions, harnessSessionId],
   }))
-  const { filesDir } = sessionPaths(sessionId)
-  await fs.mkdir(filesDir, { recursive: true })
-  return { harnessSessionId, workspaceDir: filesDir }
+  return { harnessSessionId, workspaceDir: await ensureSessionFilesDir(sessionId) }
 }
 
 /** Deleting a Session deletes its Tasks; returns the unsubscribe. */

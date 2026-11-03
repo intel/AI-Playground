@@ -1,11 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import fs from 'node:fs/promises'
-import path from 'node:path'
 import { appLoggerInstance } from '../observability/logger'
 import { emitSessionChanged } from '../kernel/kernelBus'
-import { SESSION_FILES_DIR } from '../persist/sessionFiles'
+import { moveIntoSessionFiles } from '../persist/sessionMediaFiles'
 import { appendHistoryEntry } from './sessionHistory'
-import { mutateSession, sessionDocumentOf, sessionPaths } from './sessions'
+import { mutateSession, sessionDocumentOf } from './sessions'
 import { sessionMediaUrl } from '@/lib/comfyWorkflow'
 import type { MediaItem } from '@/types/mediaItem'
 import type { ArtifactMediaType, HistoryEntryKind, SessionDocument } from '@/types/sessionIpc'
@@ -40,28 +38,6 @@ export function titleFromPrompt(prompt: string): string {
   return flat.length <= TITLE_LIMIT ? flat : `${flat.slice(0, TITLE_LIMIT - 1).trimEnd()}…`
 }
 
-export async function freeName(dir: string, name: string): Promise<string> {
-  const { name: stem, ext } = path.parse(name)
-  for (let n = 0; ; n++) {
-    const candidate = n === 0 ? name : `${stem}-${n}${ext}`
-    try {
-      await fs.access(path.join(dir, candidate))
-    } catch {
-      return candidate
-    }
-  }
-}
-
-async function moveFile(from: string, to: string): Promise<void> {
-  try {
-    await fs.rename(from, to)
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EXDEV') throw error
-    await fs.copyFile(from, to)
-    await fs.unlink(from)
-  }
-}
-
 export type AdoptedFile = { url: string; relativePath: string }
 
 /** Moves the media-folder file behind `url` into the Session's `files/`; null leaves it there. */
@@ -73,13 +49,9 @@ export async function adoptMediaFile(
   if (!url?.startsWith('aipg-media://media/')) return null
   const source = localPathOf(url)
   if (!source) return null
-  const filesDir = sessionPaths(sessionId).filesDir
   try {
-    if (!(await fs.stat(source)).isFile()) return null
-    await fs.mkdir(filesDir, { recursive: true })
-    const name = await freeName(filesDir, path.basename(source))
-    await moveFile(source, path.join(filesDir, name))
-    const relativePath = `${SESSION_FILES_DIR}/${name}`
+    const relativePath = await moveIntoSessionFiles(sessionId, source)
+    if (!relativePath) return null
     return { url: sessionMediaUrl(sessionId, relativePath), relativePath }
   } catch (error) {
     appLoggerInstance.warn(`could not move ${source} into its Session: ${error}`, LOG_SCOPE)

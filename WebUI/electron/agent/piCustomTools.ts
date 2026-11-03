@@ -7,6 +7,7 @@ import type { AgentMediaDetails, AgentMediaItem } from '@/types/agentMediaDetail
 import { appLoggerInstance } from '../observability/logger.ts'
 import { emitAgentToolImage } from '../kernel/kernelBus.ts'
 import { typedSend } from '../kernel/typedIpc.ts'
+import { moveFile } from '../persist/sessionMediaFiles.ts'
 import { noteGeneratedMedia } from './generatedMedia.ts'
 import { sessionMediaUrl } from '@/lib/comfyWorkflow'
 import { agentTurns } from './piAgentState.ts'
@@ -309,16 +310,10 @@ async function mediaBytes(url: string): Promise<Buffer> {
   return Buffer.from(await response.arrayBuffer())
 }
 
-/** Move the app-folder file into the Session; copy when it cannot be moved. */
 async function moveIntoSession(url: string, target: string): Promise<void> {
   const source = appMediaPath?.(url)
   if (source && fs.existsSync(source)) {
-    try {
-      fs.renameSync(source, target)
-    } catch {
-      fs.copyFileSync(source, target)
-      fs.rmSync(source, { force: true })
-    }
+    await moveFile(source, target)
     return
   }
   fs.writeFileSync(target, await mediaBytes(url))
