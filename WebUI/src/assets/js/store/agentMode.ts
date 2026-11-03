@@ -139,8 +139,9 @@ export type SendToSessionResult =
 // they carry. The Open Session only selects which runtime Agent Mode renders.
 // Every sent turn waits in main's Turn Queue, so any number of sessions can hold
 // a queued turn while one runs. For the Agent preset, switching conversation or
-// workspace (newSession, switchSession, adoptWorkspace) leaves turns running;
-// Game Agent and Quick Coder still stop the open session's turn when left.
+// workspace (newSession, switchSession, adoptWorkspace) leaves turns running, as
+// does leaving any agent turn of a Session; outside a Session, Game Agent and
+// Quick Coder still stop the open session's turn when left.
 // Nothing is re-queued after a restart: a message whose turn never ran is marked
 // "not run" and waits for the user to resend it.
 
@@ -883,6 +884,7 @@ export const useAgentMode = defineStore(
     function liveTurnConfig(sessionId: string) {
       return buildTurnConfig({
         sessionId,
+        sessionRef: harnessSessionRefs[sessionId] ?? sessions.value[sessionId]?.sessionRef,
         workspaceDir: workspaceDir.value,
         // The remembered agent preset, not the active one: a media call
         // switches the active preset to an image-gen one mid-turn.
@@ -907,6 +909,7 @@ export const useAgentMode = defineStore(
       const stored = textInference.inferenceForSettings(context.presetName, settings)
       return buildTurnConfig({
         sessionId,
+        sessionRef: harnessSessionRefs[sessionId] ?? sessions.value[sessionId]?.sessionRef,
         workspaceDir: context.workspaceDir,
         presetName: context.presetName,
         instructions: withResponseLanguage(
@@ -1391,11 +1394,11 @@ export const useAgentMode = defineStore(
     }
 
     /**
-     * Agent preset sessions run concurrently, so leaving one leaves its turn
-     * running. Game Agent and Quick Coder sessions keep stop-on-switch.
+     * Agent preset sessions, and every agent turn of a Session, run on when left.
+     * Outside a Session, Game Agent and Quick Coder keep stop-on-switch.
      */
     async function leaveOpenSession(heldWith = agentPresetName.value): Promise<void> {
-      if (nameUsesSessionSettings(heldWith)) return
+      if (sessionsStore.openSessionId || nameUsesSessionSettings(heldWith)) return
       await stop()
     }
 
@@ -1419,15 +1422,21 @@ export const useAgentMode = defineStore(
 
     /**
      * Show the open Session's Harness Session for the agent preset, minting it on first
-     * use. Its workspace is the Session's `files/` folder; leaving one never stops its turn.
+     * use. The Agent preset works in the Session's `files/` folder, a games preset in its
+     * game (none until the first prompt mints it, `game` records it); leaving one never
+     * stops its turn.
      */
-    async function enterSessionHarness(): Promise<void> {
+    async function enterSessionHarness(game?: { gameDir: string; fresh?: boolean }): Promise<void> {
       const sessionRef = sessionsStore.openSessionId
       const presetName = agentPresetName.value
-      if (!sessionRef || !presetName || workspaceKindOf(presetName) !== 'pick') return
+      if (!sessionRef || !presetName) return
+      const workspace =
+        workspaceKindOf(presetName) === 'games' ? { kind: 'game' as const, ...game } : undefined
       let result: Awaited<ReturnType<typeof window.electronAPI.sessions.harnessSession>>
       try {
-        result = await window.electronAPI.sessions.harnessSession(sessionRef, presetName)
+        result = workspace
+          ? await window.electronAPI.sessions.harnessSession(sessionRef, presetName, workspace)
+          : await window.electronAPI.sessions.harnessSession(sessionRef, presetName)
       } catch (error) {
         result = { success: false, error: extractMessage(error) }
       }
@@ -1566,6 +1575,7 @@ export const useAgentMode = defineStore(
       // user already said yes to — a modal here would only stall it.
       // `movingSession` keeps the preset watcher from blanking the very folder
       // being handed over before `newSession()` below reaches it.
+      const gameDir = workspaceDir.value
       movingSession = true
       let switched: { success: boolean; error?: string }
       try {
@@ -1584,7 +1594,10 @@ export const useAgentMode = defineStore(
         })
         return
       }
-      await newSession()
+      // In a Session, Game Agent's Harness Session there starts over on this game.
+      if (sessionsStore.openSessionId && gameDir)
+        await enterSessionHarness({ gameDir, fresh: true })
+      else await newSession()
       await generate(
         gameAgentHandoffPrompt({
           ...handoff,
@@ -1678,7 +1691,12 @@ export const useAgentMode = defineStore(
       applyOpenSessionAgent(undefined)
     }
 
+    /** In a Session, a games preset holds one game, so a new game is a new Session. */
     async function newGame(): Promise<void> {
+      if (sessionsStore.openSessionId) {
+        await sessionsStore.create()
+        return
+      }
       await leaveOpenSession()
       blankGame()
     }
@@ -1711,7 +1729,8 @@ export const useAgentMode = defineStore(
      * Switching agent preset never carries a conversation across: a session's
      * capabilities are frozen on its record while the instructions are read live
      * off the active preset. In a Session the new preset gets its own Harness
-     * Session there; a games preset starts a blank game. The `offer_game_agent`
+     * Session there (a games preset with its game); outside one a games preset
+     * starts a blank game. The `offer_game_agent`
      * hand-over is the one way a game crosses over, and it sets `movingSession`
      * to keep its folder.
      */
@@ -1722,12 +1741,12 @@ export const useAgentMode = defineStore(
         lastWorkspaceByKind.value = { ...lastWorkspaceByKind.value, games: workspaceDir.value }
       }
       await leaveOpenSession(previous)
-      if (agentWorkspaceKind.value === 'games') {
-        blankGame()
-        return
-      }
       if (sessionsStore.openSessionId) {
         await enterSessionHarness()
+        return
+      }
+      if (agentWorkspaceKind.value === 'games') {
+        blankGame()
         return
       }
       if (await presetSessionStarter?.(name)) return
@@ -1743,16 +1762,9 @@ export const useAgentMode = defineStore(
     async function generate(prompt: string, options: { title?: string } = {}): Promise<boolean> {
       if (await blockedBySettingsProblems()) return false
       // Game Agent never asks for a folder: the first turn of a game mints one.
-      if (agentWorkspaceKind.value === 'games' && !(await isGameFolder(workspaceDir.value))) {
-        const game = await window.electronAPI.games.create(prompt, {
-          scaffold: !capabilities.value.includes(GAME_STUDIO_QUICK_ID),
-          backend: textInference.backend,
-          startingModel: textInference.activeModel,
-          initialPrompt: prompt,
-        })
-        workspaceDir.value = game.dir
-        lastWorkspaceByKind.value = { ...lastWorkspaceByKind.value, games: game.dir }
-        currentGame.value = game
+      if (agentWorkspaceKind.value === 'games') {
+        if (await sessionsStore.ensureOpenSession()) await enterSessionHarness()
+        if (!(await isGameFolder(workspaceDir.value))) await mintGame(prompt)
       }
       if (!(await workspaceReady())) return false
       const attached = await importAttachments(workspaceDir.value)
@@ -1762,6 +1774,24 @@ export const useAgentMode = defineStore(
         chat.sendMessage({ text: `${prompt}${attached}` }),
       )
       return true
+    }
+
+    async function mintGame(prompt: string): Promise<void> {
+      // A Harness Session whose game has left the library starts over on the new one.
+      const fresh = !!workspaceDir.value
+      const game = await window.electronAPI.games.create(prompt, {
+        scaffold: !capabilities.value.includes(GAME_STUDIO_QUICK_ID),
+        backend: textInference.backend,
+        startingModel: textInference.activeModel,
+        initialPrompt: prompt,
+      })
+      lastWorkspaceByKind.value = { ...lastWorkspaceByKind.value, games: game.dir }
+      if (sessionsStore.openSessionId) {
+        await enterSessionHarness({ gameDir: game.dir, fresh })
+        if (workspaceDir.value === game.dir) return
+      }
+      workspaceDir.value = game.dir
+      currentGame.value = game
     }
 
     /** Send the Open Session's "not run" message again, as a new turn. */

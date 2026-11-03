@@ -78,6 +78,8 @@ export async function createSession(): Promise<SessionSummary> {
     timeline: [],
     settings: {},
     harnessSessions: {},
+    harnessWorkspaces: {},
+    retiredHarnessSessions: [],
     updateCursors: {},
   }
   await serializeSession(file.id, () => createSessionFolder(file))

@@ -22,6 +22,10 @@ export const SessionFileSchema = z.object({
   settings: z.record(z.string(), z.unknown()).default({}),
   /** Harness Session id per agent preset. */
   harnessSessions: z.record(z.string(), z.string()).default({}),
+  /** Game folder per games preset (Game Agent, Quick Coder); other presets work in `files/`. */
+  harnessWorkspaces: z.record(z.string(), z.string()).default({}),
+  /** Harness Sessions a hand-over replaced; still the Session's, so deleted with it. */
+  retiredHarnessSessions: z.array(z.string()).default([]),
   /** Last History Entry id each Session Update consumer has seen. */
   updateCursors: z.record(z.string(), z.string()).default({}),
 })
@@ -78,6 +82,18 @@ export type HistoryArtifact = HistoryEntry['artifacts'][number]
 
 /** A Session's Harness Session for one agent preset, and the workspace it runs in. */
 export type HarnessSessionRef = { harnessSessionId: string; workspaceDir: string }
+
+/**
+ * A games preset's Harness Session works in a game folder: none until the first turn
+ * mints one (`gameDir`), and `fresh` starts a new Harness Session on a handed-over game.
+ */
+export const HarnessGameWorkspaceSchema = z.object({
+  kind: z.literal('game'),
+  gameDir: z.string().min(1).optional(),
+  fresh: z.boolean().optional(),
+})
+
+export type HarnessGameWorkspace = z.infer<typeof HarnessGameWorkspaceSchema>
 
 /** A settled Text-to-Speech / Speech-to-Text turn the renderer hands the Session module. */
 export const AudioTurnRequestSchema = z.object({

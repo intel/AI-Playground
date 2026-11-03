@@ -1,7 +1,11 @@
 import type { InvokeHandlerMap, SessionsInvokeName } from '../ipcRegistries'
 import { ipcFail } from '../typedIpc'
 import type { recordAudioTurn } from '../../session/sessionAudioTurn'
-import { ArtifactMediaTypeSchema, AudioTurnRequestSchema } from '@/types/sessionIpc'
+import {
+  ArtifactMediaTypeSchema,
+  AudioTurnRequestSchema,
+  HarnessGameWorkspaceSchema,
+} from '@/types/sessionIpc'
 import type {
   createSession,
   deleteSession,
@@ -99,11 +103,12 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
         return ipcFail(e)
       }
     },
-    'sessions:harnessSession': async (_event, id, presetName) => {
+    'sessions:harnessSession': async (_event, id, presetName, game) => {
       try {
         const harness = await deps.harnessSessionFor(
           requireString(id, 'session id'),
           requireString(presetName, 'preset name'),
+          game === undefined ? undefined : HarnessGameWorkspaceSchema.parse(game),
         )
         return { success: true as const, harness }
       } catch (e) {

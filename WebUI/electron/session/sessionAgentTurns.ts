@@ -38,8 +38,8 @@ export type AgentTurnInSession = {
 /**
  * Follows one agent turn of a Session: collects the media its tools saved, and
  * on settling appends the turn's History Entry and names the Session after its
- * first prompt. Media outside the Session Folder (a game folder) is not the
- * Session's artifact and is left out.
+ * first prompt. A game folder's media counts by the Session's copy of it; a
+ * file only outside the Session Folder is not the Session's artifact.
  */
 export function trackAgentTurnInSession(turn: AgentTurnInSession): {
   settle: (end: AgentTurnEnd) => Promise<void>
@@ -47,10 +47,14 @@ export function trackAgentTurnInSession(turn: AgentTurnInSession): {
   const { root } = sessionPaths(turn.sessionRef)
   const workspace = path.resolve(turn.workspaceDir)
   const artifacts: HistoryArtifact[] = []
-  const stop = onGeneratedMedia((workspaceDir, relativePaths) => {
+  const stop = onGeneratedMedia((workspaceDir, relativePaths, sessionCopies) => {
     if (path.resolve(workspaceDir) !== workspace) return
-    for (const relativePath of relativePaths) {
-      const inSession = path.relative(root, path.resolve(workspace, relativePath))
+    const saved =
+      sessionCopies.length > 0
+        ? sessionCopies
+        : relativePaths.map((relativePath) => path.resolve(workspace, relativePath))
+    for (const file of saved) {
+      const inSession = path.relative(root, path.resolve(file))
       if (inSession.startsWith('..') || path.isAbsolute(inSession)) continue
       const artifactPath = inSession.split(path.sep).join('/')
       const mediaType = MEDIA_TYPES[path.extname(artifactPath).toLowerCase()]

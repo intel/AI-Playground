@@ -9,7 +9,7 @@ import type { PhisonKmIngestConfig, WarmupRequest } from '@/types/phisonKmRag'
 import type { AgentModeTurnConfig, AgentToolExecuteRequest, AgentToolSpec } from '@/types/agentIpc'
 import type { AgentMediaFileAction, AgentMediaFileRef } from '@/types/agentMediaDetails'
 import type { AgentSessionRecordWire } from '@/types/agentSessionIpc'
-import type { ArtifactMediaType, AudioTurnRequest } from '@/types/sessionIpc'
+import type { ArtifactMediaType, AudioTurnRequest, HarnessGameWorkspace } from '@/types/sessionIpc'
 import type { AgentTask } from '@/types/agentTaskIpc'
 import type { PresetSessionSettings } from '@/types/sessionSettings'
 import type { ArtifactRunRequest } from '@/types/artifactIpc'
@@ -273,8 +273,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     open: (id: string) => invoke('sessions:open', id),
     rename: (id: string, title: string) => invoke('sessions:rename', id, title),
     delete: (id: string) => invoke('sessions:delete', id),
-    harnessSession: (id: string, presetName: string) =>
-      invoke('sessions:harnessSession', id, presetName),
+    harnessSession: (id: string, presetName: string, game?: HarnessGameWorkspace) =>
+      invoke('sessions:harnessSession', id, presetName, game),
     saveTimelineMessages: (id: string, messages: unknown[]) =>
       invoke('sessions:saveTimelineMessages', id, cloneForIpc(messages)),
     recordAudioTurn: (turn: AudioTurnRequest) =>

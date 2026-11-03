@@ -12,6 +12,7 @@ import {
   buildSkillsPromptSection,
   rejectPendingToolCalls,
   writeAgentSkills,
+  type SessionMediaTarget,
 } from './piCustomTools.ts'
 import { resolveCapabilities, type CapabilityHost } from './capabilities/index.ts'
 import { enabledCapabilityIds } from '@/types/agentCapabilities'
@@ -128,14 +129,19 @@ async function shutdownSessionExtensions(session: AgentSession): Promise<void> {
   }
 }
 
-/** Whether the workspace is the Session's `files/` folder (a game folder is not). */
-function isSessionFilesDir(sessionRef: string | undefined, workspaceDir: string): boolean {
-  if (!sessionRef) return false
+/** A Session's turn works in its `files/` folder or in a game folder; media follows suit. */
+function sessionMediaOf(
+  sessionRef: string | undefined,
+  workspaceDir: string,
+): SessionMediaTarget | undefined {
+  if (!sessionRef) return undefined
+  const { filesDir } = sessionPaths(sessionRef)
   try {
-    return fs.realpathSync(sessionPaths(sessionRef).filesDir) === workspaceDir
+    if (fs.realpathSync(filesDir) === workspaceDir) return { sessionRef, workspace: 'files' }
   } catch {
-    return false
+    // Not created yet, so not the workspace either.
   }
+  return { sessionRef, workspace: 'game', filesDir }
 }
 
 async function createSession(config: AgentModeTurnConfig): Promise<ActiveSession> {
@@ -188,9 +194,7 @@ async function createSession(config: AgentModeTurnConfig): Promise<ActiveSession
     agentDir: piAgentDir(),
     contextWindow: config.modelConfig.contextWindow,
     keepModelsLoaded: config.keepModelsLoaded ?? false,
-    ...(isSessionFilesDir(config.sessionRef, workspaceDir)
-      ? { sessionMedia: { sessionRef: config.sessionRef! } }
-      : {}),
+    sessionMedia: sessionMediaOf(config.sessionRef, workspaceDir),
     ...(config.embeddingModel
       ? {
           embeddingModel: config.embeddingModel,

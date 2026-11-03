@@ -12,7 +12,12 @@ import path from 'node:path'
 
 const savedByWorkspace = new Map<string, Set<string>>()
 
-type GeneratedMediaListener = (workspaceDir: string, relativePaths: string[]) => void
+/** `sessionCopies`: absolute paths of the Session's copies of those files, if any. */
+type GeneratedMediaListener = (
+  workspaceDir: string,
+  relativePaths: string[],
+  sessionCopies: string[],
+) => void
 
 const listeners = new Set<GeneratedMediaListener>()
 
@@ -35,12 +40,16 @@ export function normalizeWorkspacePath(relativePath: string): string {
   return path.posix.normalize(relativePath.replace(/\\/g, '/').replace(/^\.\//, ''))
 }
 
-export function noteGeneratedMedia(workspaceDir: string, relativePaths: string[]): void {
+export function noteGeneratedMedia(
+  workspaceDir: string,
+  relativePaths: string[],
+  sessionCopies: string[] = [],
+): void {
   const key = workspaceKey(workspaceDir)
   const known = savedByWorkspace.get(key) ?? new Set<string>()
   for (const relativePath of relativePaths) known.add(normalizeWorkspacePath(relativePath))
   savedByWorkspace.set(key, known)
-  for (const listener of listeners) listener(workspaceDir, relativePaths)
+  for (const listener of listeners) listener(workspaceDir, relativePaths, sessionCopies)
 }
 
 /**

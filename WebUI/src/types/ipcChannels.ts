@@ -38,6 +38,7 @@ import type { BackendLaunchSettings, BackendVersionWire } from './preferencesIpc
 import type {
   ArtifactMediaType,
   AudioTurnRequest,
+  HarnessGameWorkspace,
   HarnessSessionRef,
   NewestArtifact,
   SessionArtifact,
@@ -244,11 +245,14 @@ export const CHANNELS = {
     args: [] as unknown as readonly [string],
     result: null as unknown as IpcMutationResult,
   },
-  /** The Session's Harness Session for an agent preset (minted on first use) and its workspace. */
+  /**
+   * The Session's Harness Session for an agent preset (minted on first use) and its workspace;
+   * a games preset passes its game folder instead of working in `files/`.
+   */
   'sessions:harnessSession': {
     kind: 'invoke',
     owner: 'main',
-    args: [] as unknown as readonly [string, string],
+    args: [] as unknown as readonly [string, string, HarnessGameWorkspace?],
     result: null as unknown as IpcOkWith<{ harness: HarnessSessionRef }>,
   },
   /** Save settled display messages into a Session's timeline, replacing ones with the same id. */

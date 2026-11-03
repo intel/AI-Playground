@@ -47,7 +47,7 @@ export type CapabilityHost = {
   embeddingBackend?: 'llamaCPP' | 'openVINO'
   /** Developer setting: skip the GPU swap around in-process media calls. */
   keepModelsLoaded: boolean
-  /** Set when the workspace is a Session's `files/` folder: media is saved at its root. */
+  /** Set for a turn in a Session: where its media is saved (see `SessionMediaTarget`). */
   sessionMedia?: SessionMediaTarget
 }
 

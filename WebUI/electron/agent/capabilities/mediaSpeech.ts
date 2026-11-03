@@ -72,6 +72,16 @@ function generatedAudioPath(
   return { fullPath: path.join(dir, name), relativePath: path.posix.join('generated', name) }
 }
 
+/** A game's clip also lands in its Session's `files/`, which is what the Session shows. */
+async function copyIntoSession(host: CapabilityHost, fullPath: string): Promise<string[]> {
+  if (host.sessionMedia?.workspace !== 'game') return []
+  const { filesDir } = host.sessionMedia
+  await fs.promises.mkdir(filesDir, { recursive: true })
+  const target = path.join(filesDir, path.basename(fullPath))
+  await fs.promises.copyFile(fullPath, target)
+  return [target]
+}
+
 function describeClip(clip: SpeechClipPayload): string {
   if (clip.engine === 'qwen3') {
     return `Synthesized ${clip.mode} speech (${clip.language}, ${clip.voice}).`
@@ -119,7 +129,7 @@ async function synthesize(
       CLIP_EXT_BY_MIME[clip.mediaType] ?? '.wav',
     )
     await fs.promises.writeFile(fullPath, Buffer.from(clip.audioBase64, 'base64'))
-    noteGeneratedMedia(host.workspaceDir, [relativePath])
+    noteGeneratedMedia(host.workspaceDir, [relativePath], await copyIntoSession(host, fullPath))
     const appCopyPath = await saveGeneratedAudioFile(
       clip.audioBase64,
       buildTtsAudioFileName({

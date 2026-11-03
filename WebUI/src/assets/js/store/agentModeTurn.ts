@@ -79,6 +79,8 @@ function embeddingConfigOf(textInference: InferenceForTurn) {
 
 export async function buildTurnConfig(options: {
   sessionId: string
+  /** The Session a Harness Session belongs to. */
+  sessionRef?: string
   workspaceDir: string
   presetName: string
   instructions: string
@@ -106,6 +108,7 @@ export async function buildTurnConfig(options: {
     const model = textInference.activeModel ?? CLOUD_DEFAULT_MODEL
     return {
       sessionId: options.sessionId,
+      ...(options.sessionRef ? { sessionRef: options.sessionRef } : {}),
       workspaceDir: options.workspaceDir,
       modelConfig: {
         source: 'cloud',
@@ -141,6 +144,7 @@ export async function buildTurnConfig(options: {
   const embeddingModelName = readinessEmbeddingModel(textInference, options.capabilities)
   return {
     sessionId: options.sessionId,
+    ...(options.sessionRef ? { sessionRef: options.sessionRef } : {}),
     workspaceDir: options.workspaceDir,
     modelConfig: {
       source: 'local',

@@ -30,8 +30,8 @@
         </span>
       </div>
       <p class="text-xs text-muted-foreground">
-        Each game gets its own folder in your game library, and each folder its own session (Show
-        Sessions).
+        Each game gets its own folder in your game library. A Session keeps one game per games
+        preset, so a new game starts a new Session.
       </p>
     </div>
 

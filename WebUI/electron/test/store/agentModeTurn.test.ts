@@ -99,6 +99,26 @@ describe('buildTurnConfig readiness (step 15)', () => {
     })
   })
 
+  it('names the Session the turn belongs to, so main files its History Entry there', async () => {
+    const config = await buildTurnConfig({
+      sessionId: 'aipg-agent-1',
+      sessionRef: 'session-1',
+      workspaceDir: '/games/plum',
+      presetName: 'Game Agent',
+      instructions: '',
+      capabilities: [],
+      unsandboxed: false,
+      planningThinkingOnly: false,
+      textInference: localInference() as never,
+      cloudMode: {
+        selectedProviderId: 'openai',
+        activeProviderAuthStyle: 'bearer',
+        capabilitiesFor: () => ({ reasoningAdvertised: false }),
+      },
+    })
+    expect(config.sessionRef).toBe('session-1')
+  })
+
   it('omits readiness when no local model is selected', async () => {
     const config = await buildTurnConfig({
       sessionId: 'aipg-agent-1',

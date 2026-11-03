@@ -283,8 +283,14 @@ export function workspaceFileToDataUri(workspaceDir: string, relativePath: strin
   return `data:${mime};base64,${fs.readFileSync(fullPath).toString('base64')}`
 }
 
-/** The workspace is a Session's `files/` folder: media lands at its root, served from there. */
-export type SessionMediaTarget = { sessionRef: string }
+/**
+ * A turn in a Session: when the workspace is its `files/` folder media lands at its root;
+ * when it is a game folder media lands in the game's `generated/` and in `filesDir` too,
+ * served from the Session's copy.
+ */
+export type SessionMediaTarget =
+  | { sessionRef: string; workspace: 'files' }
+  | { sessionRef: string; workspace: 'game'; filesDir: string }
 
 let appMediaPath: ((url: string) => string | null) | null = null
 
@@ -323,7 +329,7 @@ async function saveOne(
   url: string,
   workspaceDir: string,
   sessionMedia: SessionMediaTarget | undefined,
-): Promise<{ saved: string; entry: Record<string, unknown> }> {
+): Promise<{ saved: string; sessionCopy?: string; entry: Record<string, unknown> }> {
   if (!sessionMedia) {
     const bytes = await mediaBytes(url)
     const saved =
@@ -332,12 +338,20 @@ async function saveOne(
     fs.writeFileSync(path.join(workspaceDir, saved), bytes)
     return { saved, entry }
   }
-  const saved = path.basename(decodeURIComponent(new URL(url).pathname)) || `media-${Date.now()}`
-  await moveIntoSession(url, path.join(workspaceDir, saved))
-  const key = MEDIA_URL_KEYS.find((name) => entry[name] === url) ?? 'imageUrl'
+  const name = path.basename(decodeURIComponent(new URL(url).pathname)) || `media-${Date.now()}`
+  const filesDir = sessionMedia.workspace === 'game' ? sessionMedia.filesDir : workspaceDir
+  fs.mkdirSync(filesDir, { recursive: true })
+  await moveIntoSession(url, path.join(filesDir, name))
+  const saved = sessionMedia.workspace === 'game' ? path.posix.join('generated', name) : name
+  if (sessionMedia.workspace === 'game') {
+    fs.mkdirSync(path.join(workspaceDir, 'generated'), { recursive: true })
+    fs.copyFileSync(path.join(filesDir, name), path.join(workspaceDir, saved))
+  }
+  const key = MEDIA_URL_KEYS.find((candidate) => entry[candidate] === url) ?? 'imageUrl'
   return {
     saved,
-    entry: { ...entry, [key]: sessionMediaUrl(sessionMedia.sessionRef, `files/${saved}`) },
+    sessionCopy: path.join(filesDir, name),
+    entry: { ...entry, [key]: sessionMediaUrl(sessionMedia.sessionRef, `files/${name}`) },
   }
 }
 
@@ -359,6 +373,7 @@ export async function saveGeneratedMediaToWorkspace(
   if (!Array.isArray(record.images)) return result
 
   const savedFiles: string[] = []
+  const sessionCopies: string[] = []
   const images: unknown[] = []
   for (const item of record.images) {
     const url =
@@ -372,6 +387,7 @@ export async function saveGeneratedMediaToWorkspace(
     try {
       const done = await saveOne(item as Record<string, unknown>, url, workspaceDir, sessionMedia)
       savedFiles.push(done.saved)
+      if (done.sessionCopy) sessionCopies.push(done.sessionCopy)
       images.push(done.entry)
     } catch (error) {
       logger.warn(`failed to save generated media to workspace: ${error}`, LOG_SOURCE)
@@ -379,7 +395,7 @@ export async function saveGeneratedMediaToWorkspace(
     }
   }
   if (savedFiles.length === 0) return result
-  noteGeneratedMedia(workspaceDir, savedFiles)
+  noteGeneratedMedia(workspaceDir, savedFiles, sessionCopies)
   return {
     ...record,
     images,

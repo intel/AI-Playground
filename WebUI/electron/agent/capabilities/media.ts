@@ -141,7 +141,7 @@ export const mediaCapability: AgentCapability = {
         ? [
             mediaGenerationSkill(
               generation.includes(DELEGATION_TOOL_NAME),
-              host.sessionMedia ? SESSION_FOLDER : GENERATED_FOLDER,
+              host.sessionMedia?.workspace === 'files' ? SESSION_FOLDER : GENERATED_FOLDER,
             ),
           ]
         : []),

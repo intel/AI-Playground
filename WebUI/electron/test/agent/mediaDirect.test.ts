@@ -350,7 +350,10 @@ describe('mediaDirect (in-process generateImage / editImage)', () => {
     }))
     const tool = await buildTool(
       GENERATE_SPEC,
-      hostWith({ workspaceDir: filesDir, sessionMedia: { sessionRef: 'session-7' } }),
+      hostWith({
+        workspaceDir: filesDir,
+        sessionMedia: { sessionRef: 'session-7', workspace: 'files' },
+      }),
     )
     const output = (await tool.execute(
       'call-1',
@@ -368,6 +371,47 @@ describe('mediaDirect (in-process generateImage / editImage)', () => {
     expect(fs.readFileSync(path.join(filesDir, 'castle gate.png'), 'utf8')).toBe('png-bytes')
     expect(fs.existsSync(path.join(filesDir, 'generated'))).toBe(false)
     expect(fs.existsSync(path.join(appMedia, 'castle gate.png'))).toBe(false)
+    setAppMediaPathResolver(null)
+  })
+
+  it("puts a game's media in its game folder and the Session's files folder", async () => {
+    const appMedia = fs.mkdtempSync(path.join(os.tmpdir(), 'app-media-'))
+    fs.writeFileSync(path.join(appMedia, 'ship.png'), 'png-bytes')
+    setAppMediaPathResolver((url) => path.join(appMedia, decodeURIComponent(new URL(url).pathname)))
+    const gameDir = fs.mkdtempSync(path.join(os.tmpdir(), 'game-'))
+    const filesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'session-files-'))
+    submitArtifactRunMock.mockImplementationOnce(async () => ({
+      state: 'completed',
+      items: [
+        {
+          id: 'item-0',
+          type: 'image',
+          imageUrl: 'aipg-media://media/ship.png',
+          mode: 'imageGen',
+          state: 'done',
+          settings: {},
+        },
+      ] as ArtifactRunResult['items'],
+    }))
+    const tool = await buildTool(
+      GENERATE_SPEC,
+      hostWith({
+        workspaceDir: gameDir,
+        sessionMedia: { sessionRef: 'session-8', workspace: 'game', filesDir },
+      }),
+    )
+    const output = (await tool.execute(
+      'call-1',
+      { prompt: 'a ship' },
+      new AbortController().signal,
+    )) as { content: Array<{ text: string }>; details: { items: unknown[] } }
+
+    expect(parseOutput(output).savedFiles).toEqual(['generated/ship.png'])
+    expect(output.details.items).toMatchObject([
+      { imageUrl: 'aipg-media://sessions/session-8/files/ship.png' },
+    ])
+    expect(fs.readFileSync(path.join(gameDir, 'generated', 'ship.png'), 'utf8')).toBe('png-bytes')
+    expect(fs.readFileSync(path.join(filesDir, 'ship.png'), 'utf8')).toBe('png-bytes')
     setAppMediaPathResolver(null)
   })
 
