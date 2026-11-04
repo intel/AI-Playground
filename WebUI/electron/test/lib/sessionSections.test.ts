@@ -263,6 +263,35 @@ describe('sessionSections', () => {
     expect(ids(sections(sessions, 'lisbon', groups))).toEqual([['groups', [['trip', ['hit']]]]])
   })
 
+  it('lists every member of a Group whose name matches, pinned members included', () => {
+    const sessions = [
+      session('photos', { title: 'Photos', groupId: 'trip', updatedAt: 2 }),
+      session('packing', { title: 'Packing', groupId: 'trip', pinned: true, updatedAt: 1 }),
+      session('other', { title: 'Other' }),
+    ]
+    const groups = [group('trip', { name: 'Lisbon Trip' })]
+    expect(ids(sections(sessions, '  lisbon ', groups))).toEqual([
+      ['groups', [['trip', ['photos', 'packing']]]],
+    ])
+  })
+
+  it('hides an empty Group while searching, even when its name matches', () => {
+    const groups = [group('trip', { name: 'Lisbon' })]
+    expect(ids(sections([session('a', { title: 'Lisbon notes' })], 'lisbon', groups))).toEqual([
+      ['recent', ['a']],
+    ])
+  })
+
+  it('renders a Group whose name matches expanded while searching, leaving its stored state', () => {
+    const stored = group('trip', { name: 'Lisbon', expanded: false })
+    const result = sections([session('a1', { groupId: 'trip' })], 'lisbon', [stored])
+    expect(expandedOf(result)).toEqual({ trip: true })
+    expect(stored.expanded).toBe(false)
+    expect(expandedOf(sections([session('a1', { groupId: 'trip' })], '', [stored]))).toEqual({
+      trip: false,
+    })
+  })
+
   describe('Pinned "show more"', () => {
     it('shows the three most recent pins and counts the rest', () => {
       expect(pinnedOf(sections(fivePins))).toEqual({

@@ -56,8 +56,8 @@ export function sessionSections({
   pinnedShowMore,
 }: SessionSectionsInput): SessionSection[] {
   const needle = query.trim().toLocaleLowerCase()
-  const matches = (s: SessionSummary) =>
-    !needle || (s.title || untitled).toLocaleLowerCase().includes(needle)
+  const contains = (text: string) => text.toLocaleLowerCase().includes(needle)
+  const matches = (s: SessionSummary) => !needle || contains(s.title || untitled)
   const ordered = [...sessions].sort(newestFirst)
   const known = new Set(groups.map((group) => group.id))
   const groupOf = (s: SessionSummary) =>
@@ -73,8 +73,9 @@ export function sessionSections({
   const listings = groups
     .map((group) => {
       const members = ordered.filter((s) => groupOf(s) === group.id)
+      const shown = needle && contains(group.name) ? members : members.filter(matches)
       return {
-        listing: { group, sessions: members.filter(matches), expanded: expanded(group, members) },
+        listing: { group, sessions: shown, expanded: expanded(group, members) },
         newest: members[0],
       }
     })
