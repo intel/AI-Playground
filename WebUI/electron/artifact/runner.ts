@@ -712,8 +712,10 @@ function handleWebsocketMessage(run: ActiveRun, msg: unknown): void {
       const current = run.items[run.generateIdx]
       if (!current) break
       const createdAt = Date.now()
+      // ComfyUI reuses a filename once the earlier file has left its output folder,
+      // so the item id keeps two outputs from sharing a URL (and a cached image).
       const relative = (subfolder?: string, filename?: string) =>
-        mediaUrl(subfolder && filename ? `${subfolder}/${filename}` : (filename ?? ''))
+        `${mediaUrl(subfolder && filename ? `${subfolder}/${filename}` : (filename ?? ''))}?v=${encodeURIComponent(current.id)}`
       const image = 'images' in output ? output.images.find((i) => i.type === 'output') : undefined
       const video = 'gifs' in output ? output.gifs.find((i) => i.type === 'output') : undefined
       const model3d =

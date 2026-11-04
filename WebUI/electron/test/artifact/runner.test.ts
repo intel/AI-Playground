@@ -330,8 +330,8 @@ describe('artifact runner', () => {
       prompt: 'a cat',
       status: 'completed',
       items: [
-        expect.objectContaining({ imageUrl: 'aipg-media://media/out0.png' }),
-        expect.objectContaining({ imageUrl: 'aipg-media://media/out1.png' }),
+        expect.objectContaining({ imageUrl: 'aipg-media://media/out0.png?v=item-0' }),
+        expect.objectContaining({ imageUrl: 'aipg-media://media/out1.png?v=item-1' }),
       ],
     })
     const moved = 'aipg-media://sessions/session-1/files/item-0.png'
@@ -379,6 +379,32 @@ describe('artifact runner', () => {
     })
     await run
     expect(recordMediaTurn).not.toHaveBeenCalled()
+  })
+
+  it('gives two outputs distinct URLs when ComfyUI reuses a filename', async () => {
+    setArtifactRunnerDeps(deps())
+    const urls: string[] = []
+    for (const runId of ['chat-run', 'agent-run']) {
+      const run = submitArtifactRun(
+        payload({ runId, origin: 'agent', params: { ...payload().params, batchSize: 1 } }),
+      )
+      await vi.waitFor(() => expect(artifactRunActive()).toBe(true))
+      await vi.waitFor(() => expect(socketHandlers).not.toBeNull())
+      socketHandlers!.onJson({
+        type: 'executed',
+        data: {
+          node: '2',
+          output: { images: [{ filename: 'ComfyUI_00001_.png', subfolder: '', type: 'output' }] },
+        },
+      })
+      const result = await run
+      socketHandlers = null
+      const item = result.items[0]
+      urls.push(isImage(item) ? item.imageUrl : '')
+    }
+    expect(urls[0]).not.toBe(urls[1])
+    expect(urls[0]).toMatch(/^aipg-media:\/\/media\/ComfyUI_00001_\.png\?/)
+    expect(urls[1]).toMatch(/^aipg-media:\/\/media\/ComfyUI_00001_\.png\?/)
   })
 
   it('applies the preset launch flags before starting the backend', async () => {
