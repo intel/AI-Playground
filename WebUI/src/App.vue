@@ -520,7 +520,7 @@ async function closeWindow() {
     if (keepAlive) {
       const keep = await dialogStore.requestConfirmation(
         i18n.state.AGENT_TASKS_CLOSE_CONFIRM ??
-          'A task is scheduled or still running. Keep AI Playground running in the background, or quit and stop it?',
+          'An agent is scheduled or still running. Keep AI Playground running in the background, or quit and stop it?',
         {
           confirm: i18n.state.AGENT_TASKS_KEEP_RUNNING ?? 'Keep running',
           cancel: i18n.state.AGENT_TASKS_QUIT ?? 'Quit',

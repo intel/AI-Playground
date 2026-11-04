@@ -78,3 +78,14 @@ describe('i18n parity', () => {
     expect(empty).toEqual([])
   })
 })
+
+describe('glossary wording', () => {
+  // Lowercase "task" is ordinary English ("AI tasks"); capitalised it is the old name of an Agent.
+  it('en-US never calls an Agent a Task', () => {
+    const stale = Object.entries(english)
+      .filter(([, value]) => /\bTasks?\b/.test(value))
+      .map(([key]) => key)
+
+    expect(stale).toEqual([])
+  })
+})

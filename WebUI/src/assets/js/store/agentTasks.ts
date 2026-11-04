@@ -655,7 +655,7 @@ export const useAgentTasks = defineStore('agentTasks', () => {
 
   function scheduledRefusal(task: AgentTask): string | null {
     if (!presets.presets.some((preset) => preset.name === AGENT_PRESET)) {
-      return i18n.state.AGENT_TASK_PRESET_UNAVAILABLE ?? 'The Agent preset is not available.'
+      return i18n.state.AGENT_TASK_PRESET_UNAVAILABLE ?? 'The Agent Maker preset is not available.'
     }
     const needsMcp = (task.settingsTemplate.capabilities ?? []).some((id) =>
       id.startsWith(MCP_CAPABILITY_PREFIX),
