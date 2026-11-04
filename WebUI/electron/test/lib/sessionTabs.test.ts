@@ -146,7 +146,7 @@ describe('schedulesPanel', () => {
     expect(schedulesPanel('full')).toEqual({
       editSteps: true,
       editNote: false,
-      agentList: { load: true, saveAsPreset: true },
+      agentList: { load: true, saveAsPreset: true, presetAgentOnly: false },
     })
   })
 
@@ -154,15 +154,15 @@ describe('schedulesPanel', () => {
     expect(schedulesPanel('run-only')).toEqual({
       editSteps: false,
       editNote: true,
-      agentList: { load: false, saveAsPreset: false },
+      agentList: { load: false, saveAsPreset: false, presetAgentOnly: false },
     })
   })
 
-  it('keeps only the bound save bar and Steps under a saved Agent Preset', () => {
+  it("shows the save bar, Steps and only the preset's own Agent under a saved Agent Preset", () => {
     expect(schedulesPanel('one-agent')).toEqual({
       editSteps: true,
       editNote: false,
-      agentList: null,
+      agentList: { load: false, saveAsPreset: false, presetAgentOnly: true },
     })
   })
 })
