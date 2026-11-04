@@ -30,10 +30,6 @@
       </Button>
     </div>
 
-    <!-- Model row: pick the synthesis engine. Qwen TTS runs on its own backend (every
-         product mode); Kokoro runs on OpenVINO (offered only in non-NVIDIA modes);
-         External uses the endpoint configured in App Settings (offered only when it's
-         enabled there). -->
     <div class="grid grid-cols-[120px_1fr] items-center gap-4">
       <Label class="whitespace-nowrap">{{ languages.MODEL }}</Label>
       <drop-down-new

@@ -5,15 +5,19 @@
         <PresetSelector
           :categories="categories"
           :model-value="presetsStore.activePresetName || undefined"
-          @update:model-value="handlePresetChange"
-          @update:variant="handleVariantChange"
+          @update:model-value="changePreset"
+          @update:variant="changeVariant"
         />
       </template>
 
-      <!-- Only shown when the active preset declares variants for more than one backend. -->
-      <SettingsRow v-if="!isBackendLocked" label="Backend">
+      <SettingsRow
+        v-if="!isBackendLocked"
+        role="group"
+        :aria-label="languages.BACKEND"
+        :label="languages.BACKEND"
+      >
         <drop-down-new
-          title="Select Backend"
+          :title="languages.AGENT_SETTINGS_SELECT_BACKEND"
           :value="activeBackend"
           :items="backendItems"
           @change="handleBackendChange"
@@ -21,7 +25,7 @@
       </SettingsRow>
 
       <template v-if="!usesInProcessOpenVINO" #machine>
-        <SettingsRow :label="languages.DEVICE">
+        <SettingsRow role="group" :aria-label="languages.DEVICE" :label="languages.DEVICE">
           <DeviceSelector
             :backend="deviceSelectorBackend"
             :allowed-device-prefixes="deviceSelectorAllowedPrefixes"
@@ -30,7 +34,7 @@
       </template>
 
       <template #reset-fallback>
-        <WorkflowPresetResetButton />
+        <PresetResetButton :reset="imageGeneration.resetActivePresetSettings" />
       </template>
 
       <template
@@ -39,7 +43,7 @@
       >
         <div class="max-w-md mx-auto flex items-center gap-2">
           <Button variant="outline" class="flex-1 w-full" @click="openComfyUiInBrowser">
-            Open ComfyUI
+            {{ languages.SETTINGS_OPEN_COMFYUI }}
           </Button>
           <Tooltip>
             <TooltipTrigger as-child>
@@ -64,17 +68,19 @@ import {
   useImageGenerationPresets,
 } from '@/assets/js/store/imageGenerationPresets'
 import { useBackendServices } from '@/assets/js/store/backendServices'
+import { useErrors } from '@/assets/js/store/errors'
 import { useI18N } from '@/assets/js/store/i18n'
 import { usePresets } from '@/assets/js/store/presets'
 import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
 import DeviceSelector from '@/components/DeviceSelector.vue'
 import DropDownNew from '@/components/DropDownNew.vue'
 import PresetSelector from '@/components/PresetSelector.vue'
+import PresetResetButton from '@/components/PresetResetButton.vue'
 import SettingsRow from '@/components/SettingsRow.vue'
 import SettingsTabLayout from '@/components/SettingsTabLayout.vue'
-import WorkflowPresetResetButton from '@/components/WorkflowPresetResetButton.vue'
 import { useWorkflowDevices } from '@/assets/js/workflowDevices'
-import * as toast from '@/assets/js/toast'
+import { usePresetPicker } from '@/assets/js/presetPicker'
+import { createAppError } from '@/assets/js/errors/appError'
 
 defineProps<{
   categories: string[]
@@ -83,6 +89,8 @@ defineProps<{
 const imageGeneration = useImageGenerationPresets()
 const presetsStore = usePresets()
 const presetSwitching = usePresetSwitching()
+const errors = useErrors()
+const { changePreset, changeVariant } = usePresetPicker({ skipModeSwitch: true, announce: false })
 const backendServices = useBackendServices()
 const languages = useI18N().state
 const { currentPreset, presetRequiresOvms, usesInProcessOpenVINO, openvinoImageGenDevicePrefixes } =
@@ -101,7 +109,15 @@ const BACKEND_TO_SERVICE: Record<string, BackendServiceName | undefined> = {
 async function openComfyUiInBrowser() {
   const result = await window.electronAPI.comfyui.openInBrowser()
   if (!result.success) {
-    toast.error(result.error ?? 'Failed to open ComfyUI')
+    errors.report(
+      createAppError({
+        category: 'backend',
+        code: 'comfyui/open-in-browser-failed',
+        severity: 'error',
+        surface: 'toast',
+        userMessage: result.error ?? languages.SETTINGS_COMFYUI_OPEN_FAILED,
+      }),
+    )
   }
 }
 
@@ -115,16 +131,6 @@ const deviceSelectorAllowedPrefixes = computed<string[] | undefined>(() =>
     ? openvinoImageGenDevicePrefixes.value
     : undefined,
 )
-
-async function handlePresetChange(presetName: string) {
-  await presetSwitching.switchPreset(presetName, { skipModeSwitch: true })
-}
-
-async function handleVariantChange(presetName: string, variantName: string | null) {
-  if (variantName) {
-    await presetSwitching.switchPreset(presetName, { variant: variantName, skipModeSwitch: true })
-  }
-}
 
 function isBackendServiceRunning(backend: string): boolean {
   const serviceName = BACKEND_TO_SERVICE[backend]

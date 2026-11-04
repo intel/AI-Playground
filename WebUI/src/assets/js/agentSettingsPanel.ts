@@ -75,5 +75,11 @@ export function useAgentSettingsPanel() {
     sharedWithChat: computed(() => !agentMode.sessionScoped),
   })
 
-  return { binding, capabilityCatalog, refreshCapabilityCatalog, readOnly }
+  /** The Session's copy of the preset was reset: drop the agent-only overrides too. */
+  function onPresetReset() {
+    agentMode.resetPresetSettings()
+    void refreshCapabilityCatalog()
+  }
+
+  return { binding, capabilityCatalog, refreshCapabilityCatalog, onPresetReset, readOnly }
 }

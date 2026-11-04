@@ -9,11 +9,16 @@
       <PresetSelector
         type="chat"
         :model-value="presetsStore.activePresetName || undefined"
-        @update:model-value="handlePresetChange"
+        @update:model-value="changePreset"
       />
     </template>
 
-    <SettingsRow :class="problemClass('backend')" :label="languages.AGENT_SETTING_BACKEND">
+    <SettingsRow
+      role="group"
+      :aria-label="languages.AGENT_SETTING_BACKEND"
+      :class="problemClass('backend')"
+      :label="languages.AGENT_SETTING_BACKEND"
+    >
       <drop-down-new
         :title="languages.AGENT_SETTINGS_SELECT_BACKEND"
         :value="binding.backend"
@@ -38,7 +43,6 @@
     >
       <div class="flex items-center gap-2 min-w-0">
         <div class="flex-1 min-w-0">
-          <!-- Same picker as Chat, so an Agent Preset's requirements filter the list here too. -->
           <ModelSelector auto-select />
         </div>
         <CapabilityIcons v-if="binding.currentModel" :model="binding.currentModel" />
@@ -71,8 +75,6 @@
       {{ languages.AGENT_SETTINGS_SHARED_WITH_CHAT }}
     </p>
 
-    <!-- Only models whose template honours enable_thinking can be told to stop, and only a
-         session that thinks has anything to shorten. -->
     <div v-if="binding.thinkingToggleSupported" class="flex flex-col gap-2">
       <Label class="whitespace-nowrap">{{ languages.AGENT_SETTINGS_THINKING }}</Label>
       <label class="flex items-start gap-2 text-sm">
@@ -111,7 +113,7 @@
     <p class="text-xs text-amber-500">{{ languages.AGENT_SETTINGS_NEXT_TURN }}</p>
 
     <template v-if="binding.backend !== 'cloud'" #machine>
-      <SettingsRow :label="languages.DEVICE">
+      <SettingsRow role="group" :aria-label="languages.DEVICE" :label="languages.DEVICE">
         <DeviceSelector :backend="deviceServiceName" />
       </SettingsRow>
     </template>
@@ -126,11 +128,8 @@
 import { computed } from 'vue'
 import { Label } from '@/components/ui/label'
 import { backendToService, useTextInference } from '@/assets/js/store/textInference'
-import { useAgentMode } from '@/assets/js/store/agentMode'
 import { useI18N } from '@/assets/js/store/i18n'
-import { useOemBranding } from '@/assets/js/store/oemBranding'
 import { usePresets } from '@/assets/js/store/presets'
-import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
 import AgentPresetDefaultsActions from '@/components/AgentPresetDefaultsActions.vue'
 import CapabilityIcons from '@/components/CapabilityIcons.vue'
 import DeviceSelector from '@/components/DeviceSelector.vue'
@@ -143,16 +142,14 @@ import SettingsTabLayout from '@/components/SettingsTabLayout.vue'
 import { useAgentSettingsPanel } from '@/assets/js/agentSettingsPanel'
 import { useContextSizeField } from '@/assets/js/contextSizeField'
 import { useSettingsProblemMarks } from '@/assets/js/settingsProblemMarks'
-import * as toast from '@/assets/js/toast'
+import { usePresetPicker } from '@/assets/js/presetPicker'
 
 const languages = useI18N().state
 const textInference = useTextInference()
-const agentMode = useAgentMode()
 const presetsStore = usePresets()
-const presetSwitching = usePresetSwitching()
-const oemBranding = useOemBranding()
 
-const { binding, refreshCapabilityCatalog, readOnly } = useAgentSettingsPanel()
+const { binding, refreshCapabilityCatalog, onPresetReset, readOnly } = useAgentSettingsPanel()
+const { changePreset } = usePresetPicker({})
 const { problemClass } = useSettingsProblemMarks(() => binding.problems)
 
 const contextSize = computed<number>({
@@ -165,18 +162,4 @@ const contextSizeField = useContextSizeField(contextSize)
 const deviceServiceName = computed(
   () => backendToService[textInference.backend] ?? 'llamacpp-backend',
 )
-
-function onPresetReset() {
-  agentMode.resetPresetSettings()
-  void refreshCapabilityCatalog()
-}
-
-async function handlePresetChange(presetName: string) {
-  const result = await presetSwitching.switchPreset(presetName)
-  if (result.success) {
-    toast.success(`Switched to ${oemBranding.presetLabel(presetName)}`)
-  } else if (result.error) {
-    toast.error(`Failed to switch preset: ${result.error}`)
-  }
-}
 </script>

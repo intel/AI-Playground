@@ -1,57 +1,41 @@
 <template>
-  <!-- The speech engines are global (ADR-0004), so the whole tab applies to all sessions. -->
-  <SettingsTabLayout machine-only>
+  <SettingsTabLayout>
     <template #picker>
       <PresetSelector
         type="chat"
         :categories="[AUDIO_CATEGORY]"
         :model-value="presetsStore.activePresetName || undefined"
-        @update:model-value="handlePresetChange"
-        @update:variant="handleVariantChange"
+        @update:model-value="changePreset"
+        @update:variant="changeVariant"
       />
     </template>
 
-    <SettingsTtsInferencing v-if="isTtsPreset" />
-    <SettingsStt v-else-if="isSttPreset" />
-
-    <template v-if="isTtsPreset || isSttPreset" #reset-fallback>
-      <AudioPresetResetButton />
+    <!-- The speech engines are global (ADR-0004), so their settings apply to all sessions. -->
+    <template v-if="isTtsPreset || isSttPreset" #machine>
+      <SettingsTtsInferencing v-if="isTtsPreset" />
+      <SettingsStt v-else />
+      <PresetResetButton
+        :reset="resetSpeechSettings"
+        :label="languages.AUDIO_RESET_SPEECH_DEFAULTS"
+      />
     </template>
   </SettingsTabLayout>
 </template>
 
 <script setup lang="ts">
+import { useI18N } from '@/assets/js/store/i18n'
 import { AUDIO_CATEGORY, usePresets } from '@/assets/js/store/presets'
-import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
-import AudioPresetResetButton from '@/components/AudioPresetResetButton.vue'
+import PresetResetButton from '@/components/PresetResetButton.vue'
 import PresetSelector from '@/components/PresetSelector.vue'
 import SettingsStt from '@/components/SettingsStt.vue'
 import SettingsTabLayout from '@/components/SettingsTabLayout.vue'
 import SettingsTtsInferencing from '@/components/SettingsTtsInferencing.vue'
-import { useActiveAudioPreset } from '@/assets/js/activeAudioPreset'
-import * as toast from '@/assets/js/toast'
+import { useActiveAudioPreset, useSpeechSettingsReset } from '@/assets/js/activeAudioPreset'
+import { usePresetPicker } from '@/assets/js/presetPicker'
 
+const languages = useI18N().state
 const presetsStore = usePresets()
-const presetSwitching = usePresetSwitching()
 const { isTtsPreset, isSttPreset } = useActiveAudioPreset()
-
-async function handlePresetChange(presetName: string) {
-  const result = await presetSwitching.switchPreset(presetName, { skipModeSwitch: true })
-  if (result.success) {
-    toast.success(`Switched to ${presetName}`)
-  } else if (result.error) {
-    toast.error(`Failed to switch preset: ${result.error}`)
-  }
-}
-
-async function handleVariantChange(presetName: string, variantName: string | null) {
-  if (!variantName) return
-  const result = await presetSwitching.switchPreset(presetName, {
-    variant: variantName,
-    skipModeSwitch: true,
-  })
-  if (!result.success && result.error) {
-    toast.error(`Failed to switch variant: ${result.error}`)
-  }
-}
+const { resetSpeechSettings } = useSpeechSettingsReset()
+const { changePreset, changeVariant } = usePresetPicker({ skipModeSwitch: true })
 </script>

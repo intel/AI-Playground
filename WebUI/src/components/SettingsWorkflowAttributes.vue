@@ -117,6 +117,7 @@
         </div>
         <random-number
           v-model:value="imageGeneration.seed"
+          :label="languages.SETTINGS_MODEL_SEED"
           :default="-1"
           :min="0"
           :max="4294967295"
@@ -152,7 +153,7 @@
       <ComfyDynamic />
 
       <template #reset-fallback>
-        <WorkflowPresetResetButton />
+        <PresetResetButton :reset="imageGeneration.resetActivePresetSettings" />
       </template>
     </SettingsTabLayout>
   </TooltipProvider>
@@ -171,9 +172,9 @@ import AspectRatioPicker from '@/components/AspectRatioPicker.vue'
 import DropDownNew from '@/components/DropDownNew.vue'
 import RandomNumber from '@/components/RandomNumber.vue'
 import ComfyDynamic from '@/components/SettingsImageComfyDynamic.vue'
+import PresetResetButton from '@/components/PresetResetButton.vue'
 import SettingsRow from '@/components/SettingsRow.vue'
 import SettingsTabLayout from '@/components/SettingsTabLayout.vue'
-import WorkflowPresetResetButton from '@/components/WorkflowPresetResetButton.vue'
 import { deviceMatchesAllowedPrefixes, useWorkflowDevices } from '@/assets/js/workflowDevices'
 
 const imageGeneration = useImageGenerationPresets()

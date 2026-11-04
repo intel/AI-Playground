@@ -13,12 +13,11 @@
       </Button>
     </div>
   </template>
-  <div v-else class="border-t border-border items-center flex-wrap grid grid-cols-1 gap-2">
-    <button class="mt-4" @click="resetPresetSettings">
-      <div class="svg-icon i-refresh">Reset</div>
-      {{ languages.COM_LOAD_PRESET_DEFAULTS || 'Reset Preset Settings' }}
-    </button>
-  </div>
+  <PresetResetButton
+    v-else
+    :reset="resetPresetSettings"
+    :preset-name="agentMode.agentPresetName || undefined"
+  />
 </template>
 
 <script setup lang="ts">
@@ -27,6 +26,7 @@ import { useAgentTasks } from '@/assets/js/store/agentTasks'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useOemBranding } from '@/assets/js/store/oemBranding'
 import { useTextInference } from '@/assets/js/store/textInference'
+import PresetResetButton from '@/components/PresetResetButton.vue'
 import { Button } from '@/components/ui/button'
 import * as toast from '@/assets/js/toast'
 
@@ -58,6 +58,5 @@ function resetPresetSettings() {
   textInference.resetActivePresetSettings()
   agentMode.resetPresetSettings()
   emit('reset')
-  toast.success('Reset to preset defaults')
 }
 </script>

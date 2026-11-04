@@ -1,11 +1,12 @@
 <template>
   <div class="flex flex-col gap-4">
-    <!-- === Qwen3-TTS engine === -->
     <template v-if="textToSpeech.selectedEngine === 'qwen3'">
-      <!-- Voice: preset speakers plus any voices you created. This is the voice used
-           when the chat reads text aloud. -->
-      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-        <Label class="whitespace-nowrap">Voice</Label>
+      <div
+        role="group"
+        :aria-labelledby="voiceLabelId"
+        class="grid grid-cols-[120px_1fr] items-center gap-4"
+      >
+        <Label :id="voiceLabelId" class="whitespace-nowrap">Voice</Label>
         <drop-down-new
           title="Voice"
           :value="selectedVoiceValue"
@@ -14,7 +15,6 @@
         ></drop-down-new>
       </div>
 
-      <!-- Language applies to synthesis. -->
       <div class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">Language</Label>
         <drop-down-new
@@ -26,10 +26,13 @@
       </div>
     </template>
 
-    <!-- === Kokoro (OpenVINO) engine === -->
     <template v-else-if="textToSpeech.selectedEngine === 'kokoro'">
-      <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-        <Label class="whitespace-nowrap">Voice</Label>
+      <div
+        role="group"
+        :aria-labelledby="voiceLabelId"
+        class="grid grid-cols-[120px_1fr] items-center gap-4"
+      >
+        <Label :id="voiceLabelId" class="whitespace-nowrap">Voice</Label>
         <drop-down-new
           title="Voice"
           :value="textToSpeech.selectedKokoroVoice"
@@ -122,6 +125,7 @@
         </div>
         <random-number
           v-model:value="newVoiceSeed"
+          :label="languages.SETTINGS_MODEL_SEED"
           :default="derivedSeed"
           :min="0"
           :max="2147483647"
@@ -155,6 +159,7 @@
           <li
             v-for="voice in qwen3Tts.savedVoices"
             :key="voice.name"
+            :aria-label="voice.name"
             class="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-1"
           >
             <div class="min-w-0 flex-1">
@@ -213,7 +218,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, useId, watch } from 'vue'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
@@ -239,6 +244,7 @@ import type {
   Qwen3TtsSpeakerId,
 } from '@/assets/js/qwen3TtsConstants'
 
+const voiceLabelId = useId()
 const languages = useI18N().state
 const qwen3Tts = useQwen3TextToSpeech()
 const textToSpeech = useTextToSpeech()

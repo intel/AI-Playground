@@ -1,8 +1,11 @@
 <template>
-  <SettingsTabLayout v-if="isTtsPreset" machine-only>
-    <SettingsTtsAttributes />
-    <template #reset-fallback>
-      <AudioPresetResetButton />
+  <SettingsTabLayout v-if="isTtsPreset">
+    <template #machine>
+      <SettingsTtsAttributes />
+      <PresetResetButton
+        :reset="resetSpeechSettings"
+        :label="languages.AUDIO_RESET_SPEECH_DEFAULTS"
+      />
     </template>
   </SettingsTabLayout>
   <div v-else-if="isSttPreset" class="p-4 w-full max-w-3xl mx-auto">
@@ -12,11 +15,12 @@
 
 <script setup lang="ts">
 import { useI18N } from '@/assets/js/store/i18n'
-import AudioPresetResetButton from '@/components/AudioPresetResetButton.vue'
+import PresetResetButton from '@/components/PresetResetButton.vue'
 import SettingsTabLayout from '@/components/SettingsTabLayout.vue'
 import SettingsTtsAttributes from '@/components/SettingsTtsAttributes.vue'
-import { useActiveAudioPreset } from '@/assets/js/activeAudioPreset'
+import { useActiveAudioPreset, useSpeechSettingsReset } from '@/assets/js/activeAudioPreset'
 
 const languages = useI18N().state
 const { isTtsPreset, isSttPreset } = useActiveAudioPreset()
+const { resetSpeechSettings } = useSpeechSettingsReset()
 </script>

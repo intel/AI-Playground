@@ -13,7 +13,7 @@
     <SettingsWorkflowInferencing
       v-if="tab === 'inferencing'"
       :key="mode"
-      :categories="[WORKFLOW_CATEGORIES[mode]]"
+      :categories="MODE_TO_CATEGORIES[mode]"
     />
     <SettingsWorkflowAttributes v-else :key="mode" />
   </template>
@@ -32,12 +32,7 @@ import SettingsChatAttributes from '@/components/SettingsChatAttributes.vue'
 import SettingsChatInferencing from '@/components/SettingsChatInferencing.vue'
 import SettingsWorkflowAttributes from '@/components/SettingsWorkflowAttributes.vue'
 import SettingsWorkflowInferencing from '@/components/SettingsWorkflowInferencing.vue'
-
-const WORKFLOW_CATEGORIES: Record<'imageGen' | 'imageEdit' | 'video', string> = {
-  imageGen: 'create-images',
-  imageEdit: 'edit-images',
-  video: 'create-videos',
-}
+import { MODE_TO_CATEGORIES } from '@/lib/presetModes'
 
 defineProps<{
   mode: ModeType

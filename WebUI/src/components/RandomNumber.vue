@@ -1,6 +1,12 @@
 <template>
-  <div class="v-random">
-    <input class="v-random-input" type="text" v-model="generatedNumber" @input="inputValidate" />
+  <div class="v-random" :role="label ? 'group' : undefined" :aria-label="label">
+    <input
+      class="v-random-input"
+      type="text"
+      :aria-label="label"
+      v-model="generatedNumber"
+      @input="inputValidate"
+    />
     <div class="v-random-btns">
       <button
         class="w-6 h-6 rounded-sm flex justify-center items-center bg-muted"
@@ -27,6 +33,8 @@ const props = withDefaults(
     scale: number
     default: number
     value: number
+    /** Names the seed field and its buttons as one group. */
+    label?: string
   }>(),
   {
     min: 0,
