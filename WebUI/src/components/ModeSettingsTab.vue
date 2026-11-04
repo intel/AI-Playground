@@ -13,9 +13,15 @@
     />
     <SettingsWorkflowAttributes v-else :key="mode" />
   </template>
+  <template v-else-if="mode === 'audio'">
+    <SettingsAudioInferencing v-if="tab === 'inferencing'" />
+    <SettingsAudioAttributes v-else />
+  </template>
 </template>
 
 <script setup lang="ts">
+import SettingsAudioAttributes from '@/components/SettingsAudioAttributes.vue'
+import SettingsAudioInferencing from '@/components/SettingsAudioInferencing.vue'
 import SettingsChatAttributes from '@/components/SettingsChatAttributes.vue'
 import SettingsChatInferencing from '@/components/SettingsChatInferencing.vue'
 import SettingsWorkflowAttributes from '@/components/SettingsWorkflowAttributes.vue'

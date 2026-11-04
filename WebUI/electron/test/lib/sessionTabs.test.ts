@@ -179,8 +179,12 @@ describe('settingsInTabs', () => {
     }
   })
 
+  it('puts Audio settings in the Inferencing and Attributes tabs', () => {
+    expect(settingsInTabs('audio')).toBe(true)
+  })
+
   it('keeps the modes not yet moved in the settings sidebar', () => {
-    for (const mode of ['audio', 'agent'] as const) {
+    for (const mode of ['agent'] as const) {
       expect(settingsInTabs(mode)).toBe(false)
     }
   })

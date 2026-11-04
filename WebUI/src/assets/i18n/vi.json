@@ -657,6 +657,8 @@
   "AGENT_RESET_TO_DEFAULT_DONE": "Đã đặt lại phiên này về cài đặt mặc định",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "Đã lưu làm mặc định cho các phiên mới",
   "SESSION_SETTINGS_APPLIES_TO_ALL": "Áp dụng cho tất cả các phiên",
+  "AUDIO_STT_NO_ATTRIBUTES": "Speech to Text không có thuộc tính. Công cụ và mô hình nằm trong Inferencing.",
+  "AUDIO_TTS_EXTERNAL_VOICE_IN_INFERENCING": "Điểm cuối bên ngoài tự đặt giọng nói của nó, trong Inferencing.",
   "SESSION_SETTINGS_SAVE_AS_DEFAULT_NAMED": "Lưu làm mặc định cho {preset}",
   "SESSION_SETTINGS_RESET_TO_DEFAULT_NAMED": "Đặt lại {preset} về mặc định",
   "HOME_AGENT_SETTINGS_NOTE": "Các cài đặt này áp dụng cho mọi cuộc trò chuyện Home Agent. Hãy kiểm tra sau khi thay đổi để bạn vẫn có thể truy cập AI Playground từ xa.",

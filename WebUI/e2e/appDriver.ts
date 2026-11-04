@@ -636,7 +636,7 @@ export class AppDriver {
       // making "the default voice" a designed voice, skipping the preset-speaker path
       // entirely, and turning "create a voice" into "re-save the same voice". Pin a
       // built-in speaker and drop the leftover voice so both paths are exercised.
-      await this.settings.open('Audio')
+      await this.settings.open('Audio', 'Attributes')
       await this.settings.deleteTtsVoiceIfPresent(opts.newVoice.name)
       await this.settings.selectTtsVoice(/^Ryan\b/)
       await this.settings.close('Audio')
@@ -650,7 +650,7 @@ export class AppDriver {
     })
 
     await test.step('Create a custom voice and synthesize a second audio with it', async () => {
-      await this.settings.open('Audio')
+      await this.settings.open('Audio', 'Attributes')
       // A created voice needs two checkpoints that the preset speakers don't: voice
       // design invents it, and the Base model clones it for everything it says later.
       // Saving is what offers both downloads, so those dialogs belong to THIS step —
@@ -725,7 +725,7 @@ export class AppDriver {
     })
 
     await test.step('Editing a voice loads it back into the form', async () => {
-      await this.settings.open('Audio')
+      await this.settings.open('Audio', 'Attributes')
       await this.settings.editSavedTtsVoice(opts.newVoice.name)
       // Edit restores the whole voice, seed included — that is what makes the saved
       // speaker adjustable instead of only replaceable.
@@ -737,7 +737,7 @@ export class AppDriver {
     })
 
     await test.step('Re-saving with a new seed draws a different speaker', async () => {
-      await this.settings.open('Audio')
+      await this.settings.open('Audio', 'Attributes')
       await this.settings.editSavedTtsVoice(opts.newVoice.name)
       await this.settings.rollTtsSeed()
       // Same name → the save must ask before replacing the existing voice.

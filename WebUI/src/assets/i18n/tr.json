@@ -657,6 +657,8 @@
   "AGENT_RESET_TO_DEFAULT_DONE": "Bu oturum varsayılan ayarlara sıfırlandı",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "Yeni oturumlar için varsayılan olarak kaydedildi",
   "SESSION_SETTINGS_APPLIES_TO_ALL": "Tüm oturumlar için geçerli",
+  "AUDIO_STT_NO_ATTRIBUTES": "Speech to Text'in özniteliği yok. Motoru ve modeli Inferencing'de.",
+  "AUDIO_TTS_EXTERNAL_VOICE_IN_INFERENCING": "Harici uç nokta kendi sesini Inferencing'de belirler.",
   "SESSION_SETTINGS_SAVE_AS_DEFAULT_NAMED": "{preset} için varsayılan olarak kaydet",
   "SESSION_SETTINGS_RESET_TO_DEFAULT_NAMED": "{preset} ayarlarını varsayılana sıfırla",
   "HOME_AGENT_SETTINGS_NOTE": "Bu ayarlar her Home Agent konuşması için geçerlidir. AI Playground'a uzaktan erişmeye devam edebilmek için değişiklikten sonra bunları kontrol edin.",

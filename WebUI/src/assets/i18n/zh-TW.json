@@ -657,6 +657,8 @@
   "AGENT_RESET_TO_DEFAULT_DONE": "已將此工作階段重設為預設設定",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "已儲存為新工作階段的預設值",
   "SESSION_SETTINGS_APPLIES_TO_ALL": "套用至所有工作階段",
+  "AUDIO_STT_NO_ATTRIBUTES": "Speech to Text 沒有屬性。其引擎與模型位於 Inferencing 中。",
+  "AUDIO_TTS_EXTERNAL_VOICE_IN_INFERENCING": "外部端點的語音在 Inferencing 中設定。",
   "SESSION_SETTINGS_SAVE_AS_DEFAULT_NAMED": "儲存為 {preset} 的預設值",
   "SESSION_SETTINGS_RESET_TO_DEFAULT_NAMED": "將 {preset} 重設為預設值",
   "HOME_AGENT_SETTINGS_NOTE": "這些設定會套用至所有 Home Agent 對話。變更後請檢查，以確保仍可從遠端存取 AI Playground。",

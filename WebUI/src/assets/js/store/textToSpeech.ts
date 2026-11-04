@@ -75,7 +75,7 @@ export const useTextToSpeech = defineStore('textToSpeech', () => {
   // speech I/O adapter (`speechIO.speak`); this store is engine config.
 
   // Which engine the TTS preset (and the synthesizeTextToSpeech tool) uses. Edited
-  // in SettingsTts; 'kokoro' is only selectable when `isKokoroAvailable` is true.
+  // in SettingsTtsInferencing; 'kokoro' is only selectable when `isKokoroAvailable` is true.
   const selectedEngine = ref<TtsEngine>('qwen3')
   // The Kokoro voice used for the OVMS text2speech path.
   const selectedKokoroVoice = ref<KokoroVoice>('af_heart')

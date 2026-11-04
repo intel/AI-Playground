@@ -29,7 +29,13 @@ export function settingsRegion(page: Page, mode: string): Locator {
 export type SettingsTab = 'Inferencing' | 'Attributes'
 
 /** Owners whose settings live in the session tabs rather than in a "<mode> Settings" sidebar. */
-const SETTINGS_IN_TABS: readonly SettingsOwner[] = ['Chat', 'Image Gen', 'Image Edit', 'Video']
+const SETTINGS_IN_TABS: readonly SettingsOwner[] = [
+  'Chat',
+  'Audio',
+  'Image Gen',
+  'Image Edit',
+  'Video',
+]
 
 export function settingsInTabs(owner: SettingsOwner): boolean {
   return SETTINGS_IN_TABS.includes(owner)

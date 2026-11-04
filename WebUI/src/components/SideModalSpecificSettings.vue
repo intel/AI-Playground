@@ -9,10 +9,9 @@
   >
     <!-- v-if (not v-show): these panels drive the same (chat-type) active preset, and
          the agent form's ModelSelector auto-selects for it, so one left mounted under
-         another mode would override that mode's selection. Chat settings live in the
-         session tabs (ModeSettingsTab). -->
-    <SettingsAudio v-if="props.mode == 'audio'" />
-    <SettingsAgent v-else-if="props.mode == 'agent'" />
+         another mode would override that mode's selection. Every other mode's settings live in
+         the session tabs (ModeSettingsTab). -->
+    <SettingsAgent v-if="props.mode == 'agent'" />
   </SideModalBase>
 </template>
 
@@ -20,7 +19,6 @@
 import { useModeSettingsLabel } from '@/assets/js/modeSettingsLabel'
 import SideModalBase from '@/components/SideModalBase.vue'
 import SettingsAgent from '@/components/SettingsAgent.vue'
-import SettingsAudio from '@/components/SettingsAudio.vue'
 
 const props = defineProps<{
   mode: ModeType

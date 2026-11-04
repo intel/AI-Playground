@@ -657,6 +657,8 @@
   "AGENT_RESET_TO_DEFAULT_DONE": "已将此会话重置为默认设置",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "已保存为新会话的默认设置",
   "SESSION_SETTINGS_APPLIES_TO_ALL": "适用于所有会话",
+  "AUDIO_STT_NO_ATTRIBUTES": "Speech to Text 没有属性。其引擎和模型位于 Inferencing 中。",
+  "AUDIO_TTS_EXTERNAL_VOICE_IN_INFERENCING": "外部端点的语音在 Inferencing 中设置。",
   "SESSION_SETTINGS_SAVE_AS_DEFAULT_NAMED": "保存为 {preset} 的默认设置",
   "SESSION_SETTINGS_RESET_TO_DEFAULT_NAMED": "将 {preset} 重置为默认设置",
   "HOME_AGENT_SETTINGS_NOTE": "这些设置适用于所有 Home Agent 对话。更改后请检查，以确保仍可远程访问 AI Playground。",

@@ -4,7 +4,7 @@ import { sessionTabPanel, settingsInTabs, showSessionTab, type SettingsTab } fro
 
 /**
  * Page object for a mode's settings: the Inferencing and Attributes tabs of the open
- * Session's view for the modes that moved there (Chat and the workflow modes), else the mode-specific
+ * Session's view for the modes that moved there (Chat, Audio and the workflow modes), else the mode-specific
  * sidebar opened from the prompt area's "<Mode> Settings" button.
  */
 export class SpecificSettingsPage {
@@ -281,13 +281,13 @@ export class SpecificSettingsPage {
   }
 
   /**
-   * Create a custom ("designed") TTS voice from the Text-to-Speech preset's settings
-   * (SettingsTts.vue "Create a custom voice" form): fill the name + description, then
+   * Create a custom ("designed") TTS voice from the Text-to-Speech preset's Attributes tab
+   * (SettingsTtsAttributes.vue "Create a custom voice" form): fill the name + description, then
    * "Save & preview" — which synthesizes the voice's own introduction, plays it, and
    * only then saves the voice with that WAV as its preview.
    * Confirms it lands in the "Your voices" list. Saving makes the new voice the
    * active one (see `saveCurrentVoice` → `applySavedVoice`), so the next synthesis uses
-   * it. Requires the settings sidebar open with the "Text to Speech" preset active in the Audio mode.
+   * it. Requires the Attributes tab shown with the "Text to Speech" preset active in the Audio mode.
    *
    * `expectOverwrite`: the name already exists, so saving raises the replace
    * confirmation, which this then accepts.
@@ -309,7 +309,7 @@ export class SpecificSettingsPage {
     },
     mode: SettingsOwner = 'Audio',
   ): Promise<void> {
-    const panel = this.panel(mode)
+    const panel = this.panel(mode, 'Attributes')
     // The form fields are the only inputs carrying these placeholders (name = "e.g.
     // Tammy", description = the "…British man…" example), so they're stable handles
     // that don't depend on label wiring.
@@ -359,7 +359,7 @@ export class SpecificSettingsPage {
 
   /** The seed input on the create/edit-voice form (the shared RandomNumber row). */
   private ttsSeedInput(mode: SettingsOwner): Locator {
-    return this.panel(mode).locator('.v-random .v-random-input')
+    return this.panel(mode, 'Attributes').locator('.v-random .v-random-input')
   }
 
   /** Read the seed currently on the create/edit-voice form. */
@@ -376,14 +376,14 @@ export class SpecificSettingsPage {
   /** Roll a different speaker for the same description (the seed row's dice). */
   async rollTtsSeed(mode: SettingsOwner = 'Audio'): Promise<string> {
     const before = await this.ttsSeed(mode)
-    await this.panel(mode).locator('.v-random .v-random-btns button').first().click()
+    await this.panel(mode, 'Attributes').locator('.v-random .v-random-btns button').first().click()
     await expect.poll(() => this.ttsSeed(mode), { timeout: 10_000 }).not.toEqual(before)
     return this.ttsSeed(mode)
   }
 
   /** A saved voice's row in the "Your voices" list. */
   private savedVoiceRow(name: string, mode: SettingsOwner): Locator {
-    return this.panel(mode).locator('li').filter({ hasText: name })
+    return this.panel(mode, 'Attributes').locator('li').filter({ hasText: name })
   }
 
   /** Play a saved voice's stored preview (no synthesis). */
@@ -405,16 +405,16 @@ export class SpecificSettingsPage {
     await this.savedVoiceRow(name, mode)
       .getByRole('button', { name: `Edit ${name}` })
       .click()
-    await expect(this.panel(mode).getByPlaceholder('e.g. Tammy')).toHaveValue(name)
+    await expect(this.panel(mode, 'Attributes').getByPlaceholder('e.g. Tammy')).toHaveValue(name)
   }
 
   /**
-   * The "Voice" picker row in the Text-to-Speech settings (SettingsTts.vue). Anchored
+   * The "Voice" picker row in the Text-to-Speech attributes (SettingsTtsAttributes.vue). Anchored
    * on a label whose text is exactly "Voice", so it can't drift onto the neighbouring
    * "Your voices" list or the two "Language" rows.
    */
   private ttsVoiceTrigger(mode: SettingsOwner): Locator {
-    return this.panel(mode)
+    return this.panel(mode, 'Attributes')
       .locator('div.grid')
       .filter({ has: this.page.getByText('Voice', { exact: true }) })
       .getByRole('button')
@@ -423,14 +423,14 @@ export class SpecificSettingsPage {
   /**
    * Select an entry from the "Voice" picker — a built-in speaker (listed as
    * "Ryan — English") or a saved one ("Tammy (your voice)"). Pass a regex to match a
-   * prefix. Requires the settings sidebar open with the "Text to Speech" preset active in the Audio mode.
+   * prefix. Requires the Attributes tab shown with the "Text to Speech" preset active in the Audio mode.
    */
   async selectTtsVoice(label: string | RegExp, mode: SettingsOwner = 'Audio'): Promise<void> {
     await this.selectFromPicker(this.ttsVoiceTrigger(mode), label)
   }
 
   /**
-   * The Text-to-Speech engine ("Model") picker trigger in SettingsTts. It's the only
+   * The Text-to-Speech engine ("Model") picker trigger in SettingsTtsInferencing. It's the only
    * dropdown whose label shows the current engine, so we locate it by that text
    * ("Qwen TTS" or "Kokoro …") rather than by the ambiguous "Model" row label (the
    * fallback-endpoint form also has a "Model" field).
@@ -444,7 +444,7 @@ export class SpecificSettingsPage {
 
   /**
    * Select the Text-to-Speech engine ("Qwen TTS" or "Kokoro (OpenVINO)") from the
-   * Text-to-Speech preset's Model dropdown. Requires the settings sidebar open with
+   * Text-to-Speech preset's Model dropdown. Requires the Inferencing tab shown with
    * the "Text to Speech" preset active. The trigger's label reflects the choice once
    * it lands.
    */

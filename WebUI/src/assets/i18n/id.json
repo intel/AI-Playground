@@ -657,6 +657,8 @@
   "AGENT_RESET_TO_DEFAULT_DONE": "Sesi ini diatur ulang ke pengaturan default",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "Disimpan sebagai default untuk sesi baru",
   "SESSION_SETTINGS_APPLIES_TO_ALL": "Berlaku untuk semua sesi",
+  "AUDIO_STT_NO_ATTRIBUTES": "Speech to Text tidak memiliki atribut. Mesin dan modelnya ada di Inferencing.",
+  "AUDIO_TTS_EXTERNAL_VOICE_IN_INFERENCING": "Endpoint eksternal mengatur suaranya sendiri, di Inferencing.",
   "SESSION_SETTINGS_SAVE_AS_DEFAULT_NAMED": "Simpan sebagai default untuk {preset}",
   "SESSION_SETTINGS_RESET_TO_DEFAULT_NAMED": "Atur ulang {preset} ke default",
   "HOME_AGENT_SETTINGS_NOTE": "Pengaturan ini berlaku untuk setiap percakapan Home Agent. Periksa setelah mengubahnya agar Anda tetap dapat mengakses AI Playground dari jarak jauh.",

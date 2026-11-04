@@ -215,7 +215,7 @@ export const ChatPresetSchema = BasePresetFieldsSchema.omit({ backend: true }).e
   // chat: selecting it turns the prompt box into a synthesizer (typed text -> Qwen3-TTS
   // audio, no LLM loaded). The `backends` array is a schema-required placeholder and is
   // unused. Lives in the `audio` category (the Audio mode), not `chat`.
-  // See SettingsTts.vue and the direct-synthesis branch in openAiCompatibleChat.
+  // See SettingsTtsInferencing.vue and the direct-synthesis branch in openAiCompatibleChat.
   ttsPreset: z.boolean().optional(),
   // When true, this "chat" preset runs on the agent harness (Pi coding agent in the
   // main process) instead of plain chat inference: selecting it switches the app to

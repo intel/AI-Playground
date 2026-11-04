@@ -657,6 +657,8 @@
   "AGENT_RESET_TO_DEFAULT_DONE": "このセッションをデフォルト設定に戻しました",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "新しいセッションの既定として保存しました",
   "SESSION_SETTINGS_APPLIES_TO_ALL": "すべてのセッションに適用",
+  "AUDIO_STT_NO_ATTRIBUTES": "Speech to Text には属性がありません。エンジンとモデルは Inferencing にあります。",
+  "AUDIO_TTS_EXTERNAL_VOICE_IN_INFERENCING": "外部エンドポイントの音声は Inferencing で設定します。",
   "SESSION_SETTINGS_SAVE_AS_DEFAULT_NAMED": "{preset} の既定として保存",
   "SESSION_SETTINGS_RESET_TO_DEFAULT_NAMED": "{preset} を既定に戻す",
   "HOME_AGENT_SETTINGS_NOTE": "これらの設定はすべての Home Agent の会話に適用されます。変更後は、引き続きリモートから AI Playground にアクセスできることを確認してください。",

@@ -657,6 +657,8 @@
   "AGENT_RESET_TO_DEFAULT_DONE": "Diese Sitzung auf die Standardeinstellungen zurückgesetzt",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "Als Standard für neue Sitzungen gespeichert",
   "SESSION_SETTINGS_APPLIES_TO_ALL": "Gilt für alle Sitzungen",
+  "AUDIO_STT_NO_ATTRIBUTES": "Speech to Text hat keine Attribute. Engine und Modell finden Sie unter Inferencing.",
+  "AUDIO_TTS_EXTERNAL_VOICE_IN_INFERENCING": "Der externe Endpunkt legt seine Stimme selbst fest, unter Inferencing.",
   "SESSION_SETTINGS_SAVE_AS_DEFAULT_NAMED": "Als Standard für {preset} speichern",
   "SESSION_SETTINGS_RESET_TO_DEFAULT_NAMED": "{preset} auf Standard zurücksetzen",
   "HOME_AGENT_SETTINGS_NOTE": "Diese Einstellungen gelten für jede Home-Agent-Unterhaltung. Prüfen Sie sie nach einer Änderung, damit Sie AI Playground weiterhin aus der Ferne erreichen.",

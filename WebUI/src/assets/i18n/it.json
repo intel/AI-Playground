@@ -657,6 +657,8 @@
   "AGENT_RESET_TO_DEFAULT_DONE": "Questa sessione è stata ripristinata alle impostazioni predefinite",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "Salvato come predefinito per le nuove sessioni",
   "SESSION_SETTINGS_APPLIES_TO_ALL": "Si applica a tutte le sessioni",
+  "AUDIO_STT_NO_ATTRIBUTES": "Speech to Text non ha attributi. Il motore e il modello sono in Inferencing.",
+  "AUDIO_TTS_EXTERNAL_VOICE_IN_INFERENCING": "L'endpoint esterno imposta la propria voce, in Inferencing.",
   "SESSION_SETTINGS_SAVE_AS_DEFAULT_NAMED": "Salva come predefinito per {preset}",
   "SESSION_SETTINGS_RESET_TO_DEFAULT_NAMED": "Ripristina {preset} ai valori predefiniti",
   "HOME_AGENT_SETTINGS_NOTE": "Queste impostazioni si applicano a ogni conversazione di Home Agent. Verificale dopo una modifica per poter continuare a raggiungere AI Playground da remoto.",
