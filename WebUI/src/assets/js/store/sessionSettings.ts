@@ -56,6 +56,7 @@ export const useSessionSettings = defineStore('sessionSettings', () => {
   const settings = ref<SessionSettingsMap>({})
   /** The Session `settings` were read for; null while they are being read. */
   const loadedSessionId = ref<string | null>(null)
+  const loading = ref<Promise<void>>(Promise.resolve())
   const ready = computed(
     () => loadedSessionId.value !== null && loadedSessionId.value === sessions.openSessionId,
   )
@@ -312,7 +313,6 @@ export const useSessionSettings = defineStore('sessionSettings', () => {
     reloadActivePreset()
   }
 
-  const loading = ref<Promise<void>>(Promise.resolve())
   watch(
     () => sessions.openSessionId,
     (id) => {
