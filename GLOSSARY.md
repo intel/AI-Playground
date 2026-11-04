@@ -15,12 +15,18 @@ What a Session is called in the sessions panel: its Name if it has one, otherwis
 shortened.
 
 **Name**:
-A Title the user gave a Session explicitly. A Session with a Name is listed under Named.
+A Title the user gave a Session explicitly. It changes what the Session is called, not where it is
+listed.
 _Avoid_: rename (as a noun), label
 
+**Session Group**:
+A named group of Sessions the user creates, listed in the sessions panel and expanded to show its
+Sessions. A Session is in at most one Session Group; deleting a Session Group keeps its Sessions.
+_Avoid_: folder, project, collection, category
+
 **Pinned Session**:
-A Session the user keeps at the top of the sessions panel, above Named and recent ones, until
-unpinned.
+A Session the user keeps at the top of the sessions panel, above Session Groups and recent ones,
+until unpinned. Pinning does not take a Session out of its Session Group.
 _Avoid_: favourite, starred
 
 **Harness Session**:
