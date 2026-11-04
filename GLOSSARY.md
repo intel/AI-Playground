@@ -10,6 +10,19 @@ The unit of work the user sees in the sessions panel: one continuous history in 
 presets can take turns. A new Session starts only when the user asks for one.
 _Avoid_: user session, agent session, conversation, thread
 
+**Title**:
+What a Session is called in the sessions panel: its Name if it has one, otherwise its first prompt,
+shortened.
+
+**Name**:
+A Title the user gave a Session explicitly. A Session with a Name is listed under Named.
+_Avoid_: rename (as a noun), label
+
+**Pinned Session**:
+A Session the user keeps at the top of the sessions panel, above Named and recent ones, until
+unpinned.
+_Avoid_: favourite, starred
+
 **Harness Session**:
 The agent harness's own conversation inside a Session, one per agent preset used there; it carries
 that preset's full context across its turns.
