@@ -26,6 +26,8 @@
   "SESSIONS_SEARCH_CLEAR": "Clear search",
   "SESSIONS_NO_MATCH": "No sessions match",
   "SESSIONS_SECTION_PINNED": "Pinned",
+  "SESSIONS_PINNED_SHOW_MORE": "Show {count} more",
+  "SESSIONS_PINNED_SHOW_LESS": "Show less",
   "SESSIONS_SECTION_GROUPS": "Groups",
   "SESSIONS_SECTION_RECENT": "Recent",
   "SESSION_TABS_LABEL": "Session",

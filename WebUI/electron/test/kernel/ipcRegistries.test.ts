@@ -33,6 +33,7 @@ describe('per-owner handler registries', () => {
       | 'sessions:pin'
       | 'sessions:createGroup'
       | 'sessions:moveToGroup'
+      | 'sessions:setPinnedShowMore'
       | 'sessions:delete'
       | 'sessions:harnessSession'
       | 'sessions:taskRunHarness'

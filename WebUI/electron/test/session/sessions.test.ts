@@ -26,8 +26,10 @@ const {
   onSessionDeleted,
   openSession,
   pinSession,
+  readPinnedShowMore,
   renameSession,
   resetSessionsForTest,
+  setPinnedShowMore,
   setSessionDeps,
   wipeDemoSessions,
 } = await import('../../session/sessions')
@@ -436,6 +438,43 @@ describe('Session Groups', () => {
 
     expect(await listSessions()).toEqual([])
     expect(await listSessionGroups()).toEqual([group])
+  })
+})
+
+describe('Pinned "show more"', () => {
+  it('starts off and survives a re-read once shown', async () => {
+    expect(await readPinnedShowMore()).toBe(false)
+
+    await setPinnedShowMore(true)
+    expect(await readPinnedShowMore()).toBe(true)
+    await setPinnedShowMore(false)
+    expect(await readPinnedShowMore()).toBe(false)
+  })
+
+  it('is kept when Groups change', async () => {
+    const session = await createSession()
+    await setPinnedShowMore(true)
+
+    const { group } = await createSessionGroup(session.id, 'Lisbon')
+
+    expect(await readPinnedShowMore()).toBe(true)
+    expect(await listSessionGroups()).toEqual([group])
+  })
+
+  it('reads a Groups file written before it existed as off', async () => {
+    await fs.mkdir(dirs.real, { recursive: true })
+    await fs.writeFile(groupsFile(), JSON.stringify({ schemaVersion: 1, groups: [] }))
+
+    expect(await readPinnedShowMore()).toBe(false)
+  })
+
+  it('reads off from an unreadable Groups file and refuses to overwrite it', async () => {
+    await fs.mkdir(dirs.real, { recursive: true })
+    await fs.writeFile(groupsFile(), '{not json')
+
+    expect(await readPinnedShowMore()).toBe(false)
+    await expect(setPinnedShowMore(true)).rejects.toThrow()
+    expect(await fs.readFile(groupsFile(), 'utf8')).toBe('{not json')
   })
 })
 

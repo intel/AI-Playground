@@ -26,6 +26,8 @@
   "SESSIONS_SEARCH_CLEAR": "Cancella ricerca",
   "SESSIONS_NO_MATCH": "Nessuna sessione corrispondente",
   "SESSIONS_SECTION_PINNED": "Fissate",
+  "SESSIONS_PINNED_SHOW_MORE": "Mostra altre {count}",
+  "SESSIONS_PINNED_SHOW_LESS": "Mostra meno",
   "SESSIONS_SECTION_GROUPS": "Gruppi",
   "SESSIONS_SECTION_RECENT": "Recenti",
   "SESSION_TABS_LABEL": "Sessione",

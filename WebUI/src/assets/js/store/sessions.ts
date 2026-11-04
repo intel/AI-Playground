@@ -30,6 +30,7 @@ export const useSessions = defineStore('sessions', () => {
 
   const sessions = ref<Record<string, SessionSummary>>({})
   const groups = ref<SessionGroup[]>([])
+  const pinnedShowMore = ref(false)
   const openSessionId = ref<string | null>(null)
   const openTimeline = ref<unknown[]>([])
   /** Artifact URLs of the open Session whose file was deleted; their cards say so. */
@@ -138,6 +139,7 @@ export const useSessions = defineStore('sessions', () => {
     if (!result) return
     sessions.value = Object.fromEntries(result.sessions.map((session) => [session.id, session]))
     groups.value = result.groups
+    pinnedShowMore.value = result.pinnedShowMore
     await openNewestOrCreate()
   }
 
@@ -201,6 +203,14 @@ export const useSessions = defineStore('sessions', () => {
     if (result) remember(result.session)
   }
 
+  async function setPinnedShowMore(shown: boolean): Promise<void> {
+    pinnedShowMore.value = shown
+    const result = await call('sessions/pinned-show-more-failed', () =>
+      window.electronAPI.sessions.setPinnedShowMore(shown),
+    )
+    if (!result) pinnedShowMore.value = !shown
+  }
+
   /** Saves settled display messages into a Session's timeline; one with a known id is replaced. */
   async function saveTimelineMessages(id: string, messages: { id: string }[]): Promise<void> {
     if (id === openSessionId.value) {
@@ -235,6 +245,7 @@ export const useSessions = defineStore('sessions', () => {
   return {
     sessions,
     groups,
+    pinnedShowMore,
     openSessionId,
     openTimeline,
     openDeletedFiles,
@@ -251,6 +262,7 @@ export const useSessions = defineStore('sessions', () => {
     setPinned,
     createGroup,
     moveToGroup,
+    setPinnedShowMore,
     remove,
     saveTimelineMessages,
     ensureOpenSession,

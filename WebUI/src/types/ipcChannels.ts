@@ -213,12 +213,16 @@ export const CHANNELS = {
     args: [] as unknown as readonly [string[]],
     result: null as unknown as IpcMutationResult,
   },
-  /** Every Session of the active root (demo or real), newest first, and its Session Groups. */
+  /** Every Session of the active root (demo or real), newest first, its Session Groups and Pinned "show more". */
   'sessions:list': {
     kind: 'invoke',
     owner: 'main',
     args: [] as const,
-    result: null as unknown as IpcOkWith<{ sessions: SessionSummary[]; groups: SessionGroup[] }>,
+    result: null as unknown as IpcOkWith<{
+      sessions: SessionSummary[]
+      groups: SessionGroup[]
+      pinnedShowMore: boolean
+    }>,
   },
   /** Create a Session and lay out its Session Folder. */
   'sessions:create': {
@@ -265,6 +269,13 @@ export const CHANNELS = {
     owner: 'main',
     args: [] as unknown as readonly [string, string | null],
     result: null as unknown as IpcOkWith<{ session: SessionSummary }>,
+  },
+  /** Remember whether Pinned lists every pinned Session or the three most recent. */
+  'sessions:setPinnedShowMore': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [boolean],
+    result: null as unknown as IpcMutationResult,
   },
   /** Delete a Session and its whole Session Folder. */
   'sessions:delete': {

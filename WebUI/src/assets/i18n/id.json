@@ -26,6 +26,8 @@
   "SESSIONS_SEARCH_CLEAR": "Hapus pencarian",
   "SESSIONS_NO_MATCH": "Tidak ada sesi yang cocok",
   "SESSIONS_SECTION_PINNED": "Disematkan",
+  "SESSIONS_PINNED_SHOW_MORE": "Tampilkan {count} lagi",
+  "SESSIONS_PINNED_SHOW_LESS": "Tampilkan lebih sedikit",
   "SESSIONS_SECTION_GROUPS": "Grup",
   "SESSIONS_SECTION_RECENT": "Terbaru",
   "SESSION_TABS_LABEL": "Sesi",

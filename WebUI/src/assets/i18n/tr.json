@@ -26,6 +26,8 @@
   "SESSIONS_SEARCH_CLEAR": "Aramayı temizle",
   "SESSIONS_NO_MATCH": "Eşleşen oturum yok",
   "SESSIONS_SECTION_PINNED": "Sabitlenmiş",
+  "SESSIONS_PINNED_SHOW_MORE": "{count} tane daha göster",
+  "SESSIONS_PINNED_SHOW_LESS": "Daha az göster",
   "SESSIONS_SECTION_GROUPS": "Gruplar",
   "SESSIONS_SECTION_RECENT": "Son kullanılanlar",
   "SESSION_TABS_LABEL": "Oturum",

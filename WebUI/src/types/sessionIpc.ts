@@ -63,6 +63,8 @@ export type SessionGroup = z.infer<typeof SessionGroupSchema>
 export const SessionGroupsFileSchema = z.object({
   schemaVersion: z.literal(1),
   groups: z.array(SessionGroupSchema).default([]),
+  /** Whether Pinned lists every pinned Session instead of the three most recent. */
+  pinnedShowMore: z.boolean().default(false),
 })
 
 export type SessionGroupsFile = z.infer<typeof SessionGroupsFileSchema>

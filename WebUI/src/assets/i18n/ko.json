@@ -26,6 +26,8 @@
   "SESSIONS_SEARCH_CLEAR": "검색 지우기",
   "SESSIONS_NO_MATCH": "일치하는 세션이 없습니다",
   "SESSIONS_SECTION_PINNED": "고정됨",
+  "SESSIONS_PINNED_SHOW_MORE": "{count}개 더 보기",
+  "SESSIONS_PINNED_SHOW_LESS": "간단히 보기",
   "SESSIONS_SECTION_GROUPS": "그룹",
   "SESSIONS_SECTION_RECENT": "최근",
   "SESSION_TABS_LABEL": "세션",

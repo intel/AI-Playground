@@ -26,6 +26,8 @@
   "SESSIONS_SEARCH_CLEAR": "Suche löschen",
   "SESSIONS_NO_MATCH": "Keine passenden Sitzungen",
   "SESSIONS_SECTION_PINNED": "Angeheftet",
+  "SESSIONS_PINNED_SHOW_MORE": "{count} weitere anzeigen",
+  "SESSIONS_PINNED_SHOW_LESS": "Weniger anzeigen",
   "SESSIONS_SECTION_GROUPS": "Gruppen",
   "SESSIONS_SECTION_RECENT": "Zuletzt",
   "SESSION_TABS_LABEL": "Sitzung",

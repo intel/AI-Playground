@@ -26,6 +26,8 @@
   "SESSIONS_SEARCH_CLEAR": "検索をクリア",
   "SESSIONS_NO_MATCH": "一致するセッションはありません",
   "SESSIONS_SECTION_PINNED": "ピン留め",
+  "SESSIONS_PINNED_SHOW_MORE": "さらに {count} 件を表示",
+  "SESSIONS_PINNED_SHOW_LESS": "表示を減らす",
   "SESSIONS_SECTION_GROUPS": "グループ",
   "SESSIONS_SECTION_RECENT": "最近",
   "SESSION_TABS_LABEL": "セッション",

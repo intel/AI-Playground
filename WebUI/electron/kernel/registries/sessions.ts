@@ -21,6 +21,8 @@ import type {
   listSessions,
   moveSessionToGroup,
   openSession,
+  readPinnedShowMore,
+  setPinnedShowMore,
   pinSession,
   renameSession,
 } from '../../session/sessions'
@@ -46,6 +48,8 @@ export type SessionsDeps = {
   listSessionGroups: typeof listSessionGroups
   createSessionGroup: typeof createSessionGroup
   moveSessionToGroup: typeof moveSessionToGroup
+  readPinnedShowMore: typeof readPinnedShowMore
+  setPinnedShowMore: typeof setPinnedShowMore
   deleteSession: typeof deleteSession
   recordAudioTurn: typeof recordAudioTurn
   listAllArtifacts: typeof listAllArtifacts
@@ -82,11 +86,12 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
   return {
     'sessions:list': async () => {
       try {
-        const [sessions, groups] = await Promise.all([
+        const [sessions, groups, pinnedShowMore] = await Promise.all([
           deps.listSessions(),
           deps.listSessionGroups(),
+          deps.readPinnedShowMore(),
         ])
-        return { success: true as const, sessions, groups }
+        return { success: true as const, sessions, groups, pinnedShowMore }
       } catch (e) {
         return ipcFail(e)
       }
@@ -149,6 +154,15 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
           groupId === null ? null : requireString(groupId, 'group id'),
         )
         return { success: true as const, session }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:setPinnedShowMore': async (_event, shown) => {
+      try {
+        if (typeof shown !== 'boolean') throw new Error('show more must be a boolean')
+        await deps.setPinnedShowMore(shown)
+        return { success: true as const }
       } catch (e) {
         return ipcFail(e)
       }

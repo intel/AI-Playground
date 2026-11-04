@@ -6,8 +6,11 @@ export type SessionGroupListing = {
   expanded: boolean
 }
 
+/** The button row under the pinned rows: "Show N more" or "Show less". */
+export type PinnedToggle = { action: 'more'; count: number } | { action: 'less' } | null
+
 export type SessionSection =
-  | { id: 'pinned'; sessions: SessionSummary[] }
+  | { id: 'pinned'; sessions: SessionSummary[]; toggle: PinnedToggle }
   | { id: 'groups'; groups: SessionGroupListing[] }
   | { id: 'recent'; sessions: SessionSummary[] }
 
@@ -19,6 +22,25 @@ export type SessionSectionsInput = {
   query: string
   /** The Title the panel shows for a Session that has none yet. */
   untitled: string
+  openSessionId: string | null
+  pinnedShowMore: boolean
+}
+
+const PINNED_SHOWN = 3
+
+function pinnedSection(
+  pinned: SessionSummary[],
+  searching: boolean,
+  openSessionId: string | null,
+  showMore: boolean,
+): SessionSection {
+  if (searching || pinned.length <= PINNED_SHOWN) {
+    return { id: 'pinned', sessions: pinned, toggle: null }
+  }
+  if (showMore) return { id: 'pinned', sessions: pinned, toggle: { action: 'less' } }
+  const shown = pinned.filter((s, index) => index < PINNED_SHOWN || s.id === openSessionId)
+  const count = pinned.length - shown.length
+  return { id: 'pinned', sessions: shown, toggle: count > 0 ? { action: 'more', count } : null }
 }
 
 function newestFirst(a: SessionSummary, b: SessionSummary): number {
@@ -30,6 +52,8 @@ export function sessionSections({
   groups,
   query,
   untitled,
+  openSessionId,
+  pinnedShowMore,
 }: SessionSectionsInput): SessionSection[] {
   const needle = query.trim().toLocaleLowerCase()
   const matches = (s: SessionSummary) =>
@@ -60,7 +84,9 @@ export function sessionSections({
     .map(({ listing }) => listing)
 
   const result: SessionSection[] = []
-  if (pinned.length > 0) result.push({ id: 'pinned', sessions: pinned })
+  if (pinned.length > 0) {
+    result.push(pinnedSection(pinned, needle !== '', openSessionId, pinnedShowMore))
+  }
   if (listings.length > 0) result.push({ id: 'groups', groups: listings })
   if (recent.length > 0) result.push({ id: 'recent', sessions: recent })
   return result

@@ -21,9 +21,30 @@ function group(id: string, over: Partial<SessionGroup> = {}): SessionGroup {
   return { id, name: id, createdAt: 0, expanded: true, ...over }
 }
 
-function sections(sessions: SessionSummary[], query = '', groups: SessionGroup[] = []) {
-  return sessionSections({ sessions, groups, query, untitled: UNTITLED })
+function sections(
+  sessions: SessionSummary[],
+  query = '',
+  groups: SessionGroup[] = [],
+  view: { openSessionId?: string | null; pinnedShowMore?: boolean } = {},
+) {
+  return sessionSections({
+    sessions,
+    groups,
+    query,
+    untitled: UNTITLED,
+    openSessionId: view.openSessionId ?? null,
+    pinnedShowMore: view.pinnedShowMore ?? false,
+  })
 }
+
+function pinnedOf(result: SessionSection[]) {
+  const pinned = result.find((section) => section.id === 'pinned')
+  if (pinned?.id !== 'pinned') throw new Error('no Pinned section')
+  return { ids: pinned.sessions.map((s) => s.id), toggle: pinned.toggle }
+}
+
+/** Five pinned Sessions, p1 the most recently used. */
+const fivePins = [5, 4, 3, 2, 1].map((n) => session(`p${6 - n}`, { pinned: true, updatedAt: n }))
 
 function ids(result: SessionSection[]) {
   return result.map((section) =>
@@ -215,5 +236,66 @@ describe('sessionSections', () => {
     ]
     const groups = [group('trip'), group('empty')]
     expect(ids(sections(sessions, 'lisbon', groups))).toEqual([['groups', [['trip', ['hit']]]]])
+  })
+
+  describe('Pinned "show more"', () => {
+    it('shows the three most recent pins and counts the rest', () => {
+      expect(pinnedOf(sections(fivePins))).toEqual({
+        ids: ['p1', 'p2', 'p3'],
+        toggle: { action: 'more', count: 2 },
+      })
+    })
+
+    it('shows every pin with a way back once shown', () => {
+      expect(pinnedOf(sections(fivePins, '', [], { pinnedShowMore: true }))).toEqual({
+        ids: ['p1', 'p2', 'p3', 'p4', 'p5'],
+        toggle: { action: 'less' },
+      })
+    })
+
+    it('offers no toggle with three pins or fewer, whatever was chosen', () => {
+      const three = fivePins.slice(0, 3)
+      expect(pinnedOf(sections(three)).toggle).toBeNull()
+      expect(pinnedOf(sections(three, '', [], { pinnedShowMore: true })).toggle).toBeNull()
+    })
+
+    it('adds the open Session as an extra row when it ranks lower', () => {
+      expect(pinnedOf(sections(fivePins, '', [], { openSessionId: 'p5' }))).toEqual({
+        ids: ['p1', 'p2', 'p3', 'p5'],
+        toggle: { action: 'more', count: 1 },
+      })
+    })
+
+    it('does not list the open Session twice when it is among the three', () => {
+      expect(pinnedOf(sections(fivePins, '', [], { openSessionId: 'p2' }))).toEqual({
+        ids: ['p1', 'p2', 'p3'],
+        toggle: { action: 'more', count: 2 },
+      })
+    })
+
+    it('adds no extra row for an open Session that is not pinned', () => {
+      const sessions = [...fivePins, session('loose', { updatedAt: 0 })]
+      expect(pinnedOf(sections(sessions, '', [], { openSessionId: 'loose' })).ids).toEqual([
+        'p1',
+        'p2',
+        'p3',
+      ])
+    })
+
+    it('offers no toggle when the open Session is the only pin left out', () => {
+      const four = fivePins.slice(0, 4)
+      expect(pinnedOf(sections(four, '', [], { openSessionId: 'p4' }))).toEqual({
+        ids: ['p1', 'p2', 'p3', 'p4'],
+        toggle: null,
+      })
+    })
+
+    it('shows every matching pin while searching, without a toggle', () => {
+      const sessions = fivePins.map((s) => ({ ...s, title: `Trip ${s.id}` }))
+      expect(pinnedOf(sections(sessions, 'trip'))).toEqual({
+        ids: ['p1', 'p2', 'p3', 'p4', 'p5'],
+        toggle: null,
+      })
+    })
   })
 })

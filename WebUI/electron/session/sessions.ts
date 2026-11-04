@@ -21,6 +21,7 @@ import {
   resetSessionGroupsFileForTest,
   serializeSessionGroups,
   writeSessionGroups,
+  writeSessionGroupsFile,
 } from '../persist/sessionGroupsFile'
 import { readHistoryEntries } from './sessionHistory'
 import { autoTitle } from './sessionTitle'
@@ -239,6 +240,20 @@ export async function moveSessionToGroup(
       throw new Error(`no such session group: ${groupId}`)
     }
     return setSessionGroup(sessionId, groupId)
+  })
+}
+
+/** Whether Pinned lists every pinned Session; off while the Groups file cannot be read. */
+export async function readPinnedShowMore(): Promise<boolean> {
+  const read = await readSessionGroupsFile()
+  return read.status === 'ok' && read.file.pinnedShowMore
+}
+
+export async function setPinnedShowMore(shown: boolean): Promise<void> {
+  await serializeSessionGroups(async () => {
+    const read = await readSessionGroupsFile()
+    if (read.status !== 'ok') throw new Error('Session Groups file cannot be read')
+    await writeSessionGroupsFile({ ...read.file, pinnedShowMore: shown })
   })
 }
 

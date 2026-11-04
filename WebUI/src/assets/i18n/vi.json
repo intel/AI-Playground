@@ -26,6 +26,8 @@
   "SESSIONS_SEARCH_CLEAR": "Xóa tìm kiếm",
   "SESSIONS_NO_MATCH": "Không có phiên nào phù hợp",
   "SESSIONS_SECTION_PINNED": "Đã ghim",
+  "SESSIONS_PINNED_SHOW_MORE": "Hiển thị thêm {count}",
+  "SESSIONS_PINNED_SHOW_LESS": "Ẩn bớt",
   "SESSIONS_SECTION_GROUPS": "Nhóm",
   "SESSIONS_SECTION_RECENT": "Gần đây",
   "SESSION_TABS_LABEL": "Phiên",

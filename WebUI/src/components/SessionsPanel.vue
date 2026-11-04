@@ -154,6 +154,15 @@
                 @create-group="(name) => sessions.createGroup(session.id, name)"
                 @delete="sessions.remove(session.id)"
               />
+              <Button
+                v-if="section.id === 'pinned' && section.toggle"
+                variant="ghost"
+                size="sm"
+                class="w-full justify-start text-muted-foreground"
+                @click="sessions.setPinnedShowMore(section.toggle.action === 'more')"
+              >
+                {{ pinnedToggleLabel(section.toggle) }}
+              </Button>
             </template>
           </section>
         </div>
@@ -185,7 +194,7 @@ import SessionRow from '@/components/SessionRow.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { sessionSections, type SessionSectionId } from '@/lib/sessionSections'
+import { sessionSections, type PinnedToggle, type SessionSectionId } from '@/lib/sessionSections'
 
 const sessions = useSessions()
 const agentTasks = useAgentTasks()
@@ -202,6 +211,8 @@ const sections = computed(() =>
     groups: sessions.groups,
     query: query.value,
     untitled: i18nState.SESSIONS_UNTITLED,
+    openSessionId: sessions.openSessionId,
+    pinnedShowMore: sessions.pinnedShowMore,
   }),
 )
 
@@ -213,5 +224,11 @@ const SECTION_LABELS: Record<SessionSectionId, string> = {
 
 function sectionLabel(id: SessionSectionId) {
   return i18nState[SECTION_LABELS[id]]
+}
+
+function pinnedToggleLabel(toggle: NonNullable<PinnedToggle>) {
+  return toggle.action === 'more'
+    ? i18nState.SESSIONS_PINNED_SHOW_MORE.replace('{count}', String(toggle.count))
+    : i18nState.SESSIONS_PINNED_SHOW_LESS
 }
 </script>

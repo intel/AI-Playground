@@ -26,6 +26,8 @@
   "SESSIONS_SEARCH_CLEAR": "ล้างการค้นหา",
   "SESSIONS_NO_MATCH": "ไม่มีเซสชันที่ตรงกัน",
   "SESSIONS_SECTION_PINNED": "ปักหมุดแล้ว",
+  "SESSIONS_PINNED_SHOW_MORE": "แสดงเพิ่มอีก {count} รายการ",
+  "SESSIONS_PINNED_SHOW_LESS": "แสดงน้อยลง",
   "SESSIONS_SECTION_GROUPS": "กลุ่ม",
   "SESSIONS_SECTION_RECENT": "ล่าสุด",
   "SESSION_TABS_LABEL": "เซสชัน",

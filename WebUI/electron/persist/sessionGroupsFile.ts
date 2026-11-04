@@ -27,7 +27,9 @@ export type SessionGroupsRead = { status: 'ok'; file: SessionGroupsFile } | { st
 
 export async function readSessionGroupsFile(): Promise<SessionGroupsRead> {
   const read = await readJson(groupsFilePath(), LOG_SCOPE)
-  if (read.status === 'missing') return { status: 'ok', file: { schemaVersion: 1, groups: [] } }
+  if (read.status === 'missing') {
+    return { status: 'ok', file: { schemaVersion: 1, groups: [], pinnedShowMore: false } }
+  }
   if (read.status === 'corrupt') return { status: 'unreadable' }
   const parsed = SessionGroupsFileSchema.safeParse(read.value)
   if (parsed.success) return { status: 'ok', file: parsed.data }
@@ -35,9 +37,15 @@ export async function readSessionGroupsFile(): Promise<SessionGroupsRead> {
   return { status: 'unreadable' }
 }
 
-export async function writeSessionGroups(groups: SessionGroup[]): Promise<void> {
-  const file: SessionGroupsFile = { schemaVersion: 1, groups }
+export async function writeSessionGroupsFile(file: SessionGroupsFile): Promise<void> {
   await atomicWriteJson(groupsFilePath(), file)
+}
+
+/** Replaces the Groups, keeping the rest of the file; callers already hold the chain. */
+export async function writeSessionGroups(groups: SessionGroup[]): Promise<void> {
+  const read = await readSessionGroupsFile()
+  const pinnedShowMore = read.status === 'ok' && read.file.pinnedShowMore
+  await writeSessionGroupsFile({ schemaVersion: 1, groups, pinnedShowMore })
 }
 
 export function resetSessionGroupsFileForTest(): void {

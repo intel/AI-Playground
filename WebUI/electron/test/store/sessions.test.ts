@@ -50,6 +50,7 @@ beforeEach(async () => {
         list: ok(async () => ({
           sessions: await sessionModule.listSessions(),
           groups: await sessionModule.listSessionGroups(),
+          pinnedShowMore: await sessionModule.readPinnedShowMore(),
         })),
         create: ok(async () => ({ session: await sessionModule.createSession() })),
         open: (id: string) =>
