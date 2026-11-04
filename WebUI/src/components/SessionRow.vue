@@ -113,7 +113,7 @@
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        class="w-28"
+        class="min-w-28"
         :onCloseAutoFocus="(event) => event.preventDefault?.()"
       >
         <Dialog v-model:open="renameOpen" @update:open="(open) => !open && (menuOpen = false)">
@@ -153,6 +153,9 @@
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        <DropdownMenuItem @select="emit('pin', !session.pinned)">
+          {{ session.pinned ? languages.SESSIONS_UNPIN : languages.SESSIONS_PIN }}
+        </DropdownMenuItem>
         <AlertDialog>
           <AlertDialogTrigger as-child>
             <DropdownMenuItem @select="(event: Event) => event.preventDefault()">
@@ -233,6 +236,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   open: []
   rename: [title: string]
+  pin: [pinned: boolean]
   delete: []
 }>()
 

@@ -123,6 +123,7 @@
               :scheduled="agentTasks.scheduledSessionIds.has(session.id)"
               @open="lifecycle.openSession(session.id)"
               @rename="(title) => sessions.rename(session.id, title)"
+              @pin="(pinned) => sessions.setPinned(session.id, pinned)"
               @delete="sessions.remove(session.id)"
             />
           </section>
@@ -171,6 +172,7 @@ const sections = computed(() =>
 )
 
 const SECTION_LABELS: Record<SessionSectionId, string> = {
+  pinned: 'SESSIONS_SECTION_PINNED',
   named: 'SESSIONS_SECTION_NAMED',
   recent: 'SESSIONS_SECTION_RECENT',
 }

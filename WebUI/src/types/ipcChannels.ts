@@ -244,6 +244,13 @@ export const CHANNELS = {
     args: [] as unknown as readonly [string, string],
     result: null as unknown as IpcOkWith<{ session: SessionSummary }>,
   },
+  /** Pin or unpin a Session; pushes `session-changed`. */
+  'sessions:pin': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string, boolean],
+    result: null as unknown as IpcOkWith<{ session: SessionSummary }>,
+  },
   /** Delete a Session and its whole Session Folder. */
   'sessions:delete': {
     kind: 'invoke',

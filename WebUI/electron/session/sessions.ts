@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { emitSessionChanged } from '../kernel/kernelBus'
 import {
   assertSessionId,
   createSessionFolder,
@@ -48,8 +49,8 @@ export function sessionPaths(id: string): SessionFolderPaths {
 }
 
 function summaryOf(file: SessionFile): SessionSummary {
-  const { id, title, renamed, createdAt, updatedAt, presetsUsed } = file
-  return { id, title, renamed, createdAt, updatedAt, presetsUsed }
+  const { id, title, renamed, pinned, createdAt, updatedAt, presetsUsed } = file
+  return { id, title, renamed, pinned, createdAt, updatedAt, presetsUsed }
 }
 
 export async function readSession(id: string): Promise<SessionFile> {
@@ -67,6 +68,7 @@ export async function createSession(): Promise<SessionSummary> {
     id: `session-${randomUUID()}`,
     title: '',
     renamed: false,
+    pinned: false,
     createdAt: now,
     updatedAt: now,
     presetsUsed: [],
@@ -95,6 +97,7 @@ export async function listSessions(): Promise<SessionSummary[]> {
         id,
         title: UNAVAILABLE_TITLE,
         renamed: false,
+        pinned: false,
         unreadable: true,
         createdAt: time,
         updatedAt: time,
@@ -135,6 +138,12 @@ export async function renameSession(id: string, title: string): Promise<SessionS
     title: trimmed,
     renamed: true,
   }))
+  return summaryOf(file)
+}
+
+export async function pinSession(id: string, pinned: boolean): Promise<SessionSummary> {
+  const file = await mutateSession(id, (current) => ({ ...current, pinned }))
+  emitSessionChanged(sessionDocumentOf(file))
   return summaryOf(file)
 }
 

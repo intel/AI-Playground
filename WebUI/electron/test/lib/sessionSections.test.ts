@@ -5,7 +5,16 @@ import type { SessionSummary } from '@/types/sessionIpc'
 const UNTITLED = 'Untitled Session'
 
 function session(id: string, over: Partial<SessionSummary> = {}): SessionSummary {
-  return { id, title: id, renamed: false, createdAt: 0, updatedAt: 0, presetsUsed: [], ...over }
+  return {
+    id,
+    title: id,
+    renamed: false,
+    pinned: false,
+    createdAt: 0,
+    updatedAt: 0,
+    presetsUsed: [],
+    ...over,
+  }
 }
 
 function ids(sections: ReturnType<typeof sessionSections>) {
@@ -102,5 +111,36 @@ describe('sessionSections', () => {
       ['named', ['named']],
       ['recent', ['broken']],
     ])
+  })
+
+  it('lists Pinned above Named and Recent, a pinned Named Session only under Pinned', () => {
+    const sessions = [
+      session('recent', { updatedAt: 6 }),
+      session('named', { renamed: true, updatedAt: 5 }),
+      session('pinned-named', { pinned: true, renamed: true, updatedAt: 2 }),
+      session('pinned-old', { pinned: true, updatedAt: 1 }),
+      session('pinned-new', { pinned: true, updatedAt: 3 }),
+    ]
+    expect(ids(sessionSections(sessions, '', UNTITLED))).toEqual([
+      ['pinned', ['pinned-new', 'pinned-named', 'pinned-old']],
+      ['named', ['named']],
+      ['recent', ['recent']],
+    ])
+  })
+
+  it('puts an unpinned Named Session back under Named', () => {
+    const sessions = [
+      session('named', { renamed: true, updatedAt: 1 }),
+      session('was-pinned', { renamed: true, pinned: false, updatedAt: 2 }),
+    ]
+    expect(ids(sessionSections(sessions, '', UNTITLED))).toEqual([
+      ['named', ['was-pinned', 'named']],
+    ])
+  })
+
+  it('pins an untitled Session too', () => {
+    expect(
+      ids(sessionSections([session('blank', { title: '', pinned: true })], '', UNTITLED)),
+    ).toEqual([['pinned', ['blank']]])
   })
 })

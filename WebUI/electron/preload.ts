@@ -277,6 +277,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     create: () => invoke('sessions:create'),
     open: (id: string) => invoke('sessions:open', id),
     rename: (id: string, title: string) => invoke('sessions:rename', id, title),
+    pin: (id: string, pinned: boolean) => invoke('sessions:pin', id, pinned),
     delete: (id: string) => invoke('sessions:delete', id),
     harnessSession: (id: string, presetName: string, game?: HarnessGameWorkspace) =>
       invoke('sessions:harnessSession', id, presetName, game),

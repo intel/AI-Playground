@@ -1,10 +1,11 @@
 import type { SessionSummary } from '@/types/sessionIpc'
 
-export type SessionSectionId = 'named' | 'recent'
+export type SessionSectionId = 'pinned' | 'named' | 'recent'
 
 export type SessionSection = { id: SessionSectionId; sessions: SessionSummary[] }
 
 const SECTION_ORDER: { id: SessionSectionId; holds: (session: SessionSummary) => boolean }[] = [
+  { id: 'pinned', holds: (session) => session.pinned && !session.unreadable },
   { id: 'named', holds: (session) => session.renamed && !session.unreadable },
   { id: 'recent', holds: () => true },
 ]

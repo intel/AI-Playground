@@ -14,6 +14,7 @@ export const SessionFileSchema = z.object({
   title: z.string(),
   /** Set once the user renames, so the first prompt no longer overwrites the title. */
   renamed: z.boolean().default(false),
+  pinned: z.boolean().default(false),
   createdAt: z.number().int().nonnegative(),
   updatedAt: z.number().int().nonnegative(),
   presetsUsed: z.array(z.string()).default([]),
@@ -37,7 +38,7 @@ export type SessionFile = z.infer<typeof SessionFileSchema>
 /** One row of the Sessions panel. */
 export type SessionSummary = Pick<
   SessionFile,
-  'id' | 'title' | 'renamed' | 'createdAt' | 'updatedAt' | 'presetsUsed'
+  'id' | 'title' | 'renamed' | 'pinned' | 'createdAt' | 'updatedAt' | 'presetsUsed'
 > & { unreadable?: boolean }
 
 /** What opening a Session hands the renderer: its row plus the display timeline. */

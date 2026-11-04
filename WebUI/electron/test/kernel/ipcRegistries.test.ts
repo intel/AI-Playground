@@ -30,6 +30,7 @@ describe('per-owner handler registries', () => {
       | 'sessions:create'
       | 'sessions:open'
       | 'sessions:rename'
+      | 'sessions:pin'
       | 'sessions:delete'
       | 'sessions:harnessSession'
       | 'sessions:taskRunHarness'

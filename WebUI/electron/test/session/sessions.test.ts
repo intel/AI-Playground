@@ -20,6 +20,7 @@ const {
   listSessions,
   onSessionDeleted,
   openSession,
+  pinSession,
   renameSession,
   resetSessionsForTest,
   setSessionDeps,
@@ -115,6 +116,39 @@ describe('Session module', () => {
     const session = await createSession()
 
     await expect(renameSession(session.id, '   ')).rejects.toThrow()
+  })
+
+  it('pins and unpins a Session, remembered across a re-list', async () => {
+    const session = await createSession()
+    expect((await listSessions())[0].pinned).toBe(false)
+
+    expect(await pinSession(session.id, true)).toMatchObject({ id: session.id, pinned: true })
+    expect((await listSessions())[0]).toMatchObject({ id: session.id, pinned: true })
+
+    expect(await pinSession(session.id, false)).toMatchObject({ pinned: false })
+    expect((await listSessions())[0].pinned).toBe(false)
+  })
+
+  it('leaves the last-used time alone on pin', async () => {
+    const session = await createSession()
+    await new Promise((resolve) => setTimeout(resolve, 5))
+
+    await pinSession(session.id, true)
+
+    expect((await listSessions())[0].updatedAt).toBe(session.updatedAt)
+  })
+
+  it('reads a Session file written before pinning existed as unpinned', async () => {
+    const session = await createSession()
+    const file = path.join(dirs.real, session.id, 'session.json')
+    const { pinned: _pinned, ...legacy } = JSON.parse(await fs.readFile(file, 'utf8'))
+    await fs.writeFile(file, JSON.stringify(legacy))
+
+    expect((await listSessions())[0]).toMatchObject({ id: session.id, pinned: false })
+  })
+
+  it('fails to pin a Session that does not exist', async () => {
+    await expect(pinSession('session-missing', true)).rejects.toThrow()
   })
 
   it('deletes the whole Session Folder, artifacts included', async () => {

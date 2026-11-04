@@ -18,6 +18,7 @@ import type {
   deleteSession,
   listSessions,
   openSession,
+  pinSession,
   renameSession,
 } from '../../session/sessions'
 import type {
@@ -38,6 +39,7 @@ export type SessionsDeps = {
   createSession: typeof createSession
   openSession: typeof openSession
   renameSession: typeof renameSession
+  pinSession: typeof pinSession
   deleteSession: typeof deleteSession
   recordAudioTurn: typeof recordAudioTurn
   listAllArtifacts: typeof listAllArtifacts
@@ -105,6 +107,15 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
           requireString(id, 'session id'),
           requireString(title, 'title'),
         )
+        return { success: true as const, session }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:pin': async (_event, id, pinned) => {
+      try {
+        if (typeof pinned !== 'boolean') throw new Error('pinned must be a boolean')
+        const session = await deps.pinSession(requireString(id, 'session id'), pinned)
         return { success: true as const, session }
       } catch (e) {
         return ipcFail(e)

@@ -173,6 +173,13 @@ export const useSessions = defineStore('sessions', () => {
     if (result) remember(result.session)
   }
 
+  async function setPinned(id: string, pinned: boolean): Promise<void> {
+    const result = await call('sessions/pin-failed', () =>
+      window.electronAPI.sessions.pin(id, pinned),
+    )
+    if (result) remember(result.session)
+  }
+
   /** Saves settled display messages into a Session's timeline; one with a known id is replaced. */
   async function saveTimelineMessages(id: string, messages: { id: string }[]): Promise<void> {
     if (id === openSessionId.value) {
@@ -219,6 +226,7 @@ export const useSessions = defineStore('sessions', () => {
     create,
     open,
     rename,
+    setPinned,
     remove,
     saveTimelineMessages,
     ensureOpenSession,

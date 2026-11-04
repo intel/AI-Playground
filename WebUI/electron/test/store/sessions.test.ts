@@ -109,6 +109,18 @@ describe('Sessions store', () => {
     expect(store.openSession?.title).toBe('Holiday cards')
   })
 
+  it('sees a Session pinned or unpinned in main through the Session-changed push', async () => {
+    const store = useSessions()
+    await store.init()
+    const id = store.openSessionId!
+
+    await sessionModule.pinSession(id, true)
+    await vi.waitFor(() => expect(store.openSession?.pinned).toBe(true))
+
+    await sessionModule.pinSession(id, false)
+    await vi.waitFor(() => expect(store.openSession?.pinned).toBe(false))
+  })
+
   it('moves to another Session when the open one is deleted', async () => {
     const store = useSessions()
     await store.init()
