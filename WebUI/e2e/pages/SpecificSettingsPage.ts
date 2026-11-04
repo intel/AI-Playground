@@ -18,13 +18,12 @@ export class SpecificSettingsPage {
   }
 
   /**
-   * Reference-image file inputs of the active ComfyUI preset, in its Attributes tab.
-   * Each is a `<input type="file">` rendered by the LoadImage control; we target them
-   * as a semantic element type scoped to that panel (the labels differ per preset —
-   * "Reference Image", "Input Image", etc.).
+   * The "Load Image" buttons of the active ComfyUI preset's reference-image slots, in its
+   * Attributes tab. Each is the `<label>` of a LoadImage file input, and `setInputFiles`
+   * on a label targets the input it labels — the inputs' own names differ per preset.
    */
   private imageInputs(): Locator {
-    return this.panel('Attributes').locator('input[type="file"]')
+    return this.panel('Attributes').getByText('Load Image', { exact: true })
   }
 
   /**
@@ -132,10 +131,10 @@ export class SpecificSettingsPage {
   /**
    * The chat "Backend" picker trigger (a DropDownNew button). Present only when the
    * active preset allows more than one backend (see SettingsChatInferencing.vue `isBackendLocked`);
-   * located via its "Backend" label row inside the settings region.
+   * located via its "Backend" row group inside the settings region.
    */
   private backendTrigger(): Locator {
-    return this.panel().locator('div.grid', { hasText: 'Backend' }).getByRole('button')
+    return this.panel().getByRole('group', { name: 'Backend', exact: true }).getByRole('button')
   }
 
   /**
@@ -178,7 +177,7 @@ export class SpecificSettingsPage {
    * it for a Provider picker, so it's absent there.
    */
   private deviceTrigger(): Locator {
-    return this.panel().locator('div.grid', { hasText: 'Device' }).getByRole('button')
+    return this.panel().getByRole('group', { name: 'Device', exact: true }).getByRole('button')
   }
 
   /**
@@ -332,9 +331,13 @@ export class SpecificSettingsPage {
     ).toBeVisible({ timeout: 30_000 })
   }
 
-  /** The seed input on the create/edit-voice form (the shared RandomNumber row). */
+  /** The seed field on the create/edit-voice form (the shared RandomNumber row). */
+  private ttsSeedGroup(): Locator {
+    return this.panel('Attributes').getByRole('group', { name: 'Seed', exact: true })
+  }
+
   private ttsSeedInput(): Locator {
-    return this.panel('Attributes').locator('.v-random .v-random-input')
+    return this.ttsSeedGroup().getByRole('textbox', { name: 'Seed', exact: true })
   }
 
   /** Read the seed currently on the create/edit-voice form. */
@@ -351,14 +354,14 @@ export class SpecificSettingsPage {
   /** Roll a different speaker for the same description (the seed row's dice). */
   async rollTtsSeed(): Promise<string> {
     const before = await this.ttsSeed()
-    await this.panel('Attributes').locator('.v-random .v-random-btns button').first().click()
+    await this.ttsSeedGroup().getByRole('button', { name: 'Regenerate' }).click()
     await expect.poll(() => this.ttsSeed(), { timeout: 10_000 }).not.toEqual(before)
     return this.ttsSeed()
   }
 
   /** A saved voice's row in the "Your voices" list. */
   private savedVoiceRow(name: string): Locator {
-    return this.panel('Attributes').locator('li').filter({ hasText: name })
+    return this.panel('Attributes').getByRole('listitem', { name, exact: true })
   }
 
   /** Play a saved voice's stored preview (no synthesis). */
@@ -384,14 +387,12 @@ export class SpecificSettingsPage {
   }
 
   /**
-   * The "Voice" picker row in the Text-to-Speech attributes (SettingsTtsAttributes.vue). Anchored
-   * on a label whose text is exactly "Voice", so it can't drift onto the neighbouring
-   * "Your voices" list or the two "Language" rows.
+   * The "Voice" picker in the Text-to-Speech attributes (SettingsTtsAttributes.vue): its row
+   * is a group named exactly "Voice", so it can't drift onto the "Your voices" list.
    */
   private ttsVoiceTrigger(): Locator {
     return this.panel('Attributes')
-      .locator('div.grid')
-      .filter({ has: this.page.getByText('Voice', { exact: true }) })
+      .getByRole('group', { name: 'Voice', exact: true })
       .getByRole('button')
   }
 
@@ -483,14 +484,14 @@ export class SpecificSettingsPage {
   }
 
   /**
-   * The reset control every settings panel carries: "Reset <preset> to default" when
-   * the Session holds the preset, else "Reset Preset Settings", whose accessible name
-   * starts with the icon's own "Reset" text.
+   * The reset control every settings panel carries, "Reset <preset> to default" — the
+   * Session's reset, or the fallback when the Session does not hold the preset. Audio
+   * adds a "Reset <preset> speech settings to default" below it, hence the first match.
    */
   private resetButton(): Locator {
-    return this.panel().getByRole('button', {
-      name: /^Reset .+ to default$|Reset Preset Settings/,
-    })
+    return this.panel()
+      .getByRole('button', { name: /^Reset .+ to default$/ })
+      .first()
   }
 
   /**
