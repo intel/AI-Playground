@@ -25,6 +25,7 @@
   "SESSIONS_SEARCH": "세션 검색",
   "SESSIONS_SEARCH_CLEAR": "검색 지우기",
   "SESSIONS_NO_MATCH": "일치하는 세션이 없습니다",
+  "SESSIONS_SECTION_NAMED": "이름 지정됨",
   "SESSIONS_SECTION_RECENT": "최근",
   "SESSIONS_UNTITLED": "제목 없는 세션",
   "SESSIONS_PRESETS_USED": "사용한 프리셋",

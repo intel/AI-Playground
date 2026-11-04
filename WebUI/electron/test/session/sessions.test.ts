@@ -98,8 +98,17 @@ describe('Session module', () => {
     const renamed = await renameSession(session.id, '  Cat pictures  ')
 
     expect(renamed).toMatchObject({ id: session.id, title: 'Cat pictures', renamed: true })
-    expect(renamed.updatedAt).toBeGreaterThanOrEqual(session.updatedAt)
     expect((await listSessions())[0]).toMatchObject({ title: 'Cat pictures', renamed: true })
+  })
+
+  it('leaves the last-used time alone on rename', async () => {
+    const session = await createSession()
+    await new Promise((resolve) => setTimeout(resolve, 5))
+
+    const renamed = await renameSession(session.id, 'Cat pictures')
+
+    expect(renamed.updatedAt).toBe(session.updatedAt)
+    expect((await listSessions())[0].updatedAt).toBe(session.updatedAt)
   })
 
   it('refuses an empty title', async () => {
@@ -144,7 +153,7 @@ describe('Session module', () => {
     await fs.writeFile(path.join(dirs.real, session.id, 'session.json'), '{not json')
 
     const [row] = await listSessions()
-    expect(row.id).toBe(session.id)
+    expect(row).toMatchObject({ id: session.id, unreadable: true, renamed: false })
 
     await deleteSession(session.id)
     expect(await listDir(dirs.real)).toEqual([])

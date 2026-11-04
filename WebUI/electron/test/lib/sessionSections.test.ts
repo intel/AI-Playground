@@ -59,4 +59,48 @@ describe('sessionSections', () => {
       ['recent', ['a']],
     ])
   })
+
+  it('lists Named Sessions above Recent, each newest turn first', () => {
+    const sessions = [
+      session('recent-old', { updatedAt: 1 }),
+      session('named-old', { renamed: true, updatedAt: 2 }),
+      session('recent-new', { updatedAt: 5 }),
+      session('named-new', { renamed: true, updatedAt: 4 }),
+    ]
+    expect(ids(sessionSections(sessions, '', UNTITLED))).toEqual([
+      ['named', ['named-new', 'named-old']],
+      ['recent', ['recent-new', 'recent-old']],
+    ])
+  })
+
+  it('omits Recent when every Session is Named', () => {
+    expect(ids(sessionSections([session('a', { renamed: true })], '', UNTITLED))).toEqual([
+      ['named', ['a']],
+    ])
+  })
+
+  it('searches within each section and drops sections left empty', () => {
+    const sessions = [
+      session('named-hit', { title: 'Lisbon trip', renamed: true, updatedAt: 1 }),
+      session('named-miss', { title: 'Groceries', renamed: true, updatedAt: 2 }),
+      session('recent-hit', { title: 'lisbon photos', updatedAt: 3 }),
+      session('recent-miss', { title: 'Logo', updatedAt: 4 }),
+    ]
+    expect(ids(sessionSections(sessions, 'LISBON', UNTITLED))).toEqual([
+      ['named', ['named-hit']],
+      ['recent', ['recent-hit']],
+    ])
+    expect(ids(sessionSections(sessions, 'groc', UNTITLED))).toEqual([['named', ['named-miss']]])
+  })
+
+  it('keeps an unreadable Session in Recent', () => {
+    const sessions = [
+      session('broken', { title: 'Unavailable session', unreadable: true, updatedAt: 2 }),
+      session('named', { renamed: true, updatedAt: 1 }),
+    ]
+    expect(ids(sessionSections(sessions, '', UNTITLED))).toEqual([
+      ['named', ['named']],
+      ['recent', ['broken']],
+    ])
+  })
 })

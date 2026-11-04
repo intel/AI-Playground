@@ -25,6 +25,7 @@
   "SESSIONS_SEARCH": "搜索会话",
   "SESSIONS_SEARCH_CLEAR": "清除搜索",
   "SESSIONS_NO_MATCH": "没有匹配的会话",
+  "SESSIONS_SECTION_NAMED": "已命名",
   "SESSIONS_SECTION_RECENT": "最近",
   "SESSIONS_UNTITLED": "未命名会话",
   "SESSIONS_PRESETS_USED": "使用过的预设",

@@ -38,7 +38,7 @@ export type SessionFile = z.infer<typeof SessionFileSchema>
 export type SessionSummary = Pick<
   SessionFile,
   'id' | 'title' | 'renamed' | 'createdAt' | 'updatedAt' | 'presetsUsed'
->
+> & { unreadable?: boolean }
 
 /** What opening a Session hands the renderer: its row plus the display timeline. */
 export type SessionDocument = SessionSummary & { timeline: unknown[] }

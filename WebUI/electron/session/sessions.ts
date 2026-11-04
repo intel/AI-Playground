@@ -94,7 +94,8 @@ export async function listSessions(): Promise<SessionSummary[]> {
       return {
         id,
         title: UNAVAILABLE_TITLE,
-        renamed: true,
+        renamed: false,
+        unreadable: true,
         createdAt: time,
         updatedAt: time,
         presetsUsed: [],
@@ -133,7 +134,6 @@ export async function renameSession(id: string, title: string): Promise<SessionS
     ...current,
     title: trimmed,
     renamed: true,
-    updatedAt: Math.max(Date.now(), current.updatedAt),
   }))
   return summaryOf(file)
 }

@@ -25,6 +25,7 @@
   "SESSIONS_SEARCH": "セッションを検索",
   "SESSIONS_SEARCH_CLEAR": "検索をクリア",
   "SESSIONS_NO_MATCH": "一致するセッションはありません",
+  "SESSIONS_SECTION_NAMED": "名前付き",
   "SESSIONS_SECTION_RECENT": "最近",
   "SESSIONS_UNTITLED": "無題のセッション",
   "SESSIONS_PRESETS_USED": "使用したプリセット",

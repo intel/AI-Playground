@@ -25,6 +25,7 @@
   "SESSIONS_SEARCH": "Buscar sesiones",
   "SESSIONS_SEARCH_CLEAR": "Borrar búsqueda",
   "SESSIONS_NO_MATCH": "Ninguna sesión coincide",
+  "SESSIONS_SECTION_NAMED": "Con nombre",
   "SESSIONS_SECTION_RECENT": "Recientes",
   "SESSIONS_UNTITLED": "Sesión sin título",
   "SESSIONS_PRESETS_USED": "Presets usados",

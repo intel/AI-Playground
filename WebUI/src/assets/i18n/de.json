@@ -25,6 +25,7 @@
   "SESSIONS_SEARCH": "Sitzungen durchsuchen",
   "SESSIONS_SEARCH_CLEAR": "Suche löschen",
   "SESSIONS_NO_MATCH": "Keine passenden Sitzungen",
+  "SESSIONS_SECTION_NAMED": "Benannt",
   "SESSIONS_SECTION_RECENT": "Zuletzt",
   "SESSIONS_UNTITLED": "Unbenannte Sitzung",
   "SESSIONS_PRESETS_USED": "Verwendete Presets",

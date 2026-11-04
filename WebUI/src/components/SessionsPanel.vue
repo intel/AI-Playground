@@ -109,7 +109,7 @@
             class="flex flex-col gap-1.5"
           >
             <h3
-              v-if="sections.length > 1"
+              v-if="sections.length > 1 || section.id !== 'recent'"
               class="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground"
             >
               {{ sectionLabel(section.id) }}
@@ -171,6 +171,7 @@ const sections = computed(() =>
 )
 
 const SECTION_LABELS: Record<SessionSectionId, string> = {
+  named: 'SESSIONS_SECTION_NAMED',
   recent: 'SESSIONS_SECTION_RECENT',
 }
 

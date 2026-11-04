@@ -25,6 +25,7 @@
   "SESSIONS_SEARCH": "Search sessions",
   "SESSIONS_SEARCH_CLEAR": "Clear search",
   "SESSIONS_NO_MATCH": "No sessions match",
+  "SESSIONS_SECTION_NAMED": "Named",
   "SESSIONS_SECTION_RECENT": "Recent",
   "SESSIONS_UNTITLED": "Untitled Session",
   "SESSIONS_PRESETS_USED": "Presets used",
