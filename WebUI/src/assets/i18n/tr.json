@@ -51,7 +51,7 @@
   "SESSIONS_NEW_GROUP": "Yeni grup…",
   "SESSIONS_REMOVE_FROM_GROUP": "Gruptan çıkar",
   "SESSIONS_NEW_GROUP_TITLE": "Yeni grup",
-  "SESSIONS_NEW_GROUP_DESCRIPTION": "Gruba bir ad verin. Bu Session gruba taşınır.",
+  "SESSIONS_NEW_GROUP_DESCRIPTION": "Gruba bir ad verin. Bu oturum gruba taşınır.",
   "SESSIONS_GROUP_NAME_PLACEHOLDER": "Grup adı",
   "SESSIONS_CREATE_GROUP": "Oluştur",
   "SESSIONS_GROUP_NAME_BLANK": "Grup için bir ad girin.",

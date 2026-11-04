@@ -51,7 +51,7 @@
   "SESSIONS_NEW_GROUP": "새 그룹…",
   "SESSIONS_REMOVE_FROM_GROUP": "그룹에서 제거",
   "SESSIONS_NEW_GROUP_TITLE": "새 그룹",
-  "SESSIONS_NEW_GROUP_DESCRIPTION": "그룹 이름을 지정하세요. 이 Session이 그룹으로 이동합니다.",
+  "SESSIONS_NEW_GROUP_DESCRIPTION": "그룹 이름을 지정하세요. 이 세션이 그룹으로 이동합니다.",
   "SESSIONS_GROUP_NAME_PLACEHOLDER": "그룹 이름",
   "SESSIONS_CREATE_GROUP": "만들기",
   "SESSIONS_GROUP_NAME_BLANK": "그룹 이름을 입력하세요.",

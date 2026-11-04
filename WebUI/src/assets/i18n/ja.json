@@ -51,7 +51,7 @@
   "SESSIONS_NEW_GROUP": "新しいグループ…",
   "SESSIONS_REMOVE_FROM_GROUP": "グループから削除",
   "SESSIONS_NEW_GROUP_TITLE": "新しいグループ",
-  "SESSIONS_NEW_GROUP_DESCRIPTION": "グループに名前を付けてください。この Session はそのグループに移動します。",
+  "SESSIONS_NEW_GROUP_DESCRIPTION": "グループに名前を付けてください。このセッションはそのグループに移動します。",
   "SESSIONS_GROUP_NAME_PLACEHOLDER": "グループ名",
   "SESSIONS_CREATE_GROUP": "作成",
   "SESSIONS_GROUP_NAME_BLANK": "グループの名前を入力してください。",

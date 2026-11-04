@@ -51,7 +51,7 @@
   "SESSIONS_NEW_GROUP": "Nuovo gruppo…",
   "SESSIONS_REMOVE_FROM_GROUP": "Rimuovi dal gruppo",
   "SESSIONS_NEW_GROUP_TITLE": "Nuovo gruppo",
-  "SESSIONS_NEW_GROUP_DESCRIPTION": "Assegna un nome al gruppo. Questa Session verrà spostata al suo interno.",
+  "SESSIONS_NEW_GROUP_DESCRIPTION": "Assegna un nome al gruppo. Questa sessione verrà spostata al suo interno.",
   "SESSIONS_GROUP_NAME_PLACEHOLDER": "Nome del gruppo",
   "SESSIONS_CREATE_GROUP": "Crea",
   "SESSIONS_GROUP_NAME_BLANK": "Inserisci un nome per il gruppo.",

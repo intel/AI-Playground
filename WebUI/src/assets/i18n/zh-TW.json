@@ -51,7 +51,7 @@
   "SESSIONS_NEW_GROUP": "新增群組…",
   "SESSIONS_REMOVE_FROM_GROUP": "從群組移除",
   "SESSIONS_NEW_GROUP_TITLE": "新增群組",
-  "SESSIONS_NEW_GROUP_DESCRIPTION": "為群組命名。此 Session 將移入該群組。",
+  "SESSIONS_NEW_GROUP_DESCRIPTION": "為群組命名。此工作階段將移入該群組。",
   "SESSIONS_GROUP_NAME_PLACEHOLDER": "群組名稱",
   "SESSIONS_CREATE_GROUP": "建立",
   "SESSIONS_GROUP_NAME_BLANK": "請輸入群組名稱。",

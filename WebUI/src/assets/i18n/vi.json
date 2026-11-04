@@ -51,7 +51,7 @@
   "SESSIONS_NEW_GROUP": "Nhóm mới…",
   "SESSIONS_REMOVE_FROM_GROUP": "Xóa khỏi nhóm",
   "SESSIONS_NEW_GROUP_TITLE": "Nhóm mới",
-  "SESSIONS_NEW_GROUP_DESCRIPTION": "Đặt tên cho nhóm. Session này sẽ được chuyển vào nhóm.",
+  "SESSIONS_NEW_GROUP_DESCRIPTION": "Đặt tên cho nhóm. Phiên này sẽ được chuyển vào nhóm.",
   "SESSIONS_GROUP_NAME_PLACEHOLDER": "Tên nhóm",
   "SESSIONS_CREATE_GROUP": "Tạo",
   "SESSIONS_GROUP_NAME_BLANK": "Nhập tên cho nhóm.",
