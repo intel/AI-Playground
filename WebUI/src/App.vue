@@ -203,6 +203,12 @@
           </button>
         </div>
       </template>
+      <template #inferencing>
+        <ModeSettingsTab :mode="promptStore.getCurrentMode()" tab="inferencing" />
+      </template>
+      <template #attributes>
+        <ModeSettingsTab :mode="promptStore.getCurrentMode()" tab="attributes" />
+      </template>
       <template #artifacts>
         <SessionArtifacts v-if="sessionTabs.shown === 'artifacts'" />
       </template>
@@ -212,7 +218,7 @@
     </SessionTabView>
 
     <SideModalSpecificSettings
-      :isVisible="uiStore.showSettings"
+      :isVisible="uiStore.showSettings && !settingsInTabs(promptStore.getCurrentMode())"
       :mode="promptStore.getCurrentMode()"
       @close="closeSpecificSettings"
     />
@@ -332,6 +338,7 @@ import Chat from '@/views/Chat.vue'
 import { computed, ref, watch } from 'vue'
 import SessionsPanel from '@/components/SessionsPanel.vue'
 import SessionTabView from '@/components/SessionTabView.vue'
+import ModeSettingsTab from '@/components/ModeSettingsTab.vue'
 import SessionArtifacts from '@/components/SessionArtifacts.vue'
 import SchedulesPanel from '@/components/SchedulesPanel.vue'
 import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
@@ -355,8 +362,9 @@ import { useAgentMode } from '@/assets/js/store/agentMode'
 import { usesSessionSettings } from '@/lib/agentSessionSettings'
 import { useModePromptHandlers } from '@/lib/useModePromptHandlers'
 import { useSessions } from '@/assets/js/store/sessions'
-import { useConversations } from '@/assets/js/store/conversations'
 import { useSessionTabs } from '@/assets/js/store/sessionTabs'
+import { settingsInTabs } from '@/lib/sessionTabs'
+import { useConversations } from '@/assets/js/store/conversations'
 
 const theme = useTheme()
 const globalSetup = useGlobalSetup()
@@ -545,7 +553,8 @@ function handleAutoHideFooter() {
 }
 
 function openSpecificSettings() {
-  if (uiStore.showSettings) closeSpecificSettings()
+  if (settingsInTabs(promptStore.getCurrentMode())) sessionTabs.select('inferencing')
+  else if (uiStore.showSettings) closeSpecificSettings()
   else uiStore.openSettings()
 }
 

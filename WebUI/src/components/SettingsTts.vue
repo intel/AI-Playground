@@ -118,7 +118,7 @@
 
     <!-- Note: "Speak replies" (auto-play / Home Agent voice replies) is not a TTS
          preset setting — it applies to every preset, so it lives with the Home Agent
-         settings (see SettingsChat.vue). -->
+         settings (see SettingsChatInferencing.vue). -->
 
     <!-- Create a custom voice: describe a voice in words and save it. Saved voices
          appear in the Voice list above and can be used from chat by name. Qwen3 only. -->

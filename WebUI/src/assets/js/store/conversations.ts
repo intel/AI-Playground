@@ -25,7 +25,7 @@ export const HOME_AGENT_CONVERSATION_TITLE = 'Home Agent'
 /**
  * Logical chat preset id for Home Agent inference. Lives in
  * `modes/base/presets/home-agent-chat.json`. Surfaces in the standard chat
- * preset picker: selecting it from `SettingsChat` jumps to the most recent
+ * preset picker: selecting it from `SettingsChatInferencing` jumps to the most recent
  * Home Agent conversation; selecting another preset off a Home Agent thread
  * spawns a fresh main conversation.
  */

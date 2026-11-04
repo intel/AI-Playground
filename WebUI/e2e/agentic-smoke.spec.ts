@@ -16,7 +16,7 @@ import { MainPage } from './pages/MainPage'
 // The chat preset that puts the assistant in agentic mode (built-in tools on).
 const AGENTIC_PRESET = 'Assistant'
 
-// Backend picker labels (see SettingsChat.vue / SpecificSettingsPage.availableBackends).
+// Backend picker labels (see SettingsChatInferencing.vue / SpecificSettingsPage.availableBackends).
 const CHAT_BACKENDS = [
   { label: 'llamaCPP - GGUF', name: 'llama.cpp', optional: false },
   { label: 'OpenVINO', name: 'OpenVINO', optional: true },

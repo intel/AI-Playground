@@ -1,20 +1,19 @@
 import { type Locator, type Page, expect } from '@playwright/test'
-import { setRekaToggle, settingsRegion } from './uiControls'
+import { sessionTabPanel, setRekaToggle, showSessionTab } from './uiControls'
 
 /**
- * Page object for the MCP section of the Chat settings sidebar (SettingsChat.vue →
+ * Page object for the MCP section of the Chat Attributes tab (SettingsChatAttributes.vue →
  * SettingsMcp.vue). Drives the "MCP tools" master toggle and the per-server
  * Start/Stop button + connection status used by the MCP e2e specs.
  *
  * The section only renders when the active chat model supports tool calling, so
- * callers should have the agentic "Assistant" preset active and the Chat settings
- * sidebar open before using it.
+ * callers should have the agentic "Assistant" preset active; it shows the Attributes tab itself.
  */
 export class McpSettingsPage {
   constructor(private readonly page: Page) {}
 
   private get region(): Locator {
-    return settingsRegion(this.page)
+    return sessionTabPanel(this.page, 'Attributes')
   }
 
   /** The "MCP tools:" master checkbox (shadcn Checkbox → role=checkbox, id=mcp-tools). */
@@ -48,6 +47,7 @@ export class McpSettingsPage {
 
   /** True when the MCP section is present (i.e. the active model supports tool calling). */
   async isAvailable(): Promise<boolean> {
+    await showSessionTab(this.page, 'Attributes')
     return this.mcpToolsToggle.isVisible().catch(() => false)
   }
 

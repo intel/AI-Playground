@@ -1,26 +1,31 @@
 import { type Locator, type Page, expect } from '@playwright/test'
 import { type SettingsOwner } from './MainPage'
+import { sessionTabPanel, settingsInTabs, showSessionTab, type SettingsTab } from './uiControls'
 
 /**
- * Page object for the mode-specific settings sidebar (the one with the PRESET
- * grid) opened from the prompt area's "<Mode> Settings" button. Used here to
- * pick the chat preset that puts the assistant in agentic mode.
+ * Page object for a mode's settings: the Inferencing and Attributes tabs of the open
+ * Session's view for the modes that moved there (Chat), else the mode-specific
+ * sidebar opened from the prompt area's "<Mode> Settings" button.
  */
 export class SpecificSettingsPage {
   constructor(private readonly page: Page) {}
 
-  // The settings sidebar renders with `hide-header` (no <h2> banner — see
+  // The sidebar renders with `hide-header` (no <h2> banner — see
   // SideModalSpecificSettings.vue), so its only stable handle is the SideModalBase
   // region, whose aria-label is `${mode} Settings`.
-  private panel(mode: SettingsOwner): Locator {
-    return this.page.getByRole('region', { name: `${mode} Settings` })
+  private panel(mode: SettingsOwner, tab: SettingsTab = 'Inferencing'): Locator {
+    return settingsInTabs(mode)
+      ? sessionTabPanel(this.page, tab)
+      : this.page.getByRole('region', { name: `${mode} Settings` })
   }
 
   private openButton(mode: SettingsOwner): Locator {
     return this.page.getByRole('button', { name: `${mode} Settings` })
   }
 
-  async open(mode: SettingsOwner = 'Chat'): Promise<void> {
+  /** Show the mode's settings; `tab` picks the settings tab where they live in tabs. */
+  async open(mode: SettingsOwner = 'Chat', tab: SettingsTab = 'Inferencing'): Promise<void> {
+    if (settingsInTabs(mode)) return showSessionTab(this.page, tab)
     if (
       await this.panel(mode)
         .isVisible()
@@ -38,7 +43,7 @@ export class SpecificSettingsPage {
    * (the labels differ per preset — "Reference Image", "Input Image", etc.).
    */
   private imageInputs(mode: SettingsOwner): Locator {
-    return this.page.getByRole('region', { name: `${mode} Settings` }).locator('input[type="file"]')
+    return this.panel(mode, 'Attributes').locator('input[type="file"]')
   }
 
   /**
@@ -63,7 +68,7 @@ export class SpecificSettingsPage {
 
   /**
    * The chat model picker's trigger (ModelSelector.vue), reached through the stable
-   * `role="group"` the Model row carries (SettingsChat.vue). The trigger itself is
+   * `role="group"` the Model row carries (SettingsChatInferencing.vue). The trigger itself is
    * named after the current selection, and the row holds a second button — the
    * "Manage Models" gear — so it's pinned on the menu trigger's `aria-haspopup`
    * rather than on being the only button in the group.
@@ -147,7 +152,7 @@ export class SpecificSettingsPage {
 
   /**
    * The chat "Backend" picker trigger (a DropDownNew button). Present only when the
-   * active preset allows more than one backend (see SettingsChat.vue `isBackendLocked`);
+   * active preset allows more than one backend (see SettingsChatInferencing.vue `isBackendLocked`);
    * located via its "Backend" label row inside the settings region.
    */
   private backendTrigger(mode: SettingsOwner): Locator {
@@ -190,7 +195,7 @@ export class SpecificSettingsPage {
 
   /**
    * The chat "Device" (inference hardware) picker trigger — a DropDownNew button in the
-   * "Device" label row (SettingsChat.vue). Shown for local backends; Cloud Mode swaps
+   * "Device" label row (SettingsChatInferencing.vue). Shown for local backends; Cloud Mode swaps
    * it for a Provider picker, so it's absent there.
    */
   private deviceTrigger(mode: SettingsOwner): Locator {
@@ -471,8 +476,6 @@ export class SpecificSettingsPage {
     await expect(row, `saved voice "${name}" should be gone after Delete`).toHaveCount(0)
   }
 
-  /** Close the sidebar via its (responsive) Close button, scoped to the sidebar
-   *  region so it can't match the header's window-close (X) button. */
   /**
    * Set the active preset's context size. The preset ships the size its preferred
    * model is tuned for, which a smaller model on a smaller GPU cannot allocate a KV
@@ -504,12 +507,14 @@ export class SpecificSettingsPage {
   }
 
   /**
-   * The "Reset Preset Settings" control every settings panel carries (Chat, Agent,
-   * Audio, workflow). Its accessible name starts with the icon's own "Reset" text,
-   * hence the substring match rather than an exact one.
+   * The reset control every settings panel carries: "Reset <preset> to default" when
+   * the Session holds the preset, else "Reset Preset Settings", whose accessible name
+   * starts with the icon's own "Reset" text.
    */
   private resetButton(mode: SettingsOwner): Locator {
-    return this.panel(mode).getByRole('button', { name: /Reset Preset Settings/ })
+    return this.panel(mode).getByRole('button', {
+      name: /^Reset .+ to default$|Reset Preset Settings/,
+    })
   }
 
   /**
@@ -528,7 +533,12 @@ export class SpecificSettingsPage {
     return true
   }
 
+  /**
+   * Back to the Viewport where settings live in tabs; else close the sidebar via its
+   * Close button, scoped to the sidebar so it can't match the window-close (X) button.
+   */
   async close(mode: SettingsOwner = 'Chat'): Promise<void> {
+    if (settingsInTabs(mode)) return showSessionTab(this.page, 'Viewport')
     const sidebar = this.page.getByRole('region', { name: `${mode} Settings` })
     const closers = sidebar.getByRole('button', { name: 'Close' })
     const count = await closers.count()

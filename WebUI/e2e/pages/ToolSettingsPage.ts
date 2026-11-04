@@ -1,5 +1,5 @@
 import { type Locator, type Page } from '@playwright/test'
-import { setRekaToggle, settingsRegion } from './uiControls'
+import { sessionTabPanel, setRekaToggle, showSessionTab } from './uiControls'
 
 /** Built-in tool names — the `#builtin-tool-<name>` checkbox id suffixes (see
  *  SettingsBuiltinTools.vue `builtinTools`, keyed to `aipgTools`). */
@@ -24,8 +24,8 @@ const WORKFLOW_TOOLS = ['comfyUI', 'comfyUiImageEdit'] as const
 const SPEECH_TOOLS = ['synthesizeTextToSpeech', 'transcribeAudio'] as const
 
 /**
- * Page object for the tool-selection controls in the Chat settings sidebar
- * (SettingsChat.vue → SettingsBuiltinTools.vue + SettingsMcp.vue). Lets the agentic
+ * Page object for the tool-selection controls in the Chat Attributes tab
+ * (SettingsChatAttributes.vue → SettingsBuiltinTools.vue + SettingsMcp.vue). Lets the agentic
  * specs enforce a deterministic tool set so the model's context isn't bloated by tool
  * schemas it doesn't need (the default 8192-token window fills fast when every
  * built-in tool, MCP server and ComfyUI workflow is advertised).
@@ -33,16 +33,16 @@ const SPEECH_TOOLS = ['synthesizeTextToSpeech', 'transcribeAudio'] as const
  * Settings persist to disk across spec launches, so each profile is *enforced* (read
  * current state, change if it differs) rather than assumed. The section only renders
  * when the active chat model supports tool calling, so the agentic "Assistant" preset
- * must be active and the Chat settings sidebar open before use.
+ * must be active and the open Session's view showing.
  */
 export class ToolSettingsPage {
   constructor(private readonly page: Page) {}
 
   private get region(): Locator {
-    return settingsRegion(this.page)
+    return sessionTabPanel(this.page, 'Attributes')
   }
 
-  /** Master "Built-in tools" checkbox (SettingsChat.vue `id="tools"`). */
+  /** Master "Built-in tools" checkbox (SettingsBuiltinTools.vue `id="tools"`). */
   private get builtinMasterToggle(): Locator {
     return this.region.locator('#tools')
   }
@@ -58,6 +58,7 @@ export class ToolSettingsPage {
 
   /** True when the tools section is present (i.e. the model supports tool calling). */
   async isAvailable(): Promise<boolean> {
+    await showSessionTab(this.page, 'Attributes')
     return this.builtinMasterToggle.isVisible().catch(() => false)
   }
 

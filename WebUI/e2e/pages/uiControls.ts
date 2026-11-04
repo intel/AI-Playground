@@ -1,4 +1,5 @@
 import { type Locator, type Page, expect } from '@playwright/test'
+import { type SettingsOwner } from './MainPage'
 
 /**
  * Set a reka-ui checkbox/switch (role=checkbox|switch) to `enabled`. reka's source of
@@ -20,6 +21,28 @@ export async function setRekaToggle(
 }
 
 /** The mode-settings sidebar region (SideModalBase aria-label is `<mode> Settings`). */
-export function settingsRegion(page: Page, mode = 'Chat'): Locator {
+export function settingsRegion(page: Page, mode: string): Locator {
   return page.getByRole('region', { name: `${mode} Settings` })
+}
+
+/** The settings tabs of the open Session's view (SessionTabView.vue). */
+export type SettingsTab = 'Inferencing' | 'Attributes'
+
+/** Owners whose settings live in the session tabs rather than in a "<mode> Settings" sidebar. */
+const SETTINGS_IN_TABS: readonly SettingsOwner[] = ['Chat']
+
+export function settingsInTabs(owner: SettingsOwner): boolean {
+  return SETTINGS_IN_TABS.includes(owner)
+}
+
+/** A tab panel of the open Session's view, named after its tab. */
+export function sessionTabPanel(page: Page, tab: SettingsTab | 'Viewport'): Locator {
+  return page.getByRole('tabpanel', { name: tab })
+}
+
+/** Show a tab of the open Session's view; a no-op when it is already shown. */
+export async function showSessionTab(page: Page, tab: SettingsTab | 'Viewport'): Promise<void> {
+  const button = page.getByRole('tablist', { name: 'Session' }).getByRole('tab', { name: tab })
+  if ((await button.getAttribute('aria-selected')) !== 'true') await button.click()
+  await expect(sessionTabPanel(page, tab)).toBeVisible()
 }

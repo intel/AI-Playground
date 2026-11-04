@@ -9,7 +9,7 @@ import { DownloadDialogPage } from './pages/DownloadDialogPage'
 import { McpSettingsPage } from './pages/McpSettingsPage'
 import { ModelManagerPage } from './pages/ModelManagerPage'
 import { ToolSettingsPage } from './pages/ToolSettingsPage'
-import { setRekaToggle, settingsRegion } from './pages/uiControls'
+import { sessionTabPanel, setRekaToggle } from './pages/uiControls'
 import { BACKENDS, BACKEND_DISPLAY_NAMES } from './backends'
 
 /** The chat preset that puts the assistant in agentic mode (built-in + MCP tools on). */
@@ -278,7 +278,7 @@ export class AppDriver {
    * Randomly run the active preset on llama.cpp or OpenVINO when it offers both,
    * so neither backend silently stops being exercised. OpenVINO is only offered in
    * Intel/OpenVINO product modes — in NVIDIA mode the app filters it out
-   * (SettingsChat.vue / SettingsAgent.vue), so this is a clean no-op there and the
+   * (SettingsChatInferencing.vue / SettingsAgent.vue), so this is a clean no-op there and the
    * default backend (llama.cpp) is used. Must be called with `mode`'s settings
    * sidebar open; leaves it open. Returns the label it settled on, which is also
    * recorded as a test annotation so a failed run says which backend it ran on.
@@ -899,7 +899,7 @@ export class AppDriver {
   async relaxChatGenerationBudget(): Promise<void> {
     await test.step('Raise max tokens and disable thinking for a reliable final answer', async () => {
       await this.settings.open('Chat')
-      const region = settingsRegion(this.window)
+      const region = sessionTabPanel(this.window, 'Inferencing')
       const maxTokens = region.getByLabel('Max Tokens')
       if (await maxTokens.isVisible().catch(() => false)) {
         await maxTokens.fill('32768')

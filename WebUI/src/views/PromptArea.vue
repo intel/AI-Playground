@@ -772,7 +772,7 @@ async function selectPresetFromPicker(mode: ModeType, preset: Preset) {
   // switch too (skipPresetSwitch: we pick the preset ourselves right after).
   if (!promptStore.setCurrentMode(mode, { skipPresetSwitch: true })) return
 
-  // Route the active conversation alongside the preset, mirroring SettingsChat:
+  // Route the active conversation alongside the preset, mirroring SettingsChatInferencing:
   // Home Agent jumps to its remote thread; leaving a Home Agent thread for another
   // preset spawns a fresh main conversation so we don't write into Home Agent state.
   const switchingToHomeAgent = preset.name === HOME_AGENT_CHAT_PRESET_NAME

@@ -100,3 +100,10 @@ export function sessionTabsPresetKind(
   if (!usesSessionSettings(agentPreset)) return 'agent-preset'
   return agentPreset?.agentTaskId !== undefined ? 'saved-agent-preset' : 'agent-maker'
 }
+
+/** Modes whose settings live in the Inferencing and Attributes tabs; the rest still use the sidebar. */
+const MODES_WITH_SETTINGS_TABS: ReadonlySet<ModeType> = new Set(['chat'])
+
+export function settingsInTabs(mode: ModeType): boolean {
+  return MODES_WITH_SETTINGS_TABS.has(mode)
+}

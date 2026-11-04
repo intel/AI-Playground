@@ -10,7 +10,7 @@
     <TooltipProvider :delay-duration="200">
       <div class="flex flex-col gap-4">
         <!-- Backend selector - only shown when the active preset declares variants for
-             multiple backends. Mirrors SettingsChat.vue's dropdown pattern. -->
+             multiple backends. Mirrors SettingsChatInferencing.vue's dropdown pattern. -->
         <div v-if="!isBackendLocked" class="grid grid-cols-[120px_1fr] items-center gap-4">
           <Label class="whitespace-nowrap">Backend</Label>
           <drop-down-new
