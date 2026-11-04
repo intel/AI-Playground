@@ -35,6 +35,7 @@
   "SESSION_TAB_ARTIFACTS": "Tạo phẩm",
   "SESSION_TAB_SCHEDULES": "Lịch trình",
   "SESSION_TAB_BUSY": "Đang chạy một lượt",
+  "SESSION_SCHEDULES_EDIT_NOTE": "Chuyển sang Agent Maker để chỉnh sửa các bước",
   "SESSIONS_UNTITLED": "Phiên chưa đặt tên",
   "SESSIONS_PRESETS_USED": "Các preset đã dùng",
   "SESSIONS_SCHEDULED": "Một tác tử trong phiên này chạy theo lịch",

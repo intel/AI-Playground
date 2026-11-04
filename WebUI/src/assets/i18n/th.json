@@ -35,6 +35,7 @@
   "SESSION_TAB_ARTIFACTS": "อาร์ติแฟกต์",
   "SESSION_TAB_SCHEDULES": "กำหนดการ",
   "SESSION_TAB_BUSY": "กำลังดำเนินรอบ",
+  "SESSION_SCHEDULES_EDIT_NOTE": "สลับไปที่ Agent Maker เพื่อแก้ไขขั้นตอน",
   "SESSIONS_UNTITLED": "เซสชันที่ไม่มีชื่อ",
   "SESSIONS_PRESETS_USED": "พรีเซ็ตที่ใช้",
   "SESSIONS_SCHEDULED": "เอเจนต์ในเซสชันนี้ทำงานตามกำหนดเวลา",

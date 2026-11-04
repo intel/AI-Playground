@@ -35,6 +35,7 @@
   "SESSION_TAB_ARTIFACTS": "アーティファクト",
   "SESSION_TAB_SCHEDULES": "スケジュール",
   "SESSION_TAB_BUSY": "ターンを実行中",
+  "SESSION_SCHEDULES_EDIT_NOTE": "ステップを編集するには Agent Maker に切り替えてください",
   "SESSIONS_UNTITLED": "無題のセッション",
   "SESSIONS_PRESETS_USED": "使用したプリセット",
   "SESSIONS_SCHEDULED": "このセッションのエージェントはスケジュールで実行されます",

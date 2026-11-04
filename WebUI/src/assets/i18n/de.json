@@ -35,6 +35,7 @@
   "SESSION_TAB_ARTIFACTS": "Artefakte",
   "SESSION_TAB_SCHEDULES": "Zeitpläne",
   "SESSION_TAB_BUSY": "Ein Durchgang läuft",
+  "SESSION_SCHEDULES_EDIT_NOTE": "Wechseln Sie zu Agent Maker, um Schritte zu bearbeiten",
   "SESSIONS_UNTITLED": "Unbenannte Sitzung",
   "SESSIONS_PRESETS_USED": "Verwendete Presets",
   "SESSIONS_SCHEDULED": "Ein Agent in dieser Sitzung läuft nach Zeitplan",

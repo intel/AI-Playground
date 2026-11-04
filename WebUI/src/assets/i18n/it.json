@@ -35,6 +35,7 @@
   "SESSION_TAB_ARTIFACTS": "Artefatti",
   "SESSION_TAB_SCHEDULES": "Pianificazioni",
   "SESSION_TAB_BUSY": "Un turno è in corso",
+  "SESSION_SCHEDULES_EDIT_NOTE": "Passa ad Agent Maker per modificare i passaggi",
   "SESSIONS_UNTITLED": "Sessione senza titolo",
   "SESSIONS_PRESETS_USED": "Preset utilizzati",
   "SESSIONS_SCHEDULED": "Un agente di questa sessione viene eseguito secondo una pianificazione",

@@ -35,6 +35,7 @@
   "SESSION_TAB_ARTIFACTS": "아티팩트",
   "SESSION_TAB_SCHEDULES": "일정",
   "SESSION_TAB_BUSY": "턴 실행 중",
+  "SESSION_SCHEDULES_EDIT_NOTE": "단계를 편집하려면 Agent Maker로 전환하세요",
   "SESSIONS_UNTITLED": "제목 없는 세션",
   "SESSIONS_PRESETS_USED": "사용한 프리셋",
   "SESSIONS_SCHEDULED": "이 세션의 에이전트가 일정에 따라 실행됩니다",

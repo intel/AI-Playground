@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { sessionTabs, sessionTabsPresetKind, type SessionTabsInput } from '@/lib/sessionTabs'
+import {
+  schedulesPanel,
+  sessionTabs,
+  sessionTabsPresetKind,
+  type SessionTabsInput,
+} from '@/lib/sessionTabs'
 
 const chatSession: SessionTabsInput = {
   owner: 'session',
@@ -133,5 +138,31 @@ describe('sessionTabsPresetKind', () => {
     expect(sessionTabsPresetKind('agent', { name: 'Game Agent', agentPreset: true })).toBe(
       'agent-preset',
     )
+  })
+})
+
+describe('schedulesPanel', () => {
+  it('offers the save bar, Steps and the whole Agent list under Agent Maker', () => {
+    expect(schedulesPanel('full')).toEqual({
+      editSteps: true,
+      editNote: false,
+      agentList: { load: true, saveAsPreset: true },
+    })
+  })
+
+  it('replaces the save bar and Steps with the note under another preset', () => {
+    expect(schedulesPanel('run-only')).toEqual({
+      editSteps: false,
+      editNote: true,
+      agentList: { load: false, saveAsPreset: false },
+    })
+  })
+
+  it('keeps only the bound save bar and Steps under a saved Agent Preset', () => {
+    expect(schedulesPanel('one-agent')).toEqual({
+      editSteps: true,
+      editNote: false,
+      agentList: null,
+    })
   })
 })

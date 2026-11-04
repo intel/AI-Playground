@@ -35,6 +35,7 @@
   "SESSION_TAB_ARTIFACTS": "Artefakty",
   "SESSION_TAB_SCHEDULES": "Harmonogramy",
   "SESSION_TAB_BUSY": "Trwa tura",
+  "SESSION_SCHEDULES_EDIT_NOTE": "Przełącz na Agent Maker, aby edytować kroki",
   "SESSIONS_UNTITLED": "Sesja bez tytułu",
   "SESSIONS_PRESETS_USED": "Użyte presety",
   "SESSIONS_SCHEDULED": "Agent w tej sesji działa według harmonogramu",

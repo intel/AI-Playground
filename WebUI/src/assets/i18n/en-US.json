@@ -35,6 +35,7 @@
   "SESSION_TAB_ARTIFACTS": "Artifacts",
   "SESSION_TAB_SCHEDULES": "Schedules",
   "SESSION_TAB_BUSY": "A turn is running",
+  "SESSION_SCHEDULES_EDIT_NOTE": "Switch to Agent Maker to edit Steps",
   "SESSIONS_UNTITLED": "Untitled Session",
   "SESSIONS_PRESETS_USED": "Presets used",
   "SESSIONS_SCHEDULED": "An Agent in this Session runs on a schedule",

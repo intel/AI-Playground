@@ -217,6 +217,9 @@
           </button>
         </div>
       </template>
+      <template #schedules>
+        <SchedulesPanel v-if="sessionTabs.schedules" :allowance="sessionTabs.schedules" />
+      </template>
     </SessionTabView>
 
     <SideModalSpecificSettings
@@ -343,6 +346,7 @@ import Chat from '@/views/Chat.vue'
 import { computed, ref, watch } from 'vue'
 import SessionsPanel from '@/components/SessionsPanel.vue'
 import SessionTabView from '@/components/SessionTabView.vue'
+import SchedulesPanel from '@/components/SchedulesPanel.vue'
 import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
@@ -365,6 +369,7 @@ import { usesSessionSettings } from '@/lib/agentSessionSettings'
 import { useModePromptHandlers } from '@/lib/useModePromptHandlers'
 import { useSessions } from '@/assets/js/store/sessions'
 import { useConversations } from '@/assets/js/store/conversations'
+import { useSessionTabs } from '@/assets/js/store/sessionTabs'
 
 const theme = useTheme()
 const globalSetup = useGlobalSetup()
@@ -381,6 +386,7 @@ const i18n = useI18N()
 const agentMode = useAgentMode()
 const sessions = useSessions()
 const conversations = useConversations()
+const sessionTabs = useSessionTabs()
 
 // Agent Maker sessions can notify over Home Agent; the games presets cannot.
 const showHomeAgentToggle = computed(() => {

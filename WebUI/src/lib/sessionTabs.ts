@@ -66,6 +66,24 @@ export function sessionTabs(input: SessionTabsInput): SessionTabsView {
   }
 }
 
+export type SchedulesPanel = {
+  /** The save bar and the Steps editor. */
+  editSteps: boolean
+  editNote: boolean
+  agentList: { load: boolean; saveAsPreset: boolean } | null
+}
+
+export function schedulesPanel(allowance: SchedulesAllowance): SchedulesPanel {
+  switch (allowance) {
+    case 'full':
+      return { editSteps: true, editNote: false, agentList: { load: true, saveAsPreset: true } }
+    case 'run-only':
+      return { editSteps: false, editNote: true, agentList: { load: false, saveAsPreset: false } }
+    case 'one-agent':
+      return { editSteps: true, editNote: false, agentList: null }
+  }
+}
+
 const MODE_KINDS: Record<Exclude<ModeType, 'agent'>, SessionTabsPresetKind> = {
   chat: 'chat',
   audio: 'audio',

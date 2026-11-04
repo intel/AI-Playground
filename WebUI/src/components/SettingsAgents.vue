@@ -27,14 +27,21 @@
               @submit="rename(row.id)"
               @cancel="renamingId = null"
             />
-            <button
+            <component
+              :is="load ? 'button' : 'div'"
               v-else
-              type="button"
               class="flex items-start gap-2 min-w-0 flex-1 text-left disabled:cursor-default"
-              :aria-pressed="row.loaded"
-              :aria-label="row.selectLabel"
-              :disabled="row.loaded || agentMode.processing"
-              @click="select(row.id)"
+              v-bind="
+                load
+                  ? {
+                      type: 'button',
+                      'aria-pressed': row.loaded,
+                      'aria-label': row.selectLabel,
+                      disabled: row.loaded || agentMode.processing,
+                    }
+                  : {}
+              "
+              @click="load && select(row.id)"
             >
               <CpuChipIcon
                 class="size-5 flex-none mt-0.5"
@@ -64,7 +71,7 @@
                   {{ row.outcome.label }}
                 </span>
               </span>
-            </button>
+            </component>
 
             <div v-if="renamingId !== row.id" class="flex flex-none items-center">
               <AgentRowAction
@@ -93,6 +100,7 @@
                 <ClockIcon v-else class="size-4" />
               </AgentRowAction>
               <AgentRowAction
+                v-if="saveAsPreset"
                 :label="row.presetLabel"
                 :tooltip="row.hasPreset ? i18n.AGENT_PRESET_EDIT : i18n.AGENT_PRESET_SAVE"
                 :active="row.hasPreset"
@@ -161,7 +169,7 @@
   </TooltipProvider>
 
   <TaskScheduleDialog v-model:open="scheduleOpen" :task-id="scheduleTaskId" />
-  <AgentPresetDialog v-model:open="presetOpen" :task-id="presetTaskId" />
+  <AgentPresetDialog v-if="saveAsPreset" v-model:open="presetOpen" :task-id="presetTaskId" />
 </template>
 
 <script setup lang="ts">
@@ -203,6 +211,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { createAppError } from '@/assets/js/errors/appError'
 import { describeSettingsProblems } from '@/lib/sessionSettingsProblems'
 import { describeNextRun } from '@/lib/taskSchedule'
+
+const { load = true, saveAsPreset = true } = defineProps<{
+  load?: boolean
+  saveAsPreset?: boolean
+}>()
 
 const agentMode = useAgentMode()
 const agentTasks = useAgentTasks()

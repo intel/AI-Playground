@@ -35,6 +35,7 @@
   "SESSION_TAB_ARTIFACTS": "Artefak",
   "SESSION_TAB_SCHEDULES": "Jadwal",
   "SESSION_TAB_BUSY": "Giliran sedang berjalan",
+  "SESSION_SCHEDULES_EDIT_NOTE": "Beralih ke Agent Maker untuk mengedit Langkah",
   "SESSIONS_UNTITLED": "Sesi tanpa judul",
   "SESSIONS_PRESETS_USED": "Preset yang digunakan",
   "SESSIONS_SCHEDULED": "Sebuah agen di sesi ini berjalan sesuai jadwal",

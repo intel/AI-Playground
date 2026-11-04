@@ -35,6 +35,7 @@
   "SESSION_TAB_ARTIFACTS": "Yapıtlar",
   "SESSION_TAB_SCHEDULES": "Zamanlamalar",
   "SESSION_TAB_BUSY": "Bir tur çalışıyor",
+  "SESSION_SCHEDULES_EDIT_NOTE": "Adımları düzenlemek için Agent Maker'a geçin",
   "SESSIONS_UNTITLED": "Adsız oturum",
   "SESSIONS_PRESETS_USED": "Kullanılan ön ayarlar",
   "SESSIONS_SCHEDULED": "Bu oturumdaki bir ajan bir zamanlamaya göre çalışır",

@@ -35,6 +35,7 @@
   "SESSION_TAB_ARTIFACTS": "產出物",
   "SESSION_TAB_SCHEDULES": "排程",
   "SESSION_TAB_BUSY": "正在執行一輪",
+  "SESSION_SCHEDULES_EDIT_NOTE": "切換到 Agent Maker 以編輯步驟",
   "SESSIONS_UNTITLED": "未命名的工作階段",
   "SESSIONS_PRESETS_USED": "使用過的預設",
   "SESSIONS_SCHEDULED": "此工作階段中的代理程式依排程執行",

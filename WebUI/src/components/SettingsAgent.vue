@@ -8,8 +8,6 @@
       @update:model-value="handlePresetChange"
     />
 
-    <AgentSaveBar v-if="agentMode.sessionScoped" />
-
     <!-- Managed workspace: the app owns one folder per game, so there is nothing
          to pick — only the game to start over with. -->
     <div v-if="isManagedWorkspace" class="flex flex-col gap-2">
@@ -48,19 +46,6 @@
         The agent works in this Session's folder, next to everything else the Session made.
       </p>
     </div>
-
-    <SettingsSection
-      v-if="agentMode.sessionScoped"
-      :title="i18n.AGENT_TASK_STEPS"
-      :summary="stepsSummary"
-    >
-      <TaskStepsEditor
-        :steps="agentMode.openSteps"
-        id-prefix="agent-steps"
-        @update:steps="agentMode.setOpenSteps"
-      />
-      <p class="text-xs text-muted-foreground">{{ i18n.AGENT_STEPS_HINT }}</p>
-    </SettingsSection>
 
     <!-- Shell sandbox (per-workspace opt-in, developer mode only) -->
     <SettingsSection v-if="showShellOption" :title="i18n.AGENT_SECTION_SHELL">
@@ -164,8 +149,6 @@
         </SessionSettingsActions>
       </template>
     </AgentSettingsForm>
-
-    <SettingsAgents v-if="agentMode.sessionScoped && !agentTasks.presetAgent" />
   </div>
 </template>
 
@@ -192,10 +175,7 @@ import ProviderSelector from '@/components/ProviderSelector.vue'
 import PresetSelector from '@/components/PresetSelector.vue'
 import SessionSettingsActions from '@/components/SessionSettingsActions.vue'
 import AgentSettingsForm from '@/components/AgentSettingsForm.vue'
-import AgentSaveBar from '@/components/AgentSaveBar.vue'
-import SettingsAgents from '@/components/SettingsAgents.vue'
 import SettingsSection from '@/components/SettingsSection.vue'
-import TaskStepsEditor from '@/components/TaskStepsEditor.vue'
 import { usePresets } from '@/assets/js/store/presets'
 import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
 import { useEmbeddingModelPicker } from '@/assets/js/embeddingModelPicker'
@@ -207,10 +187,6 @@ const agentMode = useAgentMode()
 const agentTasks = useAgentTasks()
 const oemBranding = useOemBranding()
 const i18n = useI18N().state
-
-const stepsSummary = computed(() =>
-  i18n.AGENT_TASKS_STEP_COUNT.replace('{count}', String(agentMode.openSteps.length)),
-)
 
 const settingsReadOnly = computed(
   () => agentMode.sessionScoped && agentTasks.openSessionSettingsReadOnly,
