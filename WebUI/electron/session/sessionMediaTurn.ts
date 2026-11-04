@@ -4,13 +4,13 @@ import { emitSessionChanged } from '../kernel/kernelBus'
 import { moveIntoSessionFiles } from '../persist/sessionMediaFiles'
 import { appendHistoryEntry } from './sessionHistory'
 import { mutateSession, sessionDocumentOf } from './sessions'
+import { afterTurn, type TitleSource } from './sessionTitle'
 import { sessionMediaUrl } from '@/lib/comfyWorkflow'
 import type { MediaItem } from '@/types/mediaItem'
 import type { ArtifactMediaType, HistoryEntryKind, SessionDocument } from '@/types/sessionIpc'
 import type { MediaTurnData, MediaTurnStatus, TimelineMessage } from '@/types/sessionTimeline'
 
 const LOG_SCOPE = 'sessions'
-const TITLE_LIMIT = 60
 
 export type MediaTurn = {
   sessionId: string
@@ -31,11 +31,6 @@ const KIND_OF_MODE: Record<MediaTurn['mode'], HistoryEntryKind> = {
   imageGen: 'image',
   imageEdit: 'edit',
   video: 'video',
-}
-
-export function titleFromPrompt(prompt: string): string {
-  const flat = prompt.replace(/\s+/g, ' ').trim()
-  return flat.length <= TITLE_LIMIT ? flat : `${flat.slice(0, TITLE_LIMIT - 1).trimEnd()}…`
 }
 
 export type AdoptedFile = { url: string; relativePath: string }
@@ -137,8 +132,7 @@ export async function recordMediaTurn(turn: MediaTurn): Promise<MediaItem[]> {
     },
   ]
   await appendTurnToTimeline(turn.sessionId, {
-    preset: turn.preset,
-    titleSource: turn.prompt,
+    title: { kind: KIND_OF_MODE[turn.mode], preset: turn.preset, prompt: turn.prompt },
     messages,
     at: now,
   })
@@ -151,17 +145,11 @@ export async function recordMediaTurn(turn: MediaTurn): Promise<MediaItem[]> {
  */
 export async function appendTurnToTimeline(
   sessionId: string,
-  turn: { preset: string; titleSource: string; messages: TimelineMessage[]; at: number },
+  turn: { title: TitleSource; messages: TimelineMessage[]; at: number },
 ): Promise<SessionDocument> {
   const file = await mutateSession(sessionId, (current) => ({
     ...current,
-    title:
-      current.renamed || current.title
-        ? current.title
-        : titleFromPrompt(turn.titleSource) || turn.preset,
-    presetsUsed: current.presetsUsed.includes(turn.preset)
-      ? current.presetsUsed
-      : [...current.presetsUsed, turn.preset],
+    ...afterTurn(current, turn.title),
     timeline: [...current.timeline, ...turn.messages],
     updatedAt: Math.max(turn.at, current.updatedAt),
   }))

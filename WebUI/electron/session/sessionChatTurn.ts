@@ -1,9 +1,10 @@
 import { appLoggerInstance } from '../observability/logger'
 import { emitSessionChanged } from '../kernel/kernelBus'
 import { appendHistoryEntry } from './sessionHistory'
-import { adoptMediaFile, titleFromPrompt } from './sessionMediaTurn'
+import { adoptMediaFile } from './sessionMediaTurn'
 import { takeSessionUpdate } from './sessionUpdate'
 import { mutateSession, readSession, sessionDocumentOf } from './sessions'
+import { afterTurn } from './sessionTitle'
 import {
   asChatTranscriptMessage as asChatMessage,
   chatTranscriptOf,
@@ -80,13 +81,7 @@ export async function saveChatTranscript(
     timeline: mergeChatTranscript(current.timeline, messages),
     ...(settled
       ? {
-          title:
-            current.renamed || current.title
-              ? current.title
-              : titleFromPrompt(settled.prompt) || settled.preset,
-          presetsUsed: current.presetsUsed.includes(settled.preset)
-            ? current.presetsUsed
-            : [...current.presetsUsed, settled.preset],
+          ...afterTurn(current, { kind: 'chat', ...settled }),
           updatedAt: Math.max(Date.now(), current.updatedAt),
         }
       : {}),

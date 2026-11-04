@@ -14,6 +14,8 @@ vi.mock('../../observability/logger', () => ({
   appLoggerInstance: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
+vi.mock('../../kernel/kernelBus', () => ({ emitSessionChanged: vi.fn() }))
+
 const {
   createSession,
   deleteSession,
@@ -26,6 +28,28 @@ const {
   setSessionDeps,
   wipeDemoSessions,
 } = await import('../../session/sessions')
+const { appendHistoryEntry } = await import('../../session/sessionHistory')
+const { trackAgentTurnInSession } = await import('../../session/sessionAgentTurns')
+
+function entry(prompt: string) {
+  return {
+    preset: 'Dummy Image (test)',
+    kind: 'image' as const,
+    prompt,
+    status: 'completed' as const,
+    artifacts: [],
+  }
+}
+
+async function settleAgentTurn(sessionRef: string, prompt: string) {
+  const turn = trackAgentTurnInSession({
+    sessionRef,
+    presetName: 'Agent',
+    workspaceDir: path.join(dirs.real, sessionRef, 'files'),
+    prompt,
+  })
+  await turn.settle({ sessionId: 'agent-session', turnId: 'turn-1', outcome: 'completed' })
+}
 
 async function listDir(dir: string): Promise<string[]> {
   return (await fs.readdir(dir).catch(() => [])).sort()
@@ -112,10 +136,80 @@ describe('Session module', () => {
     expect((await listSessions())[0].updatedAt).toBe(session.updatedAt)
   })
 
-  it('refuses an empty title', async () => {
-    const session = await createSession()
+  it.each(['', '  \n '])('clears the Name on a blank rename (%j)', async (blank) => {
+    const { id } = await createSession()
+    await appendHistoryEntry(id, entry('a red fox\n  in   the snow'))
+    await appendHistoryEntry(id, entry('a second prompt'))
+    await renameSession(id, 'Foxes')
 
-    await expect(renameSession(session.id, '   ')).rejects.toThrow()
+    const cleared = await renameSession(id, blank)
+
+    expect(cleared).toMatchObject({ title: 'a red fox in the snow', renamed: false })
+    expect((await listSessions())[0]).toMatchObject({ title: 'a red fox in the snow' })
+  })
+
+  it('shortens a long first prompt when a Name is cleared', async () => {
+    const { id } = await createSession()
+    const long = 'a very long prompt about a red fox jumping over a lazy dog in the moonlight'
+    await appendHistoryEntry(id, entry(long))
+    await renameSession(id, 'Foxes')
+
+    expect((await renameSession(id, '')).title).toBe(
+      'a very long prompt about a red fox jumping over a lazy dog…',
+    )
+  })
+
+  it('falls back to the preset name when the first prompt is empty', async () => {
+    const { id } = await createSession()
+    await appendHistoryEntry(id, { ...entry('   '), preset: 'Colorize' })
+    await renameSession(id, 'Foxes')
+
+    expect((await renameSession(id, '')).title).toBe('Colorize')
+  })
+
+  it('titles a cleared Session from the transcript of a first Speech-to-Text turn', async () => {
+    const { id } = await createSession()
+    await appendHistoryEntry(id, {
+      ...entry(''),
+      kind: 'stt',
+      preset: 'Speech to Text',
+      response: 'Let us begin the meeting.',
+    })
+    await renameSession(id, 'Minutes')
+
+    expect((await renameSession(id, '')).title).toBe('Let us begin the meeting.')
+  })
+
+  it('clears to an empty Title when the Session has no History Entry yet', async () => {
+    const { id } = await createSession()
+    await renameSession(id, 'Planned work')
+
+    expect(await renameSession(id, ' ')).toMatchObject({ title: '', renamed: false })
+  })
+
+  it('keeps a Name given before the first turn', async () => {
+    const { id } = await createSession()
+    await renameSession(id, 'Planned work')
+
+    await settleAgentTurn(id, 'build me a game')
+
+    expect(await openSession(id)).toMatchObject({ title: 'Planned work', renamed: true })
+  })
+
+  it('titles a Session from its first agent turn, or the preset name when it had no prompt', async () => {
+    const prompted = await createSession()
+    const blank = await createSession()
+
+    await settleAgentTurn(prompted.id, 'build me\na game')
+    await settleAgentTurn(blank.id, '')
+
+    expect((await openSession(prompted.id)).title).toBe('build me a game')
+    expect((await openSession(blank.id)).title).toBe('Agent')
+  })
+
+  it('fails to rename a Session that does not exist', async () => {
+    await expect(renameSession('session-missing', 'Foxes')).rejects.toThrow()
+    await expect(renameSession('session-missing', '')).rejects.toThrow()
   })
 
   it('pins and unpins a Session, remembered across a re-list', async () => {

@@ -71,8 +71,7 @@ export async function recordAudioTurn(turn: AudioTurnRequest): Promise<SessionDo
     },
   ]
   return appendTurnToTimeline(turn.sessionId, {
-    preset: turn.preset,
-    titleSource: (turn.kind === 'stt' && turn.transcript) || turn.prompt,
+    title: { kind: turn.kind, preset: turn.preset, prompt: turn.prompt, response: turn.transcript },
     messages,
     at: now,
   })

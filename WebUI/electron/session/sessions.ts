@@ -16,6 +16,8 @@ import {
   type SessionFileDeps,
   type SessionFolderPaths,
 } from '../persist/sessionFiles'
+import { readHistoryEntries } from './sessionHistory'
+import { autoTitle } from './sessionTitle'
 import {
   SessionTitleSchema,
   type SessionDocument,
@@ -121,23 +123,32 @@ export async function openSession(id: string): Promise<SessionDocument> {
 /** Read-modify-write of one `session.json` on that Session's write chain. */
 export async function mutateSession(
   id: string,
-  mutate: (file: SessionFile) => SessionFile,
+  mutate: (file: SessionFile) => SessionFile | Promise<SessionFile>,
 ): Promise<SessionFile> {
   assertSessionId(id)
   return serializeSession(id, async () => {
-    const next = mutate(await readSession(id))
+    const next = await mutate(await readSession(id))
     await writeSessionFile(next)
     return next
   })
 }
 
+async function clearedTitle(id: string): Promise<string> {
+  const [first] = await readHistoryEntries(id)
+  return first ? autoTitle(first) : ''
+}
+
+/**
+ * A blank title clears the Name, back to the Title the first History Entry gives.
+ * History is read on the write chain so a first turn settling alongside keeps its Title.
+ */
 export async function renameSession(id: string, title: string): Promise<SessionSummary> {
-  const trimmed = SessionTitleSchema.parse(title)
-  const file = await mutateSession(id, (current) => ({
-    ...current,
-    title: trimmed,
-    renamed: true,
-  }))
+  const name = title.trim() ? SessionTitleSchema.parse(title) : null
+  const file = await mutateSession(id, async (current) => {
+    const [nextTitle, renamed] = name === null ? [await clearedTitle(id), false] : [name, true]
+    return { ...current, title: nextTitle, renamed }
+  })
+  emitSessionChanged(sessionDocumentOf(file))
   return summaryOf(file)
 }
 

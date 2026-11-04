@@ -147,8 +147,8 @@
               <Button variant="ghost" @click="renameOpen = false">{{
                 languages.COM_CANCEL
               }}</Button>
-              <Button :disabled="!renameTitle.trim()" @click="saveRename">{{
-                languages.SESSIONS_SAVE
+              <Button :disabled="!canSaveRename" @click="saveRename">{{
+                clearsName ? languages.SESSIONS_REMOVE_NAME : languages.SESSIONS_SAVE
               }}</Button>
             </DialogFooter>
           </DialogContent>
@@ -261,10 +261,12 @@ const presetIcons = computed(() =>
   })),
 )
 
+const clearsName = computed(() => !renameTitle.value.trim())
+const canSaveRename = computed(() => !clearsName.value || props.session.renamed)
+
 function saveRename() {
-  const next = renameTitle.value.trim()
-  if (!next) return
-  emit('rename', next)
+  if (!canSaveRename.value) return
+  emit('rename', renameTitle.value.trim())
   renameOpen.value = false
   menuOpen.value = false
 }

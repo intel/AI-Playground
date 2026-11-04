@@ -121,6 +121,18 @@ describe('Sessions store', () => {
     await vi.waitFor(() => expect(store.openSession?.pinned).toBe(false))
   })
 
+  it('sees a Session renamed or cleared in main through the Session-changed push', async () => {
+    const store = useSessions()
+    await store.init()
+    const id = store.openSessionId!
+
+    await sessionModule.renameSession(id, 'Holiday cards')
+    await vi.waitFor(() => expect(store.openSession?.title).toBe('Holiday cards'))
+
+    await sessionModule.renameSession(id, '')
+    await vi.waitFor(() => expect(store.openSession).toMatchObject({ title: '', renamed: false }))
+  })
+
   it('moves to another Session when the open one is deleted', async () => {
     const store = useSessions()
     await store.init()

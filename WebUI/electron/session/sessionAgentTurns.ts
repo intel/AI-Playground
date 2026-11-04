@@ -4,8 +4,8 @@ import { emitSessionChanged } from '../kernel/kernelBus'
 import { onGeneratedMedia } from '../agent/generatedMedia'
 import type { AgentTurnEnd } from '../agent/agentTurnOutcome'
 import { appendHistoryEntry } from './sessionHistory'
-import { titleFromPrompt } from './sessionMediaTurn'
 import { mutateSession, sessionDocumentOf, sessionPaths } from './sessions'
+import { afterTurn } from './sessionTitle'
 import type { ArtifactMediaType, HistoryArtifact } from '@/types/sessionIpc'
 
 const MEDIA_TYPES: Record<string, ArtifactMediaType> = {
@@ -73,10 +73,7 @@ export function trackAgentTurnInSession(turn: AgentTurnInSession): {
         })
         const file = await mutateSession(turn.sessionRef, (current) => ({
           ...current,
-          title: current.renamed || current.title ? current.title : titleFromPrompt(turn.prompt),
-          presetsUsed: current.presetsUsed.includes(turn.presetName)
-            ? current.presetsUsed
-            : [...current.presetsUsed, turn.presetName],
+          ...afterTurn(current, { kind: 'agent', preset: turn.presetName, prompt: turn.prompt }),
           updatedAt: Math.max(Date.now(), current.updatedAt),
         }))
         emitSessionChanged(sessionDocumentOf(file))
