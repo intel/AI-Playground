@@ -548,6 +548,7 @@ import { useAgentMode } from '@/assets/js/store/agentMode'
 import { useSessionAudio } from '@/assets/js/store/sessionAudio'
 import { useSessions } from '@/assets/js/store/sessions'
 import { useSessionLifecycle } from '@/assets/js/store/sessionLifecycle'
+import { useSessionTabs } from '@/assets/js/store/sessionTabs'
 import { useSessionSettings } from '@/assets/js/store/sessionSettings'
 import { useAgentTasks } from '@/assets/js/store/agentTasks'
 import {
@@ -606,6 +607,7 @@ const agentMode = useAgentMode()
 const sessionAudio = useSessionAudio()
 const sessions = useSessions()
 const sessionLifecycle = useSessionLifecycle()
+const sessionTabs = useSessionTabs()
 const sessionSettings = useSessionSettings()
 const agentTasks = useAgentTasks()
 const oemBranding = useOemBranding()
@@ -1007,16 +1009,6 @@ const promptRunNote = computed(() =>
     .replace('{count}', String(promptRun.value?.stepCount ?? '')),
 )
 
-// A Home Agent thread is outside Sessions, so the open Session's turn does not lock it.
-const sessionTurnShown = computed(
-  () =>
-    sessions.openTurn !== null &&
-    !(
-      promptStore.getCurrentMode() === 'chat' &&
-      conversations.getThreadKind(conversations.activeKey) !== 'main'
-    ),
-)
-
 // Busy state follows only what the prompt bar would send to (`promptBusy`). For the
 // open conversation that includes any chat activity on it (backend prep, a queued
 // turn, RAG search, tool resolution, thinking), so send/stop matches the in-turn
@@ -1029,7 +1021,7 @@ const isProcessing = computed(() =>
       openAiCompatibleChat.processing || activities.chatActivity(conversations.activeKey) !== null,
     panelRun: imageGeneration.processing,
     audioTurn: sessionAudio.processing,
-    sessionTurn: sessionTurnShown.value,
+    sessionTurn: sessionTabs.sessionTurnInFlight,
   }),
 )
 

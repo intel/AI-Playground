@@ -200,19 +200,24 @@
 
     <SideModalAppSettings :isVisible="showAppSettings" @close="showAppSettings = false" />
 
-    <div class="flex-1 flex flex-col relative justify-center-safe min-h-0 overflow-y-auto">
-      <Chat v-if="showsThreadView" ref="threadView" />
-      <SessionTimeline v-else ref="timelineView" />
-      <PromptArea @auto-hide-footer="handleAutoHideFooter" @open-settings="openSpecificSettings" />
-      <div v-if="!footerExpanded" class="fixed bottom-4 right-4 z-5 flex items-center gap-3">
-        <button
-          @click="footerExpanded = !footerExpanded"
-          class="text-foreground/30 hover:text-foreground/80 text-xs uppercase tracking-wider transition-colors"
-        >
-          SHOW FOOTER
-        </button>
-      </div>
-    </div>
+    <SessionTabView>
+      <template #viewport>
+        <Chat v-if="showsThreadView" ref="threadView" />
+        <SessionTimeline v-else ref="timelineView" />
+        <PromptArea
+          @auto-hide-footer="handleAutoHideFooter"
+          @open-settings="openSpecificSettings"
+        />
+        <div v-if="!footerExpanded" class="fixed bottom-4 right-4 z-5 flex items-center gap-3">
+          <button
+            @click="footerExpanded = !footerExpanded"
+            class="text-foreground/30 hover:text-foreground/80 text-xs uppercase tracking-wider transition-colors"
+          >
+            SHOW FOOTER
+          </button>
+        </div>
+      </template>
+    </SessionTabView>
 
     <SideModalSpecificSettings
       :isVisible="uiStore.showSettings"
@@ -337,6 +342,7 @@ import SessionTimeline from '@/views/SessionTimeline.vue'
 import Chat from '@/views/Chat.vue'
 import { computed, ref, watch } from 'vue'
 import SessionsPanel from '@/components/SessionsPanel.vue'
+import SessionTabView from '@/components/SessionTabView.vue'
 import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'

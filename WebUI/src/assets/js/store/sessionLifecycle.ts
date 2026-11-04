@@ -5,6 +5,7 @@ import { usePresets } from '@/assets/js/store/presets'
 import { usePresetSwitching } from '@/assets/js/store/presetSwitching'
 import { useSessions } from '@/assets/js/store/sessions'
 import { useSessionSettings } from '@/assets/js/store/sessionSettings'
+import { useSessionTabs } from '@/assets/js/store/sessionTabs'
 import { modelDownloads } from '@/assets/js/models/modelDownloadQueue'
 import { downloadPercent } from '@/lib/downloadPercent'
 import { sessionRowStatus, type SessionRowStatus } from '@/lib/sessionRowStatus'
@@ -22,9 +23,10 @@ export const useSessionLifecycle = defineStore('sessionLifecycle', () => {
   const presetSwitching = usePresetSwitching()
   const agentMode = useAgentMode()
   const artifactRuns = useArtifactRuns()
+  const sessionTabs = useSessionTabs()
 
   async function openSession(id: string): Promise<void> {
-    if (id === sessions.openSessionId) return
+    if (id === sessions.openSessionId) return sessionTabs.land('open-session')
     const last = await sessions.open(id)
     if (!last || sessions.openSessionId !== id) return
     if (!presets.presets.some((preset) => preset.name === last.preset)) return
