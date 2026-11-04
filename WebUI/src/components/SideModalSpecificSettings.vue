@@ -13,21 +13,6 @@
          session tabs (ModeSettingsTab). -->
     <SettingsAudio v-if="props.mode == 'audio'" />
     <SettingsAgent v-else-if="props.mode == 'agent'" />
-    <SettingsWorkflow
-      v-show="props.mode == 'imageGen'"
-      :categories="['create-images']"
-      :title="`${mapModeToLabel(mode)} Presets`"
-    />
-    <SettingsWorkflow
-      v-show="props.mode == 'imageEdit'"
-      :categories="['edit-images']"
-      :title="`${mapModeToLabel(mode)} Presets`"
-    />
-    <SettingsWorkflow
-      v-show="props.mode == 'video'"
-      :categories="['create-videos']"
-      :title="`${mapModeToLabel(mode)} Presets`"
-    />
   </SideModalBase>
 </template>
 
@@ -36,8 +21,6 @@ import { useModeSettingsLabel } from '@/assets/js/modeSettingsLabel'
 import SideModalBase from '@/components/SideModalBase.vue'
 import SettingsAgent from '@/components/SettingsAgent.vue'
 import SettingsAudio from '@/components/SettingsAudio.vue'
-import SettingsWorkflow from '@/components/SettingsWorkflow.vue'
-import { mapModeToLabel } from '@/lib/utils.ts'
 
 const props = defineProps<{
   mode: ModeType

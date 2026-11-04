@@ -173,8 +173,14 @@ describe('settingsInTabs', () => {
     expect(settingsInTabs('chat')).toBe(true)
   })
 
+  it('puts Image Gen, Image Edit and Video settings in the tabs', () => {
+    for (const mode of ['imageGen', 'imageEdit', 'video'] as const) {
+      expect(settingsInTabs(mode)).toBe(true)
+    }
+  })
+
   it('keeps the modes not yet moved in the settings sidebar', () => {
-    for (const mode of ['audio', 'agent', 'imageGen', 'imageEdit', 'video'] as const) {
+    for (const mode of ['audio', 'agent'] as const) {
       expect(settingsInTabs(mode)).toBe(false)
     }
   })

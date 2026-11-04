@@ -126,7 +126,7 @@ function isVariantAvailable(variant: { requiresService?: string }): boolean {
 }
 
 // Variants are now grouped by `backend` (defaulting to 'comfyui'). The Backend dropdown
-// in SettingsWorkflow.vue picks which group is active; the quality radio here only shows
+// in SettingsWorkflowInferencing.vue picks which group is active; the quality radio here only shows
 // variants belonging to that group, then further filters by `requiresService` availability.
 const availableVariants = computed(() => {
   if (!selectedPreset.value?.variants) return []

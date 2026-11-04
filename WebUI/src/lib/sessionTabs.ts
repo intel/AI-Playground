@@ -102,7 +102,12 @@ export function sessionTabsPresetKind(
 }
 
 /** Modes whose settings live in the Inferencing and Attributes tabs; the rest still use the sidebar. */
-const MODES_WITH_SETTINGS_TABS: ReadonlySet<ModeType> = new Set(['chat'])
+const MODES_WITH_SETTINGS_TABS: ReadonlySet<ModeType> = new Set([
+  'chat',
+  'imageGen',
+  'imageEdit',
+  'video',
+])
 
 export function settingsInTabs(mode: ModeType): boolean {
   return MODES_WITH_SETTINGS_TABS.has(mode)

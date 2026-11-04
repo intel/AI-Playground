@@ -4,7 +4,7 @@ import { sessionTabPanel, settingsInTabs, showSessionTab, type SettingsTab } fro
 
 /**
  * Page object for a mode's settings: the Inferencing and Attributes tabs of the open
- * Session's view for the modes that moved there (Chat), else the mode-specific
+ * Session's view for the modes that moved there (Chat and the workflow modes), else the mode-specific
  * sidebar opened from the prompt area's "<Mode> Settings" button.
  */
 export class SpecificSettingsPage {
@@ -37,10 +37,10 @@ export class SpecificSettingsPage {
   }
 
   /**
-   * Reference-image file inputs of the active ComfyUI preset, inside the settings
-   * sidebar. Each is a `<input type="file">` rendered by the LoadImage control; we
-   * target them as a semantic element type scoped to the mode's settings region
-   * (the labels differ per preset — "Reference Image", "Input Image", etc.).
+   * Reference-image file inputs of the active ComfyUI preset, in its Attributes tab.
+   * Each is a `<input type="file">` rendered by the LoadImage control; we target them
+   * as a semantic element type scoped to that panel (the labels differ per preset —
+   * "Reference Image", "Input Image", etc.).
    */
   private imageInputs(mode: SettingsOwner): Locator {
     return this.panel(mode, 'Attributes').locator('input[type="file"]')
@@ -52,6 +52,7 @@ export class SpecificSettingsPage {
    * Returns how many slots were filled.
    */
   async attachReferenceImages(mode: SettingsOwner, filePath: string): Promise<number> {
+    await this.open(mode, 'Attributes')
     const inputs = this.imageInputs(mode)
     // The LoadImage inputs render a beat after the preset's settings load, so wait for
     // the first one before counting rather than racing an empty grid.
