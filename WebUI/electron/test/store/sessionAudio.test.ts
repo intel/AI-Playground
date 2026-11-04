@@ -71,7 +71,12 @@ beforeEach(async () => {
       onKernelEvent: kernelBus.onKernelEvent,
       getKernelSnapshot: async () => kernelBus.getKernelSnapshot(),
       sessions: {
-        list: async () => ({ success: true, sessions: await sessionModule.listSessions() }),
+        list: async () => ({
+          success: true,
+          sessions: await sessionModule.listSessions(),
+          groups: await sessionModule.listSessionGroups(),
+          pinnedShowMore: await sessionModule.readPinnedShowMore(),
+        }),
         create: async () => ({ success: true, session: await sessionModule.createSession() }),
         open: async (id: string) => ({
           success: true,
