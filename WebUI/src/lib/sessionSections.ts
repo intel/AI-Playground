@@ -4,6 +4,7 @@ export type SessionGroupListing = {
   group: SessionGroup
   sessions: SessionSummary[]
   expanded: boolean
+  holdsOpen: boolean
 }
 
 /** The button row under the pinned rows: "Show N more" or "Show less". */
@@ -67,16 +68,18 @@ export function sessionSections({
   const recent = ordered.filter(
     (s) => (s.unreadable || (!s.pinned && groupOf(s) === null)) && matches(s),
   )
-  const openOutsidePinned = pinned.every((s) => s.id !== openSessionId)
-  const expanded = (group: SessionGroup, members: SessionSummary[]) =>
-    group.expanded || !!needle || (openOutsidePinned && members.some((s) => s.id === openSessionId))
   const listings = groups
     .map((group) => {
       const members = ordered.filter((s) => groupOf(s) === group.id)
       const nameMatches = !!needle && contains(group.name)
       const shown = nameMatches ? members : members.filter(matches)
       return {
-        listing: { group, sessions: shown, expanded: expanded(group, members) },
+        listing: {
+          group,
+          sessions: shown,
+          expanded: group.expanded || !!needle,
+          holdsOpen: members.some((s) => s.id === openSessionId),
+        },
         newest: members[0],
         listed: !needle || nameMatches || shown.length > 0,
       }
@@ -96,4 +99,14 @@ export function sessionSections({
   if (listings.length > 0) result.push({ id: 'groups', groups: listings })
   if (recent.length > 0) result.push({ id: 'recent', sessions: recent })
   return result
+}
+
+/** The collapsed Group to expand when this Session is opened, so the open Session is in view. */
+export function groupToRevealOnOpen(
+  session: SessionSummary,
+  groups: SessionGroup[],
+): string | null {
+  if (session.pinned || session.unreadable) return null
+  const group = groups.find((g) => g.id === session.groupId)
+  return group && !group.expanded ? group.id : null
 }

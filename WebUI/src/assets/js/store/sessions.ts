@@ -12,6 +12,7 @@ import type {
   SessionTurns,
 } from '@/types/sessionIpc'
 import { cloneForIpc } from '@/lib/cloneForIpc'
+import { groupToRevealOnOpen } from '@/lib/sessionSections'
 import type { GroupNameProblem } from '@/lib/sessionGroupName'
 import type { MediaTurnData } from '@/types/sessionTimeline'
 
@@ -155,7 +156,7 @@ export const useSessions = defineStore('sessions', () => {
 
   async function openNewestOrCreate(): Promise<void> {
     const newest = orderedSessions.value[0]
-    if (newest) await open(newest.id)
+    if (newest) await open(newest.id, { reveal: false })
     else await create()
   }
 
@@ -168,11 +169,15 @@ export const useSessions = defineStore('sessions', () => {
     openSessionId.value = result.session.id
     openTimeline.value = []
     openDeletedFiles.value = []
+    revealInGroup(result.session)
     return result.session.id
   }
 
   /** Opens a Session; resolves with the preset and variant of its last turn. */
-  async function open(id: string): Promise<SessionLastPreset | null> {
+  async function open(
+    id: string,
+    { reveal = true }: { reveal?: boolean } = {},
+  ): Promise<SessionLastPreset | null> {
     const result = await call('sessions/open-failed', () => window.electronAPI.sessions.open(id))
     if (!result) return null
     const { timeline, ...summary } = result.session
@@ -180,6 +185,7 @@ export const useSessions = defineStore('sessions', () => {
     openSessionId.value = id
     openTimeline.value = timeline
     openDeletedFiles.value = result.missingFiles
+    if (reveal) revealInGroup(summary)
     return result.lastPreset
   }
 
@@ -256,6 +262,11 @@ export const useSessions = defineStore('sessions', () => {
       window.electronAPI.sessions.deleteGroup(groupId),
     )
     if (result) groups.value = groups.value.filter((group) => group.id !== groupId)
+  }
+
+  function revealInGroup(session: SessionSummary): void {
+    const groupId = groupToRevealOnOpen(session, groups.value)
+    if (groupId) void setGroupExpanded(groupId, true)
   }
 
   async function setGroupExpanded(groupId: string, expanded: boolean): Promise<void> {

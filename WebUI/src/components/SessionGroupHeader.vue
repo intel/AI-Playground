@@ -2,8 +2,10 @@
   <div class="flex items-center gap-1 min-w-0">
     <Button
       variant="ghost"
-      class="h-7 flex-1 min-w-0 justify-start gap-1 px-1 text-sm font-medium text-foreground"
+      class="h-7 flex-1 min-w-0 justify-start gap-1 px-1 text-sm font-medium text-foreground border-2"
+      :class="!expanded && holdsOpen ? 'border-primary' : 'border-transparent'"
       :aria-expanded="expanded"
+      :aria-current="!expanded && holdsOpen ? 'true' : undefined"
       :aria-controls="controls"
       @click="emit('toggle', !expanded)"
     >
@@ -93,6 +95,7 @@ const props = defineProps<{
   /** Every Session Group, for the rename's name check. */
   groups: SessionGroup[]
   expanded: boolean
+  holdsOpen: boolean
   /** Id of the element holding the Group's rows. */
   controls: string
   rename: (name: string) => Promise<GroupNameRefusal | null>

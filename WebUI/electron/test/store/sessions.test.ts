@@ -67,6 +67,8 @@ beforeEach(async () => {
           registry['sessions:createGroup'](noEvent, id, name),
         renameGroup: (groupId: string, name: string) =>
           registry['sessions:renameGroup'](noEvent, groupId, name),
+        setGroupExpanded: (groupId: string, expanded: boolean) =>
+          registry['sessions:setGroupExpanded'](noEvent, groupId, expanded),
       },
     },
   })
@@ -262,5 +264,33 @@ describe('Sessions store', () => {
 
     expect(await store.renameGroup(group.id, 'PORTO')).toMatchObject({ problem: 'taken' })
     expect(await store.renameGroup(group.id, 'Faro')).toBeNull()
+  })
+
+  it('expands a collapsed Group when one of its Sessions is opened, and lets it be collapsed again', async () => {
+    const store = useSessions()
+    await store.init()
+    const inside = store.openSessionId!
+    const { group } = await sessionModule.createSessionGroup(inside, 'Lisbon')
+    await sessionModule.setSessionGroupExpanded(group.id, false)
+    await store.create()
+    await vi.waitFor(() => expect(store.groups[0]?.expanded).toBe(false))
+
+    await store.open(inside)
+    await vi.waitFor(() => expect(store.groups[0]?.expanded).toBe(true))
+
+    await store.setGroupExpanded(group.id, false)
+    expect(store.groups[0]?.expanded).toBe(false)
+    expect((await sessionModule.listSessionGroups())[0]?.expanded).toBe(false)
+  })
+
+  it('keeps a collapsed Group collapsed when its Session is reopened on boot', async () => {
+    const first = await sessionModule.createSession()
+    const { group } = await sessionModule.createSessionGroup(first.id, 'Lisbon')
+    await sessionModule.setSessionGroupExpanded(group.id, false)
+
+    const store = useSessions()
+    await store.init()
+    expect(store.openSessionId).toBe(first.id)
+    expect(store.groups[0]?.expanded).toBe(false)
   })
 })

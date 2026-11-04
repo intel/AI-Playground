@@ -122,6 +122,7 @@
                   :group="listing.group"
                   :groups="sessions.groups"
                   :expanded="listing.expanded"
+                  :holds-open="listing.holdsOpen"
                   :controls="`session-group-${listing.group.id}`"
                   @toggle="(expanded) => sessions.setGroupExpanded(listing.group.id, expanded)"
                   :rename="(name) => sessions.renameGroup(listing.group.id, name)"

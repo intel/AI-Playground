@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sessionSections, type SessionSection } from '@/lib/sessionSections'
+import { groupToRevealOnOpen, sessionSections, type SessionSection } from '@/lib/sessionSections'
 import type { SessionGroup, SessionSummary } from '@/types/sessionIpc'
 
 const UNTITLED = 'Untitled Session'
@@ -35,6 +35,12 @@ function sections(
     openSessionId: view.openSessionId ?? null,
     pinnedShowMore: view.pinnedShowMore ?? false,
   })
+}
+
+function holdsOpenOf(result: SessionSection[]) {
+  const listed = result.find((section) => section.id === 'groups')
+  if (listed?.id !== 'groups') return {}
+  return Object.fromEntries(listed.groups.map((l) => [l.group.id, l.holdsOpen]))
 }
 
 function pinnedOf(result: SessionSection[]) {
@@ -210,18 +216,12 @@ describe('sessionSections', () => {
     expect(expandedOf(sections(sessions, '', groups))).toEqual({ a: false, b: true })
   })
 
-  it('renders a collapsed Group expanded while the open Session is in it', () => {
+  it('keeps a collapsed Group collapsed while the open Session is in it, and marks it', () => {
     const sessions = [session('a1', { groupId: 'a' }), session('b1', { groupId: 'b' })]
     const groups = [group('a', { expanded: false }), group('b', { expanded: false })]
     const result = sections(sessions, '', groups, { openSessionId: 'a1' })
-    expect(expandedOf(result)).toEqual({ a: true, b: false })
-  })
-
-  it('keeps a Group collapsed when its open Session is already shown under Pinned', () => {
-    const sessions = [session('a1', { groupId: 'a', pinned: true })]
-    const groups = [group('a', { expanded: false })]
-    const result = sections(sessions, '', groups, { openSessionId: 'a1' })
-    expect(expandedOf(result)).toEqual({ a: false })
+    expect(expandedOf(result)).toEqual({ a: false, b: false })
+    expect(holdsOpenOf(result)).toEqual({ a: true, b: false })
   })
 
   it('renders matching Groups expanded while searching', () => {
@@ -352,5 +352,20 @@ describe('sessionSections', () => {
         toggle: null,
       })
     })
+  })
+})
+
+describe('groupToRevealOnOpen', () => {
+  const collapsed = [group('a', { expanded: false })]
+
+  it('names the collapsed Group of a Session that is not pinned', () => {
+    expect(groupToRevealOnOpen(session('a1', { groupId: 'a' }), collapsed)).toBe('a')
+  })
+
+  it('leaves the Groups alone when the Session is already in view', () => {
+    expect(groupToRevealOnOpen(session('a1', { groupId: 'a', pinned: true }), collapsed)).toBeNull()
+    expect(groupToRevealOnOpen(session('a1', { groupId: 'a' }), [group('a')])).toBeNull()
+    expect(groupToRevealOnOpen(session('a1'), collapsed)).toBeNull()
+    expect(groupToRevealOnOpen(session('a1', { groupId: 'gone' }), collapsed)).toBeNull()
   })
 })
