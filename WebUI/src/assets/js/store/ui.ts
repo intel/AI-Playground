@@ -6,7 +6,6 @@ export const useUIStore = defineStore('ui', () => {
   // Model management overlay. Deliberately not tied to `promptArea.currentMode`:
   // closing it should return the user to exactly the view they were in.
   const showModelManager = ref(false)
-  const showGallery = ref(false)
 
   // Per-viewer convenience: a lost value just shows the panel expanded again.
   const sessionsPanelCollapsed = useLocalStorage('aipg.sessionsPanelCollapsed', false)
@@ -30,14 +29,6 @@ export const useUIStore = defineStore('ui', () => {
     showModelManager.value = false
   }
 
-  function openGallery() {
-    showGallery.value = true
-  }
-
-  function closeGallery() {
-    showGallery.value = false
-  }
-
   return {
     sessionsPanelCollapsed,
     showSettings,
@@ -46,9 +37,6 @@ export const useUIStore = defineStore('ui', () => {
     showModelManager,
     openModelManager,
     closeModelManager,
-    showGallery,
-    openGallery,
-    closeGallery,
   }
 })
 

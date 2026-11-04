@@ -126,18 +126,4 @@ describe('Gallery store', () => {
     await expect(fs.access(file)).rejects.toThrow()
     expect(sessions.isFileDeleted(url)).toBe(true)
   })
-
-  it('opens the Session an artifact came from', async () => {
-    const older = await sessionWith('fox.png')
-    await new Promise((resolve) => setTimeout(resolve, 5))
-    await sessionWith('owl.png')
-    const sessions = useSessions()
-    const gallery = useGallery()
-    await sessions.init()
-    await gallery.refresh()
-
-    await gallery.openSessionOf(gallery.artifacts.find((a) => a.sessionId === older)!)
-
-    expect(sessions.openSessionId).toBe(older)
-  })
 })

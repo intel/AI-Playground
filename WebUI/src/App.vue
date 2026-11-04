@@ -167,20 +167,6 @@
   >
     <SessionsPanel>
       <template #footer>
-        <TooltipProvider :delay-duration="200">
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <button
-                :aria-label="languages.GALLERY_OPEN"
-                class="text-foreground hover:text-foreground/80 transition-colors"
-                @click="uiStore.openGallery()"
-              >
-                <PhotoIcon class="size-6" aria-hidden="true" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">{{ languages.GALLERY_TITLE }}</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
         <div id="app-settings-button" class="relative">
           <button
             @click="openAppSettings"
@@ -217,6 +203,9 @@
           </button>
         </div>
       </template>
+      <template #artifacts>
+        <SessionArtifacts v-if="sessionTabs.shown === 'artifacts'" />
+      </template>
       <template #schedules>
         <SchedulesPanel v-if="sessionTabs.schedules" :allowance="sessionTabs.schedules" />
       </template>
@@ -231,7 +220,6 @@
          decides, and the download / delete dialogs this view opens must be able
          to appear on top of it. -->
     <ModelManager v-if="uiStore.showModelManager" @close="uiStore.closeModelManager()" />
-    <Gallery v-if="uiStore.showGallery" @close="uiStore.closeGallery()" />
     <download-dialog v-show="dialogStore.downloadDialogVisible"></download-dialog>
     <preset-requirements-dialog
       v-show="dialogStore.presetRequirementsDialogVisible"
@@ -335,9 +323,7 @@ import InstallationProgressDialog from '@/components/InstallationProgressDialog.
 import MaskEditorDialog from '@/components/MaskEditorDialog.vue'
 import DemoModeIndicator from '@/components/DemoModeIndicator.vue'
 import { CircleStackIcon, ServerStackIcon } from '@heroicons/vue/24/solid'
-import { PhotoIcon } from '@heroicons/vue/24/outline'
 import ModelManager from '@/views/ModelManager.vue'
-import Gallery from '@/views/Gallery.vue'
 import { useColorMode } from '@vueuse/core'
 import { useDemoMode } from './assets/js/store/demoMode.ts'
 import { debugSettingsVisible } from './assets/js/store/debugSettings.ts'
@@ -346,6 +332,7 @@ import Chat from '@/views/Chat.vue'
 import { computed, ref, watch } from 'vue'
 import SessionsPanel from '@/components/SessionsPanel.vue'
 import SessionTabView from '@/components/SessionTabView.vue'
+import SessionArtifacts from '@/components/SessionArtifacts.vue'
 import SchedulesPanel from '@/components/SchedulesPanel.vue'
 import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'

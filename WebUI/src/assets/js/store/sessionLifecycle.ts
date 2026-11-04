@@ -9,6 +9,7 @@ import { useSessionTabs } from '@/assets/js/store/sessionTabs'
 import { modelDownloads } from '@/assets/js/models/modelDownloadQueue'
 import { downloadPercent } from '@/lib/downloadPercent'
 import { sessionRowStatus, type SessionRowStatus } from '@/lib/sessionRowStatus'
+import type { SessionTabLanding } from '@/lib/sessionTabs'
 import type { SessionDownload } from '@/assets/js/store/recordRows'
 
 /**
@@ -25,9 +26,13 @@ export const useSessionLifecycle = defineStore('sessionLifecycle', () => {
   const artifactRuns = useArtifactRuns()
   const sessionTabs = useSessionTabs()
 
-  async function openSession(id: string): Promise<void> {
-    if (id === sessions.openSessionId) return sessionTabs.land('open-session')
+  async function openSession(
+    id: string,
+    landing: SessionTabLanding = 'open-session',
+  ): Promise<void> {
+    if (id === sessions.openSessionId) return sessionTabs.land(landing)
     const last = await sessions.open(id)
+    if (sessions.openSessionId === id) sessionTabs.land(landing)
     if (!last || sessions.openSessionId !== id) return
     if (!presets.presets.some((preset) => preset.name === last.preset)) return
     await sessionSettings.whenLoaded()

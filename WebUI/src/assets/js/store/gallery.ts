@@ -57,11 +57,7 @@ export const useGallery = defineStore('gallery', () => {
     return deleteFile(target.sessionId, target.path, url)
   }
 
-  async function openSessionOf(artifact: SessionArtifact): Promise<void> {
-    await sessions.open(artifact.sessionId)
-  }
-
-  return { artifacts, loading, refresh, remove, removeByUrl, openSessionOf }
+  return { artifacts, loading, refresh, remove, removeByUrl }
 })
 
 if (import.meta.hot) {
