@@ -1,21 +1,8 @@
 import { type Locator, type Page, expect } from '@playwright/test'
 import { reportingAppErrors } from '../appErrors'
 
-/**
- * Prompt-area mode labels (accessible names of the mode buttons), which are also
- * what the mode's settings sidebar is named after ("<Mode> Settings").
- */
+/** Prompt-area mode labels (accessible names of the mode buttons). */
 export type ChatMode = 'Chat' | 'Audio' | 'Image Gen' | 'Image Edit' | 'Video'
-
-/**
- * An agent preset's label as the app displays it ("Agent Maker", "Acer Game Agent"),
- * read with {@link MainPage.activePresetLabel}. Agent Mode has no mode button, so its
- * sidebar is named after the preset instead — OEM-branded, hence read, not spelled.
- */
-export type AgentPresetLabel = string & { readonly __agentPresetLabel: true }
-
-/** What a settings sidebar and its prompt-area button are named after. */
-export type SettingsOwner = ChatMode | AgentPresetLabel
 
 /**
  * Page object for the running main view: the prompt area (mode switch, prompt
@@ -142,7 +129,7 @@ export class MainPage {
    * The prompt-area attachment file input (the "+" control). Present only when the
    * active preset allows an attachment: a vision chat model (image) or a RAG preset
    * (document). Used for chat-mode attachments; ComfyUI reference images are set in
-   * the settings sidebar instead (see {@link SpecificSettingsPage.attachReferenceImages}).
+   * the Attributes tab instead (see {@link SpecificSettingsPage.attachReferenceImages}).
    */
   get chatAttachmentInput(): Locator {
     return this.page.getByLabel('Attach image or document')
@@ -257,16 +244,6 @@ export class MainPage {
    *  stable signal that an async preset switch has landed. */
   activePresetIndicator(name: string): Locator {
     return this.page.getByRole('status', { name: `Active preset: ${name}` })
-  }
-
-  /** The active preset's display label, off the indicator that {@link selectPreset} waits on. */
-  async activePresetLabel(): Promise<AgentPresetLabel> {
-    const prefix = 'Active preset: '
-    const name = await this.page
-      .getByRole('status', { name: new RegExp(`^${prefix}`) })
-      .getAttribute('aria-label')
-    if (!name?.startsWith(prefix)) throw new Error('No active preset indicator')
-    return name.slice(prefix.length) as AgentPresetLabel
   }
 
   /**

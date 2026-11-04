@@ -64,13 +64,13 @@ export const TOUR_STEPS_ALTERNATIVE: TourStep[] = [
     id: '#mode-button-imageGen',
     title: 'Image Mode',
     descr:
-      "The Image Gen mode allows you to generate images from text you enter. Describe a scene or character and style (photographic, watercolor, etc), you wish to generate, and have watching your ideas come to life. When in this mode, you'll find ready to go presets in the Prompt Settings that allow you to create images using generative models to achieve different levels of realism and generation times. Click the prompt input to see a sample prompt!",
+      "The Image Gen mode allows you to generate images from text you enter. Describe a scene or character and style (photographic, watercolor, etc), you wish to generate, and have watching your ideas come to life. When in this mode, you'll find ready to go presets in the Inferencing tab that allow you to create images using generative models to achieve different levels of realism and generation times. Click the prompt input to see a sample prompt!",
   },
   {
     id: '#mode-button-imageEdit',
     title: 'Image Edit Mode',
     descr:
-      'The Image Edit mode allows you to edit existing images or photos, often by describing what to change. Simply drag in a photo, select an editing Preset in Prompt Settings where you can upscale images, edit images with precision, generate 3D models from images, and more. An input image is already pre-selected for you. Click the prompt input to see a sample prompt!',
+      'The Image Edit mode allows you to edit existing images or photos, often by describing what to change. Simply drag in a photo, select an editing Preset in the Inferencing tab where you can upscale images, edit images with precision, generate 3D models from images, and more. An input image is already pre-selected for you. Click the prompt input to see a sample prompt!',
   },
   {
     id: '#mode-button-video',
@@ -91,10 +91,10 @@ export const TOUR_STEPS_ALTERNATIVE: TourStep[] = [
       'Click this button to capture an image from your camera. The captured image will be added to your prompt for vision-capable models to analyze.',
   },
   {
-    id: '#advanced-settings-button',
-    title: 'Prompt Settings',
+    id: '#session-tab-inferencing',
+    title: 'Inferencing and Attributes',
     descr:
-      'Each mode has prompt settings specific to the mode of content you are generating. Here you will find ready to go preset to do targeted tasks. Each preset is already dialed in to go, but you choose to adjust options and own values from Max Tokens in Chat, to Aspect Ratio settings for Image Gen. Prompt settings is at the heart of getting AI Playground to do what you want it to do. Select a Mode and explore what our Prompt Settings have to offer.',
+      "Each Session's settings live in the Inferencing and Attributes tabs above the prompt. Inferencing is where you pick a ready to go preset and choose how it runs, from the model to Max Tokens in Chat. Attributes holds what the preset works with, from the system prompt to Aspect Ratio settings for Image Gen. Each preset is already dialed in to go, and the tabs are where you make it your own.",
     align: 'end',
   },
   {

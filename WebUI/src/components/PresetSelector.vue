@@ -1,13 +1,11 @@
 <template>
   <div v-if="selectedPreset" class="flex flex-col gap-6">
-    <!-- Informational card: thumbnail, name, description and tags. The extra
-         right padding keeps the sidebar's floating close arrow (rendered by
-         SideModalBase with hide-header) off the card content. -->
+    <!-- Informational card: thumbnail, name, description and tags. -->
     <section
       role="group"
       :aria-label="`${displayName} preset information`"
       :data-aipg-preset-name="selectedPreset.name"
-      class="flex flex-col gap-3 rounded-lg border border-border bg-muted/40 p-3 pr-8"
+      class="flex flex-col gap-3 rounded-lg border border-border bg-muted/40 p-3"
     >
       <div class="flex flex-row items-start gap-3">
         <div

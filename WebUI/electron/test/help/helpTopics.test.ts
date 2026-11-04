@@ -173,6 +173,22 @@ describe('resolveHelpTarget', () => {
     })
   })
 
+  it('explains a control inside a settings tab panel with that tab', () => {
+    const control = chain(
+      { id: 'session-tabpanel-attributes', 'data-aipg-help': 'session-tab-attributes' },
+      {},
+      { id: 'chat-system-prompt' },
+    )
+    expect(resolveHelpTarget(target(control))).toMatchObject({
+      kind: 'static',
+      topicId: 'session-tab-attributes',
+    })
+    expect(resolveHelpTarget(target(chain({ id: 'session-tab-inferencing' })))).toMatchObject({
+      kind: 'static',
+      topicId: 'session-tab-inferencing',
+    })
+  })
+
   it('never explains help mode itself', () => {
     expect(resolveHelpTarget(target(chain({ id: HELP_TOGGLE_ID })))).toBeNull()
     const gotIt = chain({ id: HELP_PANEL_ID }, { 'data-aipg-help': 'send-button' })

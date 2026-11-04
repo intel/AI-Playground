@@ -1,7 +1,7 @@
 import { test, expect } from './fixtures'
 
-// Exercises the DateTime MCP server end-to-end: connect it from the Chat settings
-// sidebar, then have the agentic assistant answer a question that requires calling
+// Exercises the DateTime MCP server end-to-end: connect it from the Chat Attributes
+// tab, then have the agentic assistant answer a question that requires calling
 // one of its tools (get_current_time / convert_time). Asserts the tool was actually
 // invoked AND completed — not just that the model replied from memory.
 //

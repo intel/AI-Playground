@@ -19,7 +19,7 @@ export type DemoButtonId =
   | 'camera-button'
   | 'microphone-button'
   | 'app-settings-button'
-  | 'advanced-settings-button'
+  | 'session-tab-inferencing'
   | 'plus-icon'
 
 export const FALLBACK_NOTIFICATION_DOT_BUTTONS: DemoButtonId[] = [
@@ -29,7 +29,7 @@ export const FALLBACK_NOTIFICATION_DOT_BUTTONS: DemoButtonId[] = [
   'camera-button',
   'microphone-button',
   'app-settings-button',
-  'advanced-settings-button',
+  'session-tab-inferencing',
   'plus-icon',
 ]
 

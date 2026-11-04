@@ -229,7 +229,7 @@ function bindListeners() {
   document.addEventListener('mousedown', onCapturePointerDown, true)
   document.addEventListener('mousemove', onCaptureMouseMove, true)
   document.addEventListener('keydown', onKeyDown, true)
-  // Capture so nested scroll containers (settings sidebars) are covered too.
+  // Capture so nested scroll containers (settings tabs and sidebars) are covered too.
   document.addEventListener('scroll', onViewportChange, true)
   window.addEventListener('resize', onViewportChange)
 }
@@ -309,11 +309,11 @@ body.aipg-help-mode [id^='mode-button-'],
 body.aipg-help-mode #send-button,
 body.aipg-help-mode #camera-button,
 body.aipg-help-mode #microphone-button,
-body.aipg-help-mode #advanced-settings-button,
 body.aipg-help-mode #app-settings-button,
 body.aipg-help-mode #sessions-panel,
-body.aipg-help-mode #app-settings-sidebar,
-body.aipg-help-mode #advanced-settings-sidebar {
+body.aipg-help-mode #session-tab-inferencing,
+body.aipg-help-mode #session-tab-attributes,
+body.aipg-help-mode #app-settings-sidebar {
   cursor: help;
 }
 

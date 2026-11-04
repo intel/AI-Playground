@@ -401,7 +401,7 @@ describe('runArtifact', () => {
       }),
     ]
     comfyInputsPerPreset.value = {
-      // Keyed with the variant applied, like the real settings sidebar does.
+      // Keyed with the variant applied, like the real settings tabs do.
       'Draft Image:Fast': { 'LoraLoader.lora_name': 'my-lora.safetensors' },
     }
 

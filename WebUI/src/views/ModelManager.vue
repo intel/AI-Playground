@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Full-screen model library. A side modal was not an option: the sidebars are
-// w-100/w-130 and this table has nine columns.
+// Full-screen model library. A side modal was not an option: the App Settings
+// sidebar is w-100 and this table has nine columns.
 import { computed, onMounted, ref } from 'vue'
 import { XMarkIcon } from '@heroicons/vue/24/solid'
 import ModelLibraryToolbar from '@/components/models/ModelLibraryToolbar.vue'
@@ -69,7 +69,7 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <!-- Opaque background: at 95% the chat view and settings sidebar bled through
+  <!-- Opaque background: at 95% the session view bled through
        as ghost text behind the table. -->
   <div
     ref="root"

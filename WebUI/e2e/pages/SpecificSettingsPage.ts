@@ -1,39 +1,20 @@
 import { type Locator, type Page, expect } from '@playwright/test'
-import { type SettingsOwner } from './MainPage'
-import { sessionTabPanel, settingsInTabs, showSessionTab, type SettingsTab } from './uiControls'
+import { sessionTabPanel, showSessionTab, type SettingsTab } from './uiControls'
 
 /**
- * Page object for a mode's settings: the Inferencing and Attributes tabs of the open
- * Session's view for the modes that moved there (Chat, Audio and the workflow modes), else the mode-specific
- * sidebar opened from the prompt area's "<Mode> Settings" button.
+ * Page object for the active preset's settings: the Inferencing and Attributes tabs of
+ * the open Session's view (SessionTabView.vue), which every mode and Agent Preset uses.
  */
 export class SpecificSettingsPage {
   constructor(private readonly page: Page) {}
 
-  // The sidebar renders with `hide-header` (no <h2> banner — see
-  // SideModalSpecificSettings.vue), so its only stable handle is the SideModalBase
-  // region, whose aria-label is `${mode} Settings`.
-  private panel(mode: SettingsOwner, tab: SettingsTab = 'Inferencing'): Locator {
-    return settingsInTabs(mode)
-      ? sessionTabPanel(this.page, tab)
-      : this.page.getByRole('region', { name: `${mode} Settings` })
+  private panel(tab: SettingsTab = 'Inferencing'): Locator {
+    return sessionTabPanel(this.page, tab)
   }
 
-  private openButton(mode: SettingsOwner): Locator {
-    return this.page.getByRole('button', { name: `${mode} Settings` })
-  }
-
-  /** Show the mode's settings; `tab` picks the settings tab where they live in tabs. */
-  async open(mode: SettingsOwner = 'Chat', tab: SettingsTab = 'Inferencing'): Promise<void> {
-    if (settingsInTabs(mode)) return showSessionTab(this.page, tab)
-    if (
-      await this.panel(mode)
-        .isVisible()
-        .catch(() => false)
-    )
-      return
-    await this.openButton(mode).click()
-    await expect(this.panel(mode)).toBeVisible()
+  /** Show a settings tab (Inferencing by default). */
+  async open(tab: SettingsTab = 'Inferencing'): Promise<void> {
+    await showSessionTab(this.page, tab)
   }
 
   /**
@@ -42,8 +23,8 @@ export class SpecificSettingsPage {
    * as a semantic element type scoped to that panel (the labels differ per preset —
    * "Reference Image", "Input Image", etc.).
    */
-  private imageInputs(mode: SettingsOwner): Locator {
-    return this.panel(mode, 'Attributes').locator('input[type="file"]')
+  private imageInputs(): Locator {
+    return this.panel('Attributes').locator('input[type="file"]')
   }
 
   /**
@@ -51,9 +32,9 @@ export class SpecificSettingsPage {
    * (edit-image, image-to-video and reference-based create-image presets need one).
    * Returns how many slots were filled.
    */
-  async attachReferenceImages(mode: SettingsOwner, filePath: string): Promise<number> {
-    await this.open(mode, 'Attributes')
-    const inputs = this.imageInputs(mode)
+  async attachReferenceImages(filePath: string): Promise<number> {
+    await this.open('Attributes')
+    const inputs = this.imageInputs()
     // The LoadImage inputs render a beat after the preset's settings load, so wait for
     // the first one before counting rather than racing an empty grid.
     await inputs
@@ -74,8 +55,8 @@ export class SpecificSettingsPage {
    * "Manage Models" gear — so it's pinned on the menu trigger's `aria-haspopup`
    * rather than on being the only button in the group.
    */
-  private modelTrigger(mode: SettingsOwner): Locator {
-    return this.panel(mode)
+  private modelTrigger(): Locator {
+    return this.panel()
       .getByRole('group', { name: 'Model' })
       .locator('button[aria-haspopup="menu"]')
   }
@@ -86,8 +67,8 @@ export class SpecificSettingsPage {
    *
    * Opens and closes the dropdown without changing the selection.
    */
-  async availableModels(mode: SettingsOwner = 'Chat'): Promise<string[]> {
-    const trigger = this.modelTrigger(mode)
+  async availableModels(): Promise<string[]> {
+    const trigger = this.modelTrigger()
     if (!(await trigger.isVisible().catch(() => false))) return []
     await trigger.click()
     const menu = this.page.getByRole('menu')
@@ -106,10 +87,10 @@ export class SpecificSettingsPage {
    * The picker lists the whole catalog for the active backend in a short scrolling
    * viewport, so the label is typed into the picker's own search box first — that
    * narrows the list to the wanted row instead of scrolling for it. Must be called
-   * with the settings sidebar open.
+   * with the Inferencing tab shown.
    */
-  async selectModel(label: string, mode: SettingsOwner = 'Chat'): Promise<void> {
-    const trigger = this.modelTrigger(mode)
+  async selectModel(label: string): Promise<void> {
+    const trigger = this.modelTrigger()
     await trigger.click()
     const menu = this.page.getByRole('menu')
     await menu.waitFor({ state: 'visible', timeout: 5_000 })
@@ -136,18 +117,15 @@ export class SpecificSettingsPage {
    * Fails naming what *was* offered, so a picker that has genuinely lost the model
    * doesn't read as a bad label.
    */
-  async selectFirstOfferedModel(
-    labels: readonly string[],
-    mode: SettingsOwner = 'Chat',
-  ): Promise<string> {
-    const offered = await this.availableModels(mode)
+  async selectFirstOfferedModel(labels: readonly string[]): Promise<string> {
+    const offered = await this.availableModels()
     const wanted = labels.find((label) => offered.some((item) => item.includes(label)))
     expect(
       wanted,
-      `none of [${labels.join(', ')}] is offered by the ${mode} model picker — it lists: ` +
+      `none of [${labels.join(', ')}] is offered by the model picker — it lists: ` +
         `[${offered.join(', ')}]`,
     ).toBeDefined()
-    await this.selectModel(wanted!, mode)
+    await this.selectModel(wanted!)
     return wanted!
   }
 
@@ -156,8 +134,8 @@ export class SpecificSettingsPage {
    * active preset allows more than one backend (see SettingsChatInferencing.vue `isBackendLocked`);
    * located via its "Backend" label row inside the settings region.
    */
-  private backendTrigger(mode: SettingsOwner): Locator {
-    return this.panel(mode).locator('div.grid', { hasText: 'Backend' }).getByRole('button')
+  private backendTrigger(): Locator {
+    return this.panel().locator('div.grid', { hasText: 'Backend' }).getByRole('button')
   }
 
   /**
@@ -165,8 +143,8 @@ export class SpecificSettingsPage {
    * empty list when the preset is locked to one backend / the picker isn't shown.
    * Opens and closes the dropdown without changing the selection.
    */
-  async availableBackends(mode: SettingsOwner = 'Chat'): Promise<string[]> {
-    const trigger = this.backendTrigger(mode)
+  async availableBackends(): Promise<string[]> {
+    const trigger = this.backendTrigger()
     if (!(await trigger.isVisible().catch(() => false))) return []
     await trigger.click()
     const menu = this.page.getByRole('menu')
@@ -181,12 +159,12 @@ export class SpecificSettingsPage {
 
   /**
    * Select a chat backend by its picker label and wait for the switch to land (the
-   * trigger's label reflects the active backend). Must be called with the settings
-   * sidebar open. Switching backend can kick off a backend (re)start, so callers
+   * trigger's label reflects the active backend). Must be called with the Inferencing
+   * tab shown. Switching backend can kick off a backend (re)start, so callers
    * should let the app settle (and resolve any model-download dialog) before sending.
    */
-  async selectBackend(label: string, mode: SettingsOwner = 'Chat'): Promise<void> {
-    const trigger = this.backendTrigger(mode)
+  async selectBackend(label: string): Promise<void> {
+    const trigger = this.backendTrigger()
     await trigger.click()
     const menu = this.page.getByRole('menu')
     await menu.getByRole('menuitem', { name: label, exact: true }).click()
@@ -199,8 +177,8 @@ export class SpecificSettingsPage {
    * "Device" label row (SettingsChatInferencing.vue). Shown for local backends; Cloud Mode swaps
    * it for a Provider picker, so it's absent there.
    */
-  private deviceTrigger(mode: SettingsOwner): Locator {
-    return this.panel(mode).locator('div.grid', { hasText: 'Device' }).getByRole('button')
+  private deviceTrigger(): Locator {
+    return this.panel().locator('div.grid', { hasText: 'Device' }).getByRole('button')
   }
 
   /**
@@ -209,8 +187,8 @@ export class SpecificSettingsPage {
    * (cloud backend, or a backend with no selectable device). Opens and closes the
    * dropdown without changing the selection.
    */
-  async availableDevices(mode: SettingsOwner = 'Chat'): Promise<string[]> {
-    const trigger = this.deviceTrigger(mode)
+  async availableDevices(): Promise<string[]> {
+    const trigger = this.deviceTrigger()
     if (!(await trigger.isVisible().catch(() => false))) return []
     await trigger.click()
     const menu = this.page.getByRole('menu')
@@ -225,13 +203,13 @@ export class SpecificSettingsPage {
 
   /**
    * Select the first chat inference device whose label contains `substring`
-   * (case-insensitive) — e.g. "NPU". Must be called with the settings sidebar open.
+   * (case-insensitive) — e.g. "NPU". Must be called with the Inferencing tab shown.
    * Switching device restarts the backend, so callers should let the app settle (and
    * resolve any model-download dialog) before sending. Returns false — selection
    * unchanged — when no device matches or no device picker is shown.
    */
-  async selectDeviceContaining(substring: string, mode: SettingsOwner = 'Chat'): Promise<boolean> {
-    const trigger = this.deviceTrigger(mode)
+  async selectDeviceContaining(substring: string): Promise<boolean> {
+    const trigger = this.deviceTrigger()
     if (!(await trigger.isVisible().catch(() => false))) return false
     await trigger.click()
     const menu = this.page.getByRole('menu')
@@ -258,15 +236,15 @@ export class SpecificSettingsPage {
    * serving backend (the device is a launch argument for both llama.cpp and OVMS).
    * That restart is the only way a test can get a model *unloaded*: nothing in the UI
    * stops a backend, and weights a running backend still holds open cannot be deleted
-   * from disk on Windows. Must be called with the settings sidebar open. Returns false
+   * from disk on Windows. Must be called with the Inferencing tab shown. Returns false
    * — selection unchanged — when there is no device picker or no second device to move
    * to.
    */
-  async selectOtherDevice(mode: SettingsOwner = 'Chat'): Promise<boolean> {
-    const trigger = this.deviceTrigger(mode)
+  async selectOtherDevice(): Promise<boolean> {
+    const trigger = this.deviceTrigger()
     if (!(await trigger.isVisible().catch(() => false))) return false
     const current = (await trigger.innerText()).trim()
-    const other = (await this.availableDevices(mode)).find((device) => device !== current)
+    const other = (await this.availableDevices()).find((device) => device !== current)
     if (!other) return false
     await trigger.click()
     const menu = this.page.getByRole('menu')
@@ -300,16 +278,13 @@ export class SpecificSettingsPage {
    * download policy (which models are acceptable, gated handling), so it passes the
    * resolver in rather than this page object reaching for one.
    */
-  async createTtsVoice(
-    opts: {
-      name: string
-      description: string
-      expectOverwrite?: boolean
-      resolveDownloads?: () => Promise<unknown>
-    },
-    mode: SettingsOwner = 'Audio',
-  ): Promise<void> {
-    const panel = this.panel(mode, 'Attributes')
+  async createTtsVoice(opts: {
+    name: string
+    description: string
+    expectOverwrite?: boolean
+    resolveDownloads?: () => Promise<unknown>
+  }): Promise<void> {
+    const panel = this.panel('Attributes')
     // The form fields are the only inputs carrying these placeholders (name = "e.g.
     // Tammy", description = the "…British man…" example), so they're stable handles
     // that don't depend on label wiring.
@@ -358,54 +333,54 @@ export class SpecificSettingsPage {
   }
 
   /** The seed input on the create/edit-voice form (the shared RandomNumber row). */
-  private ttsSeedInput(mode: SettingsOwner): Locator {
-    return this.panel(mode, 'Attributes').locator('.v-random .v-random-input')
+  private ttsSeedInput(): Locator {
+    return this.panel('Attributes').locator('.v-random .v-random-input')
   }
 
   /** Read the seed currently on the create/edit-voice form. */
-  async ttsSeed(mode: SettingsOwner = 'Audio'): Promise<string> {
-    return (await this.ttsSeedInput(mode).inputValue()).trim()
+  async ttsSeed(): Promise<string> {
+    return (await this.ttsSeedInput().inputValue()).trim()
   }
 
   /** Set the seed on the create/edit-voice form, pinning which speaker is drawn. */
-  async setTtsSeed(seed: number, mode: SettingsOwner = 'Audio'): Promise<void> {
-    await this.ttsSeedInput(mode).fill(String(seed))
-    await expect(this.ttsSeedInput(mode)).toHaveValue(String(seed))
+  async setTtsSeed(seed: number): Promise<void> {
+    await this.ttsSeedInput().fill(String(seed))
+    await expect(this.ttsSeedInput()).toHaveValue(String(seed))
   }
 
   /** Roll a different speaker for the same description (the seed row's dice). */
-  async rollTtsSeed(mode: SettingsOwner = 'Audio'): Promise<string> {
-    const before = await this.ttsSeed(mode)
-    await this.panel(mode, 'Attributes').locator('.v-random .v-random-btns button').first().click()
-    await expect.poll(() => this.ttsSeed(mode), { timeout: 10_000 }).not.toEqual(before)
-    return this.ttsSeed(mode)
+  async rollTtsSeed(): Promise<string> {
+    const before = await this.ttsSeed()
+    await this.panel('Attributes').locator('.v-random .v-random-btns button').first().click()
+    await expect.poll(() => this.ttsSeed(), { timeout: 10_000 }).not.toEqual(before)
+    return this.ttsSeed()
   }
 
   /** A saved voice's row in the "Your voices" list. */
-  private savedVoiceRow(name: string, mode: SettingsOwner): Locator {
-    return this.panel(mode, 'Attributes').locator('li').filter({ hasText: name })
+  private savedVoiceRow(name: string): Locator {
+    return this.panel('Attributes').locator('li').filter({ hasText: name })
   }
 
   /** Play a saved voice's stored preview (no synthesis). */
-  async playSavedTtsVoice(name: string, mode: SettingsOwner = 'Audio'): Promise<void> {
-    await this.savedVoiceRow(name, mode)
+  async playSavedTtsVoice(name: string): Promise<void> {
+    await this.savedVoiceRow(name)
       .getByRole('button', { name: `Play ${name}` })
       .click()
   }
 
   /** Whether a saved voice offers playback — i.e. it has a stored preview WAV. */
-  async savedTtsVoiceHasPreview(name: string, mode: SettingsOwner = 'Audio'): Promise<boolean> {
-    return this.savedVoiceRow(name, mode)
+  async savedTtsVoiceHasPreview(name: string): Promise<boolean> {
+    return this.savedVoiceRow(name)
       .getByRole('button', { name: `Play ${name}` })
       .isEnabled()
   }
 
   /** Load a saved voice back into the create/edit form. */
-  async editSavedTtsVoice(name: string, mode: SettingsOwner = 'Audio'): Promise<void> {
-    await this.savedVoiceRow(name, mode)
+  async editSavedTtsVoice(name: string): Promise<void> {
+    await this.savedVoiceRow(name)
       .getByRole('button', { name: `Edit ${name}` })
       .click()
-    await expect(this.panel(mode, 'Attributes').getByPlaceholder('e.g. Tammy')).toHaveValue(name)
+    await expect(this.panel('Attributes').getByPlaceholder('e.g. Tammy')).toHaveValue(name)
   }
 
   /**
@@ -413,8 +388,8 @@ export class SpecificSettingsPage {
    * on a label whose text is exactly "Voice", so it can't drift onto the neighbouring
    * "Your voices" list or the two "Language" rows.
    */
-  private ttsVoiceTrigger(mode: SettingsOwner): Locator {
-    return this.panel(mode, 'Attributes')
+  private ttsVoiceTrigger(): Locator {
+    return this.panel('Attributes')
       .locator('div.grid')
       .filter({ has: this.page.getByText('Voice', { exact: true }) })
       .getByRole('button')
@@ -425,8 +400,8 @@ export class SpecificSettingsPage {
    * "Ryan — English") or a saved one ("Tammy (your voice)"). Pass a regex to match a
    * prefix. Requires the Attributes tab shown with the "Text to Speech" preset active in the Audio mode.
    */
-  async selectTtsVoice(label: string | RegExp, mode: SettingsOwner = 'Audio'): Promise<void> {
-    await this.selectFromPicker(this.ttsVoiceTrigger(mode), label)
+  async selectTtsVoice(label: string | RegExp): Promise<void> {
+    await this.selectFromPicker(this.ttsVoiceTrigger(), label)
   }
 
   /**
@@ -435,8 +410,8 @@ export class SpecificSettingsPage {
    * ("Qwen TTS" or "Kokoro …") rather than by the ambiguous "Model" row label (the
    * fallback-endpoint form also has a "Model" field).
    */
-  private ttsEngineTrigger(mode: SettingsOwner): Locator {
-    return this.panel(mode)
+  private ttsEngineTrigger(): Locator {
+    return this.panel()
       .getByRole('button')
       .filter({ hasText: /Qwen TTS|Kokoro/ })
       .first()
@@ -448,8 +423,8 @@ export class SpecificSettingsPage {
    * the "Text to Speech" preset active. The trigger's label reflects the choice once
    * it lands.
    */
-  async selectTtsEngine(label: string, mode: SettingsOwner = 'Audio'): Promise<void> {
-    await this.selectFromPicker(this.ttsEngineTrigger(mode), label)
+  async selectTtsEngine(label: string): Promise<void> {
+    await this.selectFromPicker(this.ttsEngineTrigger(), label)
   }
 
   /** Open a dropdown trigger, pick the entry matching `label`, and wait for the
@@ -467,8 +442,8 @@ export class SpecificSettingsPage {
    * with an earlier one still *creates* the voice rather than re-saving it. No-op when
    * the voice isn't there.
    */
-  async deleteTtsVoiceIfPresent(name: string, mode: SettingsOwner = 'Audio'): Promise<void> {
-    const row = this.savedVoiceRow(name, mode)
+  async deleteTtsVoiceIfPresent(name: string): Promise<void> {
+    const row = this.savedVoiceRow(name)
     if ((await row.count()) === 0) return
     await row
       .first()
@@ -482,7 +457,7 @@ export class SpecificSettingsPage {
    * model is tuned for, which a smaller model on a smaller GPU cannot allocate a KV
    * cache for — llama.cpp then refuses to load with "not enough memory to run … with
    * a context size of N", and the turn dies before it starts. Must be called with
-   * the settings sidebar open.
+   * the Inferencing tab shown.
    *
    * Returns false — nothing set — when the panel offers no context size at all.
    * That is not a fault: the control is gated on `contextSizeSettingSupported`, and
@@ -490,8 +465,8 @@ export class SpecificSettingsPage {
    * a fixed setting, so there is no input to fill and no oversized allocation to
    * guard against either. Only llama.cpp (and OpenVINO on the NPU) render one.
    */
-  async setContextSize(tokens: number, mode: SettingsOwner = 'Chat'): Promise<boolean> {
-    const input = this.panel(mode).getByLabel('Context Size')
+  async setContextSize(tokens: number): Promise<boolean> {
+    const input = this.panel().getByLabel('Context Size')
     // Wait briefly rather than probing with a bare isVisible(): the row renders a
     // beat after a backend switch, so an immediate check would race the re-render
     // and report "unsupported" for a backend that does support it.
@@ -512,8 +487,8 @@ export class SpecificSettingsPage {
    * the Session holds the preset, else "Reset Preset Settings", whose accessible name
    * starts with the icon's own "Reset" text.
    */
-  private resetButton(mode: SettingsOwner): Locator {
-    return this.panel(mode).getByRole('button', {
+  private resetButton(): Locator {
+    return this.panel().getByRole('button', {
       name: /^Reset .+ to default$|Reset Preset Settings/,
     })
   }
@@ -523,33 +498,19 @@ export class SpecificSettingsPage {
    * backend, model (its `preferredModels` for whichever backend the reload lands
    * on, when that model is installed), context size, max tokens, tool selection.
    *
-   * Must be called with the sidebar open. Returns false when the panel offers no
+   * Must be called with the Inferencing tab shown. Returns false when the panel offers no
    * reset (the Audio panel only renders one for the TTS/STT presets), so a caller
    * driving another preset there isn't failed for it.
    */
-  async resetPresetDefaults(mode: SettingsOwner = 'Chat'): Promise<boolean> {
-    const button = this.resetButton(mode)
+  async resetPresetDefaults(): Promise<boolean> {
+    const button = this.resetButton()
     if (!(await button.isVisible().catch(() => false))) return false
     await button.click()
     return true
   }
 
-  /**
-   * Back to the Viewport where settings live in tabs; else close the sidebar via its
-   * Close button, scoped to the sidebar so it can't match the window-close (X) button.
-   */
-  async close(mode: SettingsOwner = 'Chat'): Promise<void> {
-    if (settingsInTabs(mode)) return showSessionTab(this.page, 'Viewport')
-    const sidebar = this.page.getByRole('region', { name: `${mode} Settings` })
-    const closers = sidebar.getByRole('button', { name: 'Close' })
-    const count = await closers.count()
-    for (let i = 0; i < count; i++) {
-      const button = closers.nth(i)
-      if (await button.isVisible()) {
-        await button.click()
-        break
-      }
-    }
-    await expect(sidebar).toBeHidden()
+  /** Back to the Viewport tab, leaving the prompt area in view. */
+  async close(): Promise<void> {
+    await showSessionTab(this.page, 'Viewport')
   }
 }

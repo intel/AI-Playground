@@ -15,8 +15,8 @@ export type HelpTopicId =
   | 'send-button'
   | 'camera-button'
   | 'microphone-button'
-  | 'advanced-settings-button'
-  | 'advanced-settings-sidebar'
+  | 'session-tab-inferencing'
+  | 'session-tab-attributes'
   | 'app-settings-button'
   | 'app-settings-sidebar'
   | 'sessions-panel'
@@ -40,7 +40,7 @@ export const HELP_TOPICS: Record<HelpTopicId, HelpTopic> = {
   },
   'plus-icon': {
     title: 'Add images or documents',
-    body: 'Load files into the prompt or drag and drop onto the field. In Chat, ask about documents or images. For Image Edit, add images to edit. Use Prompt Settings presets (Vision, RAG, etc.) if a file type is not supported.',
+    body: 'Load files into the prompt or drag and drop onto the field. In Chat, ask about documents or images. For Image Edit, add images to edit. Use presets from the Inferencing tab (Vision, RAG, etc.) if a file type is not supported.',
   },
   'mode-buttons': {
     title: 'Pick your mode',
@@ -48,15 +48,15 @@ export const HELP_TOPICS: Record<HelpTopicId, HelpTopic> = {
   },
   'mode-button-chat': {
     title: 'Chat mode',
-    body: 'Ask questions like a typical AI chat. In Prompt Settings, choose models and options such as RAG, reasoning, or vision.',
+    body: 'Ask questions like a typical AI chat. In the Inferencing and Attributes tabs, choose models and options such as RAG, reasoning, or vision.',
   },
   'mode-button-audio': {
     title: 'Audio mode',
-    body: 'Turn text into spoken audio, or an audio recording into text. Pick Text to Speech or Speech to Text in Prompt Settings, where the voice and engine live too.',
+    body: 'Turn text into spoken audio, or an audio recording into text. Pick Text to Speech or Speech to Text in the Inferencing tab, where the voice and engine live too.',
   },
   'mode-button-imageGen': {
     title: 'Image Gen mode',
-    body: 'Describe a scene, character, or style to generate images. Presets in Prompt Settings control quality, speed, and look.',
+    body: 'Describe a scene, character, or style to generate images. Presets in the Inferencing tab control quality, speed, and look.',
   },
   'mode-button-imageEdit': {
     title: 'Image Edit mode',
@@ -78,13 +78,13 @@ export const HELP_TOPICS: Record<HelpTopicId, HelpTopic> = {
     title: 'Microphone',
     body: 'Record speech into the prompt after Speech to Text is enabled in App Settings.',
   },
-  'advanced-settings-button': {
-    title: 'Prompt settings',
-    body: 'Mode-specific presets and options: model, tokens, aspect ratio, seeds, and more. This is where you tune each workflow.',
+  'session-tab-inferencing': {
+    title: 'Inferencing',
+    body: "Pick a preset and choose how it runs: backend, device, model and generation options such as tokens, steps or context size. Changes apply to this Session's next turn.",
   },
-  'advanced-settings-sidebar': {
-    title: 'Prompt settings panel',
-    body: 'Browse presets and adjust parameters for the active mode. Changes apply to the next generation.',
+  'session-tab-attributes': {
+    title: 'Attributes',
+    body: "What the preset works with: system prompt, tools, documents, voices, aspect ratio, seeds and reference images. Changes apply to this Session's next turn.",
   },
   'app-settings-button': {
     title: 'App settings',

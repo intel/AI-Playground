@@ -141,7 +141,7 @@
 
       <!-- Manage saved voices. `minmax(0,1fr)` + `min-w-0`, not a plain `1fr`: a
            `1fr` track is `minmax(auto,1fr)`, whose floor is the row's min-content
-           width — so a long voice description widened the track past the sidebar and
+           width — so a long voice description widened the track past the panel and
            pushed the row's action buttons off screen instead of being truncated. -->
       <div
         v-if="qwen3Tts.savedVoices.length > 0"

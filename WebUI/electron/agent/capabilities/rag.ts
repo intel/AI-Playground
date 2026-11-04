@@ -451,7 +451,7 @@ export const ragCapability: AgentCapability = {
   unavailableReason: (host) =>
     host.embeddingModel
       ? undefined
-      : 'No embedding model selected — pick one in the settings sidebar to enable it.',
+      : 'No embedding model selected — pick one in the Attributes tab to enable it.',
   lazyEligible: true,
 }
 

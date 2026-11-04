@@ -66,17 +66,17 @@ test('the model library lists, filters and round-trips a model through download,
   let offered: string[] = []
   let backend: BackendLabel = 'llamaCPP - GGUF'
   await test.step('Pin the chat backend for this run', async () => {
-    await app.settings.open('Chat')
-    offered = await app.settings.availableBackends('Chat')
+    await app.settings.open()
+    offered = await app.settings.availableBackends()
     backend = offered.includes('OpenVINO')
       ? Math.random() < 0.5
         ? 'OpenVINO'
         : 'llamaCPP - GGUF'
       : 'llamaCPP - GGUF'
     if (offered.includes(backend)) {
-      await app.settings.selectBackend(backend, 'Chat')
+      await app.settings.selectBackend(backend)
     }
-    await app.settings.close('Chat')
+    await app.settings.close()
     test.info().annotations.push({ type: 'chat-backend', description: backend })
   })
 
@@ -200,9 +200,9 @@ test('the model library lists, filters and round-trips a model through download,
   await app.models.close()
 
   await test.step('The downloaded model is usable in a preset without a download', async () => {
-    await app.settings.open('Chat')
+    await app.settings.open()
     await app.settings.selectModel(target.label)
-    await app.settings.close('Chat')
+    await app.settings.close()
 
     await app.main.sendPrompt(PROMPT)
     // The whole point of downloading from the library: the model is on disk, so the
@@ -224,9 +224,9 @@ test('the model library lists, filters and round-trips a model through download,
     // machine with a single device has nothing to switch to, and llama.cpp loads
     // without mmap anyway, so the delete is asserted either way. The next spec's
     // installAllBackends() re-pins every preset to the default GPU.
-    await app.settings.open('Chat')
-    const switched = await app.settings.selectOtherDevice('Chat')
-    await app.settings.close('Chat')
+    await app.settings.open()
+    const switched = await app.settings.selectOtherDevice()
+    await app.settings.close()
     test.info().annotations.push({
       type: 'model-unload',
       description: switched
@@ -258,9 +258,9 @@ test('the model library lists, filters and round-trips a model through download,
     // Whichever build this device offers: the step above deliberately moved the
     // inference device to unload the model, and on OpenVINO that decides which
     // variant the picker lists at all (see TARGETS).
-    await app.settings.open('Chat')
+    await app.settings.open()
     const restored = await app.settings.selectFirstOfferedModel(target.presetDefaults)
     test.info().annotations.push({ type: 'preset-default-restored', description: restored })
-    await app.settings.close('Chat')
+    await app.settings.close()
   })
 })

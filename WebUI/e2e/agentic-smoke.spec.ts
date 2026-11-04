@@ -45,7 +45,7 @@ test.describe('Agentic smoke', () => {
       // a model without tool calling would keep it — and this test's tool checkboxes
       // are hidden whenever the active model can't tool-call. Start from the preset's
       // own defaults instead of the machine's history.
-      await app.resetPresetDefaults('Chat')
+      await app.resetPresetDefaults()
 
       // Pin the chat backend for this variant; skip OpenVINO where it isn't offered.
       const pinned = await app.selectChatBackendOrSkip(backend.label, backend.optional)

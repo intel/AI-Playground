@@ -438,13 +438,6 @@
                 ></div>
               </div>
             </Button>
-            <Button
-              id="advanced-settings-button"
-              class="px-3 py-1.5 bg-muted hover:bg-muted/80 text-foreground rounded-lg text-sm font-normal"
-              @click="handleAdvancedSettingsClick"
-            >
-              {{ settingsLabel }}
-            </Button>
             <!-- Send / stop / loading cluster — hidden for the STT preset, which
                  submits via its own record/upload controls. -->
             <template v-if="!isSttPreset && !downloadGroup">
@@ -556,7 +549,6 @@ import {
   type SessionSettingsProblem,
 } from '@/lib/sessionSettingsProblems'
 import { useOemBranding } from '@/assets/js/store/oemBranding'
-import { useModeSettingsLabel } from '@/assets/js/modeSettingsLabel'
 import { MODE_TO_CATEGORIES, MODE_TO_PRESET_TYPE, buttonModeFor } from '@/lib/presetModes'
 import { useConversations, HOME_AGENT_CHAT_PRESET_NAME } from '@/assets/js/store/conversations'
 import { useSessionChat } from '@/assets/js/store/sessionChat'
@@ -611,7 +603,6 @@ const sessionTabs = useSessionTabs()
 const sessionSettings = useSessionSettings()
 const agentTasks = useAgentTasks()
 const oemBranding = useOemBranding()
-const settingsLabel = useModeSettingsLabel(() => promptStore.getCurrentMode())
 const textInference = useTextInference()
 const conversations = useConversations()
 const sessionChat = useSessionChat()
@@ -968,7 +959,6 @@ function getRagIconClass(type: ValidFileExtension): string {
 
 const emits = defineEmits<{
   (e: 'autoHideFooter'): void
-  (e: 'openSettings'): void
 }>()
 
 const attachmentPreview = computed(() =>
@@ -1295,11 +1285,6 @@ function handleModeClick(mode: ModeType) {
       })
     })
   })
-}
-
-function handleAdvancedSettingsClick() {
-  if (demoMode.triggerFirstTimeHelp('advanced-settings-button')) return
-  emits('openSettings')
 }
 
 function fastGenerate(e: KeyboardEvent) {

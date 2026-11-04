@@ -10,17 +10,6 @@ export const useUIStore = defineStore('ui', () => {
   // Per-viewer convenience: a lost value just shows the panel expanded again.
   const sessionsPanelCollapsed = useLocalStorage('aipg.sessionsPanelCollapsed', false)
 
-  // The right-hand settings sidebar of the current mode.
-  const showSettings = ref(false)
-
-  function openSettings() {
-    showSettings.value = true
-  }
-
-  function closeSettings() {
-    showSettings.value = false
-  }
-
   function openModelManager() {
     showModelManager.value = true
   }
@@ -31,9 +20,6 @@ export const useUIStore = defineStore('ui', () => {
 
   return {
     sessionsPanelCollapsed,
-    showSettings,
-    openSettings,
-    closeSettings,
     showModelManager,
     openModelManager,
     closeModelManager,

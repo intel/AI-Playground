@@ -22,7 +22,7 @@
             ? 'border-primary text-foreground'
             : 'border-transparent text-muted-foreground hover:text-foreground'
         "
-        @click="sessionTabs.select(tab)"
+        @click="selectTab(tab)"
       >
         {{ i18nState[TAB_LABELS[tab]] }}
         <span
@@ -42,6 +42,7 @@
       :key="tab"
       role="tabpanel"
       :aria-labelledby="tabId(tab)"
+      :data-aipg-help="SETTINGS_TABS.has(tab) ? tabId(tab) : undefined"
       class="flex-1 flex flex-col relative min-h-0"
       :class="tab === 'viewport' ? 'justify-center-safe overflow-y-auto' : 'overflow-y-auto'"
     >
@@ -52,6 +53,7 @@
 
 <script setup lang="ts">
 import type { ComponentPublicInstance } from 'vue'
+import { useDemoMode } from '@/assets/js/store/demoMode'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useSessionTabs } from '@/assets/js/store/sessionTabs'
 import type { SessionTabId } from '@/lib/sessionTabs'
@@ -59,6 +61,7 @@ import type { SessionTabId } from '@/lib/sessionTabs'
 defineSlots<Partial<Record<SessionTabId, () => unknown>>>()
 
 const sessionTabs = useSessionTabs()
+const demoMode = useDemoMode()
 const i18nState = useI18N().state
 
 const TAB_LABELS: Record<SessionTabId, string> = {
@@ -67,6 +70,13 @@ const TAB_LABELS: Record<SessionTabId, string> = {
   attributes: 'SESSION_TAB_ATTRIBUTES',
   artifacts: 'SESSION_TAB_ARTIFACTS',
   schedules: 'SESSION_TAB_SCHEDULES',
+}
+
+const SETTINGS_TABS: ReadonlySet<SessionTabId> = new Set(['inferencing', 'attributes'])
+
+function selectTab(tab: SessionTabId) {
+  if (tab === 'inferencing' && demoMode.triggerFirstTimeHelp('session-tab-inferencing')) return
+  sessionTabs.select(tab)
 }
 
 const tabRefs = new Map<SessionTabId, HTMLElement>()

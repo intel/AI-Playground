@@ -23,9 +23,9 @@ test.describe('Text to Speech (Kokoro)', () => {
     // lists OpenVINO only in Intel/OpenVINO product modes (filtered out in NVIDIA
     // mode), so an absent OpenVINO backend is our skip signal.
     await app.main.selectPreset('Chat', 'Assistant')
-    await app.settings.open('Chat')
-    const backends = await app.settings.availableBackends('Chat')
-    await app.settings.close('Chat')
+    await app.settings.open()
+    const backends = await app.settings.availableBackends()
+    await app.settings.close()
     test.skip(
       !backends.includes('OpenVINO'),
       'OpenVINO is not installable in this product mode — Kokoro TTS is unavailable',
@@ -34,9 +34,9 @@ test.describe('Text to Speech (Kokoro)', () => {
     await test.step('Select the Text to Speech preset and switch to the Kokoro engine', async () => {
       const available = await app.main.selectPreset('Audio', TTS_PRESET)
       expect(available, `Preset "${TTS_PRESET}" must be available`).toBe(true)
-      await app.settings.open('Audio')
-      await app.settings.selectTtsEngine(KOKORO_ENGINE, 'Audio')
-      await app.settings.close('Audio')
+      await app.settings.open()
+      await app.settings.selectTtsEngine(KOKORO_ENGINE)
+      await app.settings.close()
     })
 
     await test.step('Synthesize speech with Kokoro and expect a playable audio result', async () => {

@@ -1799,7 +1799,7 @@ export const useTextInference = defineStore(
     /**
      * Resolve the chat preset (+ variant) that should drive inference for a
      * given conversation. Home Agent threads are always pinned to the bundled
-     * Home Agent preset; main threads mirror the live sidebar selection.
+     * Home Agent preset; main threads mirror the live settings selection.
      */
     function resolvePresetForConversation(
       conversationKey: string,
@@ -1856,7 +1856,7 @@ export const useTextInference = defineStore(
      * Called from generate/regenerate before running inference.
      *
      * For Home Agent threads this also enforces routing to the bundled preset
-     * regardless of what the desktop sidebar happened to show.
+     * regardless of what the desktop settings happened to show.
      */
     function stampMetaForConversation(conversationKey: string): void {
       const resolved = resolvePresetForConversation(conversationKey)
@@ -1870,7 +1870,7 @@ export const useTextInference = defineStore(
     }
 
     /**
-     * Ensure the live sidebar/`textInference` refs match the meta (or kind)
+     * Ensure the live `textInference` refs match the meta (or kind)
      * of the target conversation, then return what was applied. Used by
      * `generate`/`regenerate` so the in-flight stream uses the thread's
      * preset, not whatever was last selected for an unrelated chat.
@@ -2122,7 +2122,7 @@ export const useTextInference = defineStore(
         if (!meta?.presetName) return
         const exists = presetsStore.presets.some((p) => p.name === meta.presetName)
         if (!exists) {
-          // Preset removed since last use — leave the sidebar untouched and let
+          // Preset removed since last use — leave the settings untouched and let
           // the next outbound generate stamp meta from current globals.
           return
         }

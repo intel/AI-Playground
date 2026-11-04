@@ -190,10 +190,7 @@
       <template #viewport>
         <Chat v-if="showsThreadView" ref="threadView" />
         <SessionTimeline v-else ref="timelineView" />
-        <PromptArea
-          @auto-hide-footer="handleAutoHideFooter"
-          @open-settings="openSpecificSettings"
-        />
+        <PromptArea @auto-hide-footer="handleAutoHideFooter" />
         <div v-if="!footerExpanded" class="fixed bottom-4 right-4 z-5 flex items-center gap-3">
           <button
             @click="footerExpanded = !footerExpanded"
@@ -217,11 +214,6 @@
       </template>
     </SessionTabView>
 
-    <SideModalSpecificSettings
-      :isVisible="uiStore.showSettings && !settingsInTabs(promptStore.getCurrentMode())"
-      :mode="promptStore.getCurrentMode()"
-      @close="closeSpecificSettings"
-    />
     <!-- Before the dialog layer on purpose: these share a z-index, so DOM order
          decides, and the download / delete dialogs this view opens must be able
          to appear on top of it. -->
@@ -344,7 +336,6 @@ import SchedulesPanel from '@/components/SchedulesPanel.vue'
 import SideModalAppSettings from '@/components/SideModalAppSettings.vue'
 import { useDialogStore } from '@/assets/js/store/dialogs.ts'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
-import SideModalSpecificSettings from '@/components/SideModalSpecificSettings.vue'
 import { useUIStore } from '@/assets/js/store/ui.ts'
 import { useSetupWizard } from '@/assets/js/store/setupWizard'
 import * as toast from '@/assets/js/toast'
@@ -363,7 +354,6 @@ import { usesSessionSettings } from '@/lib/agentSessionSettings'
 import { useModePromptHandlers } from '@/lib/useModePromptHandlers'
 import { useSessions } from '@/assets/js/store/sessions'
 import { useSessionTabs } from '@/assets/js/store/sessionTabs'
-import { settingsInTabs } from '@/lib/sessionTabs'
 import { useConversations } from '@/assets/js/store/conversations'
 
 const theme = useTheme()
@@ -550,16 +540,6 @@ function openDevTools() {
 
 function handleAutoHideFooter() {
   footerExpanded.value = false
-}
-
-function openSpecificSettings() {
-  if (settingsInTabs(promptStore.getCurrentMode())) sessionTabs.select('inferencing')
-  else if (uiStore.showSettings) closeSpecificSettings()
-  else uiStore.openSettings()
-}
-
-function closeSpecificSettings() {
-  uiStore.closeSettings()
 }
 
 function openAppSettings() {

@@ -3,7 +3,6 @@ import {
   schedulesPanel,
   sessionTabs,
   sessionTabsPresetKind,
-  settingsInTabs,
   type SessionTabsInput,
 } from '@/lib/sessionTabs'
 
@@ -165,25 +164,5 @@ describe('schedulesPanel', () => {
       editNote: false,
       agentList: null,
     })
-  })
-})
-
-describe('settingsInTabs', () => {
-  it('puts Chat settings in the Inferencing and Attributes tabs', () => {
-    expect(settingsInTabs('chat')).toBe(true)
-  })
-
-  it('puts Agent Preset settings in the Inferencing and Attributes tabs', () => {
-    expect(settingsInTabs('agent')).toBe(true)
-  })
-
-  it('puts Image Gen, Image Edit and Video settings in the tabs', () => {
-    for (const mode of ['imageGen', 'imageEdit', 'video'] as const) {
-      expect(settingsInTabs(mode)).toBe(true)
-    }
-  })
-
-  it('puts Audio settings in the Inferencing and Attributes tabs', () => {
-    expect(settingsInTabs('audio')).toBe(true)
   })
 })

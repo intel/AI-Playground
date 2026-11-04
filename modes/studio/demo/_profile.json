@@ -47,7 +47,7 @@
     "camera-button",
     "microphone-button",
     "app-settings-button",
-    "advanced-settings-button",
+    "session-tab-inferencing",
     "plus-icon"
   ]
 }

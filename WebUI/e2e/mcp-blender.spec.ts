@@ -1,6 +1,6 @@
 import { test } from './fixtures'
 
-// Exercises the Blender MCP server: connect it from the Chat settings sidebar and have
+// Exercises the Blender MCP server: connect it from the Chat Attributes tab and have
 // the agentic assistant invoke one of its tools. Blender itself need not be running in
 // CI — the blender-mcp server still connects and advertises its tools over stdio, and
 // the assertion of interest is that the agent wires the server up and *calls* a Blender

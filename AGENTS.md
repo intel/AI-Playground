@@ -150,8 +150,8 @@ relaunch.
 **Files:** `fixtures.ts` (launch + `window`/`app` fixtures), `appDriver.ts` (`AppDriver`,
 the high-level entry point; exposes `wizard`, `shell`, `main`, `settings`), `pages/*.ts`
 (Page Objects: `SetupWizardPage`, `AppShellPage`, `MainPage` = prompt area + results,
-`SpecificSettingsPage` = the preset settings sidebar, `HomeAgentPage` = Home Agent setup +
-title-bar master toggle), `backends.ts` (parametric model + types), `helpers.ts`,
+`SpecificSettingsPage` = the active preset's Inferencing and Attributes tabs, `HomeAgentPage` =
+Home Agent setup + title-bar master toggle), `backends.ts` (parametric model + types), `helpers.ts`,
 `agentic-smoke.spec.ts` (quick `e2e` gate), `assistant-media-flow.spec.ts` (full agentic
 reference spec: install + image → edit → video), and for the LAN chat channel
 `localWebBrowser.ts` (drives the _served page_ in a real BrowserWindow, so a break in the
@@ -196,7 +196,8 @@ page's own JS — login, EventSource, send, reply/media rendering — is caught)
   when installed ≠ pinned target.
 - **"Agentic mode" isn't a UI mode** — it's Chat mode with a tool-enabled chat preset (e.g.
   "Agentic Chat"), which lets the assistant generate/edit images and video from a prompt.
-  Select it via `SpecificSettingsPage` (preset cards are `role="button"`, name = preset name).
+  Select it with `MainPage.selectPreset` — the prompt-bar mode button's hover picker (preset
+  cards are `role="button"`, name = preset name).
 - **Turn completion:** the Send button (`aria-label="Send"`) is removed while a turn runs and
   returns when done — `MainPage.waitUntilIdle(timeout)` waits on that (image/video runs take
   minutes; use `IMAGE_TIMEOUT`/`VIDEO_TIMEOUT`). Result assertions use ARIA added to outputs:
@@ -208,9 +209,17 @@ page's own JS — login, EventSource, send, reply/media rendering — is caught)
 - **Per-preset smoke tests** (`preset-chat/image/video.spec.ts`) are data-driven: each selects
   one preset via `AppDriver.runChatPreset`/`runComfyPreset`, which `test.skip`s presets absent
   in the running product mode. Reference-image presets load `e2e/fixtures/input.png` into the
-  settings-sidebar `LoadImage` inputs (accessible name = the field label); chat vision/RAG
+  Attributes tab's `LoadImage` inputs (accessible name = the field label); chat vision/RAG
   presets attach a fixture via the prompt-area "+" input (`aria-label="Attach image or document"`).
-- **Settings sidebar re-opens** when returning from the wizard and can occlude controls;
+- **Settings are tabs, not a sidebar.** The open Session's view (`SessionTabView.vue`) is a
+  `tablist` named "Session" whose tabs are Viewport, Inferencing, Attributes, Artifacts and
+  (for agents) Schedules; each panel is a `tabpanel` named after its tab. Every mode and Agent
+  Preset puts its settings in Inferencing and Attributes, so a page object finds a control with
+  `sessionTabPanel(page, 'Inferencing' | 'Attributes')` and shows it with `showSessionTab` (both
+  in `pages/uiControls.ts`). There is no per-mode "<Mode> Settings" region or button any more:
+  `SpecificSettingsPage.open(tab)` shows a tab, `close()` returns to the Viewport (where the
+  prompt bar is), and its methods take no mode.
+- **App Settings sidebar re-opens** when returning from the wizard and can occlude controls;
   `openAppSettings()` is idempotent. Playwright "visible" ignores occlusion.
 - **Optional popups intercept clicks.** The high-memory / video-VRAM warning (`WarningDialog`,
   `role="dialog"` + `aria-label="Warning"`) fires whenever a gated preset becomes active —
@@ -544,7 +553,7 @@ There is **no Vue Router**. Navigation is state-driven:
 - `App.vue` checks `globalSetup.loadingState` (`verifyBackend` → `manageInstallations` → `loading` → `running`/`failed`)
 - Once running, the main area is **one view in every mode**: `SessionTimeline.vue`, the open Session's timeline, which is never remounted or restyled by a mode or preset switch. `sessionTimelineItems()` (`src/lib/sessionTimeline.ts`) lays every live turn over the saved timeline — the streaming chat turn, the open and running Harness Sessions (`agentMode.liveTurnsIn`, Task Runs included), the in-flight media run and the running audio turn — so each one shows whichever mode is active. Chat and agent messages, live or settled, render through one `SessionMessage.vue` (shared `SessionUserBubble` / `SessionAssistantBubble`, which `MediaTurnBlock` / `AudioTurnBlock` use too; the answer body is `ChatMessageParts` or `AgentMessageParts` by the engine that produced it). Mode only decides the edges: the prompt bar's submit/cancel per mode (`src/lib/useModePromptHandlers.ts`, registered once from `App.vue`), the Game Agent bar, the agent empty state and status line. `Chat.vue` remains only for a conversation that is no Session's (a Home Agent thread). Turns settle ( a panel run settles into its Session Folder and Session History from `electron/session/sessionMediaTurn.ts`, a TTS/STT turn — driven by `store/sessionAudio.ts` — from `electron/session/sessionAudioTurn.ts` over `sessions:recordAudioTurn`)
 - Each mode maps to a preset category (`chat`, `audio`, `create-images`, `edit-images`, `create-videos`). `chat`, `agent` and `audio` all run on `chat`-type presets; `audio` holds the speech presets (Text to Speech / Speech to Text) and gets its own settings tabs (`SettingsAudioInferencing.vue` / `SettingsAudioAttributes.vue`)
-- `PromptArea.vue` is the shared prompt input bar across all modes
+- `PromptArea.vue` is the shared prompt input bar across all modes. It sits in the Viewport tab of `SessionTabView.vue`, the open Session's tab view: Viewport (timeline + prompt bar), **Inferencing** and **Attributes** (the active preset's settings, `ModeSettingsTab.vue` dispatching per mode to `Settings<Mode>Inferencing` / `Settings<Mode>Attributes`, each built on `SettingsTabLayout.vue`; Machine Settings sit in its `MachineSettingsGroup`), **Artifacts** (`SessionArtifacts.vue`) and **Schedules** (`SchedulesPanel.vue`, agents only). Which tabs exist and which one shows is `sessionTabs()` in `src/lib/sessionTabs.ts`, held by `store/sessionTabs.ts`. There is no settings sidebar and no prompt-bar settings button; the only sidebar left is App Settings (`SideModalAppSettings.vue`)
 - **The preset picks the mode**, via `presetToMode()` in `src/lib/presetModes.ts`. A chat preset
   with `agentPreset: true` (Agent, Game Agent) renders Agent Mode, so there is no Agent mode
   button — it is entered by picking one of those presets from the chat list.
@@ -967,7 +976,7 @@ env var, which stays only as a one-shot override for a launch with no UI yet.
 
 **Model Management**: stores: `models` → electron: `loadModels`, `getDownloaded*` IPC → backend: `ai-backend` Flask `/api/*` via HTTP
 
-**Settings**: `components/settings/SideModalAppSettings.vue`, `components/settings/SideModalSpecificSettings.vue` → stores: `backendServices`, `textInference`, `imageGenerationPresets`, `theme`, `i18n`
+**Settings**: App Settings in `components/SideModalAppSettings.vue`; a preset's settings in the Inferencing and Attributes tabs (`components/SessionTabView.vue` → `components/ModeSettingsTab.vue` → `Settings<Mode>Inferencing.vue` / `Settings<Mode>Attributes.vue` on `components/SettingsTabLayout.vue`), bound per Session by `store/sessionSettings.ts` → stores: `backendServices`, `textInference`, `imageGenerationPresets`, `agentMode`, `theme`, `i18n`
 
 **Presets**: `components/PresetSelector.vue`, `components/VariantSelector.vue` → stores: `presets`, `presetSwitching`
 

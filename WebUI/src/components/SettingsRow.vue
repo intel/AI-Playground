@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// One row of a settings sidebar: a fixed label column and a control filling the
+// One row of a settings panel: a fixed label column and a control filling the
 // rest. A component rather than a copied class string because that string is what
 // drifted — a row that spelled its label as a raw <label> rendered it 16px/400
 // beside its neighbours' 14px/500, and rows whose control is short (a checkbox, a

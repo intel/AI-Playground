@@ -140,7 +140,7 @@ export async function buildTurnConfig(options: {
   const baseUrl = textInference.localBackendUrl
   if (!baseUrl) {
     throw new Error(
-      'No local inference backend is available. Pick a local backend and model in the settings sidebar.',
+      'No local inference backend is available. Pick a local backend and model in the Inferencing tab.',
     )
   }
   const activeModel = textInference.activeModel

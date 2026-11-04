@@ -3,7 +3,7 @@ import { type Locator, type Page, expect } from '@playwright/test'
 /**
  * Page object for the Model Management view (`views/ModelManager.vue`) — the
  * full-screen model library opened from the title bar or from "Manage Models" in
- * the Chat settings sidebar.
+ * the Chat Inferencing tab.
  *
  * Everything is located by role + accessible name, so the ARIA the app carries is
  * what this drives: the overlay is a `dialog` named "Models", each row's action

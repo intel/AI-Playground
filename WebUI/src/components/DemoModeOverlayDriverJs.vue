@@ -101,9 +101,9 @@ const firstTimeHelpConfig: Record<DemoButtonId, { stepId: string; highlightEleme
     stepId: '#app-settings-button',
     highlightElement: '#app-settings-button',
   },
-  'advanced-settings-button': {
-    stepId: '#advanced-settings-button',
-    highlightElement: '#advanced-settings-button',
+  'session-tab-inferencing': {
+    stepId: '#session-tab-inferencing',
+    highlightElement: '#session-tab-inferencing',
   },
   'mode-button-chat': {
     stepId: '#mode-button-chat',

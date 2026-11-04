@@ -156,7 +156,7 @@ type ResolvedInput = ComfyInput & { current: unknown }
 
 /**
  * Snapshot of the workflow's dynamic inputs with their resolved current
- * values, read from the same per-persisted-preset map the settings sidebar
+ * values, read from the same per-persisted-preset map the Attributes tab
  * writes into. Plain values: the run owns them, so injecting a source image
  * cannot leak back into the persisted settings.
  */
@@ -247,7 +247,7 @@ export async function runArtifact(
   const inputs = resolveInputs(preset, imageGen.savedInputsFor(settingsKey))
 
   // 2. Edit kinds: inject the source image into the first required image
-  // input, matching what the settings sidebar's LoadImage field would hold.
+  // input, matching what the Attributes tab's LoadImage field would hold.
   if (request.source) {
     const imageInput = inputs.find(
       (input) =>

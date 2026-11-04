@@ -10,7 +10,7 @@
         side === 'left' ? 'left-0 border-r w-100' : 'right-0 border-l w-130',
       ]"
     >
-      <div v-if="!hideHeader" class="flex items-center justify-between p-4 border-b border-border">
+      <div class="flex items-center justify-between p-4 border-b border-border">
         <h2 class="text-lg font-semibold">{{ title }}</h2>
         <div class="flex gap-3 items-center">
           <slot name="header-buttons" />
@@ -30,18 +30,6 @@
           />
         </div>
       </div>
-      <!-- When the header banner is hidden, surface a compact close button instead.
-           Anchored to the sidebar (not the scroll container) so it stays put while the
-           content scrolls, and positioned to sit in the top-right padding of the
-           preset info card (which reserves that corner via pr-8). -->
-      <button
-        v-if="hideHeader"
-        @click="$emit('close')"
-        class="absolute top-5 right-5 z-10 flex items-center justify-center w-7 h-7 rounded-full border border-border/60 bg-card/50 backdrop-blur-[1px] shadow-sm text-muted-foreground hover:text-foreground hover:bg-muted"
-        :title="languages.COM_CLOSE"
-      >
-        <span :class="['svg-icon w-5 h-5', side === 'left' ? 'i-arrow-left' : 'i-arrow-right']" />
-      </button>
       <div class="flex-1 p-4 overflow-y-auto relative">
         <slot />
       </div>
@@ -56,9 +44,6 @@ const props = defineProps<{
   isVisible: boolean
   title: string
   side: 'left' | 'right'
-  // Hide the entire header banner (title + buttons). `title` is still used for
-  // the region's aria-label; a compact close button is shown in the content.
-  hideHeader?: boolean
 }>()
 
 defineEmits<{

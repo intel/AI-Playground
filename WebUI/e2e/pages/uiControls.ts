@@ -1,5 +1,4 @@
 import { type Locator, type Page, expect } from '@playwright/test'
-import { type SettingsOwner } from './MainPage'
 
 /**
  * Set a reka-ui checkbox/switch (role=checkbox|switch) to `enabled`. reka's source of
@@ -20,18 +19,8 @@ export async function setRekaToggle(
   await expect(toggle, message).toHaveAttribute('aria-checked', String(enabled))
 }
 
-/** The mode-settings sidebar region (SideModalBase aria-label is `<mode> Settings`). */
-export function settingsRegion(page: Page, mode: string): Locator {
-  return page.getByRole('region', { name: `${mode} Settings` })
-}
-
 /** The settings tabs of the open Session's view (SessionTabView.vue). */
 export type SettingsTab = 'Inferencing' | 'Attributes'
-
-/** Every owner's settings, an Agent Preset's included, now live in the session tabs. */
-export function settingsInTabs(_owner: SettingsOwner): boolean {
-  return true
-}
 
 /** A tab panel of the open Session's view, named after its tab. */
 export function sessionTabPanel(page: Page, tab: SettingsTab | 'Viewport'): Locator {
