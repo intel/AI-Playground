@@ -28,17 +28,9 @@ export function settingsRegion(page: Page, mode: string): Locator {
 /** The settings tabs of the open Session's view (SessionTabView.vue). */
 export type SettingsTab = 'Inferencing' | 'Attributes'
 
-/** Owners whose settings live in the session tabs rather than in a "<mode> Settings" sidebar. */
-const SETTINGS_IN_TABS: readonly SettingsOwner[] = [
-  'Chat',
-  'Audio',
-  'Image Gen',
-  'Image Edit',
-  'Video',
-]
-
-export function settingsInTabs(owner: SettingsOwner): boolean {
-  return SETTINGS_IN_TABS.includes(owner)
+/** Every owner's settings, an Agent Preset's included, now live in the session tabs. */
+export function settingsInTabs(_owner: SettingsOwner): boolean {
+  return true
 }
 
 /** A tab panel of the open Session's view, named after its tab. */

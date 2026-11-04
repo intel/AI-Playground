@@ -5,6 +5,10 @@
     <SettingsChatInferencing v-if="tab === 'inferencing'" />
     <SettingsChatAttributes v-else />
   </template>
+  <template v-else-if="mode === 'agent'">
+    <SettingsAgentInferencing v-if="tab === 'inferencing'" />
+    <SettingsAgentAttributes v-else />
+  </template>
   <template v-else-if="mode === 'imageGen' || mode === 'imageEdit' || mode === 'video'">
     <SettingsWorkflowInferencing
       v-if="tab === 'inferencing'"
@@ -20,6 +24,8 @@
 </template>
 
 <script setup lang="ts">
+import SettingsAgentAttributes from '@/components/SettingsAgentAttributes.vue'
+import SettingsAgentInferencing from '@/components/SettingsAgentInferencing.vue'
 import SettingsAudioAttributes from '@/components/SettingsAudioAttributes.vue'
 import SettingsAudioInferencing from '@/components/SettingsAudioInferencing.vue'
 import SettingsChatAttributes from '@/components/SettingsChatAttributes.vue'

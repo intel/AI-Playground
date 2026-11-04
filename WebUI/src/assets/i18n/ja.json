@@ -651,8 +651,6 @@
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_THREAD": "エージェントはこのチャンネルでメッセージを送ることがあります。返答するには、そのスレッドで返信してください。通常のメッセージは Home Agent に届きます。",
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_BUTTON": "エージェントはこのチャンネルでメッセージを送ることがあります。返答するには、💬 回答 をタップしてください。通常のメッセージは Home Agent に届きます。",
   "HOME_AGENT_AUTO_NOTIFY": "バックグラウンドのエージェント実行が失敗したとき、または対応が必要なときに通知する",
-  "AGENT_SAVE_AS_DEFAULT": "デフォルトとして保存",
-  "AGENT_RESET_TO_DEFAULT": "デフォルトに戻す",
   "AGENT_SAVED_AS_DEFAULT": "新しい Agent Maker セッションのデフォルトとして保存しました",
   "AGENT_RESET_TO_DEFAULT_DONE": "このセッションをデフォルト設定に戻しました",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "新しいセッションの既定として保存しました",

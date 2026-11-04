@@ -651,8 +651,6 @@
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_THREAD": "Los agentes pueden escribirte por este canal. Para responder a uno, responde en su hilo. Los mensajes normales van al Home Agent.",
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_BUTTON": "Los agentes pueden escribirte por este canal. Para responder a uno, toca 💬 Responder. Los mensajes normales van al Home Agent.",
   "HOME_AGENT_AUTO_NOTIFY": "Notificarme cuando una ejecución de agente en segundo plano falle o me necesite",
-  "AGENT_SAVE_AS_DEFAULT": "Guardar como predeterminado",
-  "AGENT_RESET_TO_DEFAULT": "Restablecer a predeterminado",
   "AGENT_SAVED_AS_DEFAULT": "Guardado como predeterminado para nuevas sesiones de Agent Maker",
   "AGENT_RESET_TO_DEFAULT_DONE": "Esta sesión se restableció a la configuración predeterminada",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "Guardado como predeterminado para nuevas sesiones",

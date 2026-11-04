@@ -651,8 +651,6 @@
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_THREAD": "Ajanlar size bu kanaldan mesaj gönderebilir. Birini yanıtlamak için onun dizisinde yanıtlayın. Normal mesajlar Home Agent'a gider.",
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_BUTTON": "Ajanlar size bu kanaldan mesaj gönderebilir. Birini yanıtlamak için 💬 Yanıtla'ya dokunun. Normal mesajlar Home Agent'a gider.",
   "HOME_AGENT_AUTO_NOTIFY": "Arka plandaki bir ajan çalıştırması başarısız olduğunda veya bana ihtiyaç duyduğunda beni bilgilendir",
-  "AGENT_SAVE_AS_DEFAULT": "Varsayılan olarak kaydet",
-  "AGENT_RESET_TO_DEFAULT": "Varsayılana sıfırla",
   "AGENT_SAVED_AS_DEFAULT": "Yeni Agent Maker oturumları için varsayılan olarak kaydedildi",
   "AGENT_RESET_TO_DEFAULT_DONE": "Bu oturum varsayılan ayarlara sıfırlandı",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "Yeni oturumlar için varsayılan olarak kaydedildi",

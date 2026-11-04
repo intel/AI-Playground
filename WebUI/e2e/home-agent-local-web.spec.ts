@@ -1,12 +1,8 @@
-import fs from 'fs'
-import os from 'os'
-import path from 'path'
 import { test, expect } from './fixtures'
 import type { AppDriver } from './appDriver'
 import type { Page } from '@playwright/test'
 import { MainPage } from './pages/MainPage'
 import { HomeAgentPage } from './pages/HomeAgentPage'
-import { stubDirectoryPicker } from './helpers'
 import {
   agentMessages,
   agentRepliesTo,
@@ -183,11 +179,9 @@ test.describe('Home Agent — local web chat', () => {
     test.setTimeout(45 * 60_000)
     await bringUpLanChat(app, window)
 
-    const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aipg-answer-'))
-    await stubDirectoryPicker(electronApp, workspaceDir)
     const page = await openLocalWebChat(electronApp, BASE_URL, LOCAL_WEB_PASSWORD)
     try {
-      const ready = await app.prepareAgentPreset(workspaceDir)
+      const ready = await app.prepareAgentPreset()
       test.skip(!ready, 'Preset "Agent" is not available in this product mode')
 
       await test.step('An agent session sends a Notification to the LAN page', async () => {
@@ -215,7 +209,6 @@ test.describe('Home Agent — local web chat', () => {
       })
     } finally {
       await page.close()
-      fs.rmSync(workspaceDir, { recursive: true, force: true })
     }
   })
 

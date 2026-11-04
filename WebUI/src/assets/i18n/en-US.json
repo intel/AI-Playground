@@ -651,8 +651,6 @@
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_THREAD": "Agents can message you on this channel. To answer one, reply in its thread. Plain messages go to Home Agent.",
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_BUTTON": "Agents can message you on this channel. To answer one, tap 💬 Answer. Plain messages go to Home Agent.",
   "HOME_AGENT_AUTO_NOTIFY": "Notify me when a background agent run fails or needs me",
-  "AGENT_SAVE_AS_DEFAULT": "Save as default",
-  "AGENT_RESET_TO_DEFAULT": "Reset to default",
   "AGENT_SAVED_AS_DEFAULT": "Saved as the default for new Agent Maker sessions",
   "AGENT_RESET_TO_DEFAULT_DONE": "Reset this session to the default settings",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "Saved as the default for new sessions",

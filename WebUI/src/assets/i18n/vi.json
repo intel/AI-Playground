@@ -651,8 +651,6 @@
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_THREAD": "Các tác tử có thể nhắn cho bạn qua kênh này. Để trả lời, hãy phản hồi trong chuỗi tin nhắn của nó. Tin nhắn thông thường được gửi đến Home Agent.",
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_BUTTON": "Các tác tử có thể nhắn cho bạn qua kênh này. Để trả lời, hãy chạm 💬 Trả lời. Tin nhắn thông thường được gửi đến Home Agent.",
   "HOME_AGENT_AUTO_NOTIFY": "Thông báo cho tôi khi một lượt chạy tác tử nền thất bại hoặc cần tôi",
-  "AGENT_SAVE_AS_DEFAULT": "Lưu làm mặc định",
-  "AGENT_RESET_TO_DEFAULT": "Đặt lại về mặc định",
   "AGENT_SAVED_AS_DEFAULT": "Đã lưu làm mặc định cho các phiên Agent Maker mới",
   "AGENT_RESET_TO_DEFAULT_DONE": "Đã đặt lại phiên này về cài đặt mặc định",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "Đã lưu làm mặc định cho các phiên mới",

@@ -278,7 +278,7 @@ export class AppDriver {
    * Randomly run the active preset on llama.cpp or OpenVINO when it offers both,
    * so neither backend silently stops being exercised. OpenVINO is only offered in
    * Intel/OpenVINO product modes — in NVIDIA mode the app filters it out
-   * (SettingsChatInferencing.vue / SettingsAgent.vue), so this is a clean no-op there and the
+   * (SettingsChatInferencing.vue / agentBackendItems.ts), so this is a clean no-op there and the
    * default backend (llama.cpp) is used. Must be called with `mode`'s settings
    * sidebar open; leaves it open. Returns the label it settled on, which is also
    * recorded as a test annotation so a failed run says which backend it ran on.
@@ -372,9 +372,8 @@ export class AppDriver {
       this.main.selectPreset('Chat', preset))
     if (!selected) return false
 
-    // Agent Mode has no mode button of its own — its sidebar is opened from the
-    // prompt area like any other mode's, under the preset's name ("Game Agent
-    // Settings"). Reset before the pins below, never after: a reset would undo them.
+    // Its settings live in the session tabs, under the preset's label. Reset before
+    // the pins below, never after: a reset would undo them.
     const owner = await this.main.activePresetLabel()
     await this.resetPresetDefaults(owner)
 
@@ -397,11 +396,12 @@ export class AppDriver {
       // Switching preset by hand already clears the workspace (agentMode.ts), but a
       // re-run that lands on the preset already active doesn't — so ask explicitly.
       // The folder itself is minted by the first turn.
+      await this.settings.open(owner, 'Attributes')
       await expect(
-        this.agent.newGameButton(owner),
+        this.agent.newGameButton,
         'a game preset should manage its own folder and offer "New game"',
       ).toBeVisible({ timeout: 15_000 })
-      await this.agent.newGameButton(owner).click()
+      await this.agent.newGameButton.click()
       await this.settings.close(owner)
     })
     return true
@@ -461,11 +461,11 @@ export class AppDriver {
   }
 
   /**
-   * Select the general-purpose "Agent" preset on its defaults, a random backend, an
-   * {@link AGENT_CONTEXT} context and `workspaceDir` (the native picker must already be
-   * stubbed at it). Returns false when the preset isn't offered in this product mode.
+   * Select the general-purpose "Agent" preset on its defaults, a random backend and an
+   * {@link AGENT_CONTEXT} context. It works in the open Session's own folder, so there is
+   * no folder to pick. Returns false when the preset isn't offered in this product mode.
    */
-  async prepareAgentPreset(workspaceDir: string): Promise<boolean> {
+  async prepareAgentPreset(): Promise<boolean> {
     const selected = await test.step(`Select agent preset "${AGENT_PRESET}"`, () =>
       this.main.selectPreset('Chat', AGENT_PRESET))
     if (!selected) return false
@@ -474,12 +474,11 @@ export class AppDriver {
     const owner = await this.main.activePresetLabel()
     await this.resetPresetDefaults(owner)
 
-    await test.step('Point the agent at a scratch workspace on a random backend', async () => {
+    await test.step('Run the agent on a random backend', async () => {
       await this.pickRandomBackend(owner)
       // A no-op on OpenVINO GPU, which has no such setting to get wrong.
       await test.step(`Lower the context size to ${AppDriver.AGENT_CONTEXT}`, () =>
         this.settings.setContextSize(AppDriver.AGENT_CONTEXT, owner))
-      await this.agent.selectWorkspaceFolder(workspaceDir, owner)
       await this.settings.close(owner)
     })
     return true
@@ -502,20 +501,14 @@ export class AppDriver {
    * cannot be allocated on a laptop GPU and the model then refuses to load at all
    * (where the backend exposes a context size at all — OpenVINO on GPU does not).
    *
-   * Unlike the game presets, this one works in a folder the *user* picks, so the
-   * caller passes a scratch directory (and stubs the native picker at it — see
-   * `stubDirectoryPicker`). The agent writes into that folder; nothing here asserts
-   * on its contents, the transcript and the generated image are the subject.
+   * Unlike the game presets, this one works in the open Session's folder; nothing here
+   * asserts on its contents, the transcript and the generated image are the subject.
    *
    * Returns false when the preset isn't offered in this product mode so the caller
    * can skip.
    */
-  async runAgentPreset(opts: {
-    workspaceDir: string
-    prompt: string
-    imagePrompt: string
-  }): Promise<boolean> {
-    if (!(await this.prepareAgentPreset(opts.workspaceDir))) return false
+  async runAgentPreset(opts: { prompt: string; imagePrompt: string }): Promise<boolean> {
+    if (!(await this.prepareAgentPreset())) return false
 
     let imagesBefore = 0
 

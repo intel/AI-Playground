@@ -651,8 +651,6 @@
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_THREAD": "Agen dapat mengirim pesan kepada Anda di saluran ini. Untuk menjawabnya, balas di utasnya. Pesan biasa dikirim ke Home Agent.",
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_BUTTON": "Agen dapat mengirim pesan kepada Anda di saluran ini. Untuk menjawabnya, ketuk 💬 Jawab. Pesan biasa dikirim ke Home Agent.",
   "HOME_AGENT_AUTO_NOTIFY": "Beri tahu saya saat agen yang berjalan di latar belakang gagal atau membutuhkan saya",
-  "AGENT_SAVE_AS_DEFAULT": "Simpan sebagai default",
-  "AGENT_RESET_TO_DEFAULT": "Atur ulang ke default",
   "AGENT_SAVED_AS_DEFAULT": "Disimpan sebagai default untuk sesi Agent Maker baru",
   "AGENT_RESET_TO_DEFAULT_DONE": "Sesi ini diatur ulang ke pengaturan default",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "Disimpan sebagai default untuk sesi baru",

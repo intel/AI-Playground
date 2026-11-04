@@ -651,8 +651,6 @@
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_THREAD": "เอเจนต์สามารถส่งข้อความถึงคุณในช่องทางนี้ได้ หากต้องการตอบ ให้ตอบกลับในเธรดของข้อความนั้น ข้อความทั่วไปจะส่งไปยัง Home Agent",
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_BUTTON": "เอเจนต์สามารถส่งข้อความถึงคุณในช่องทางนี้ได้ หากต้องการตอบ ให้แตะ 💬 ตอบ ข้อความทั่วไปจะส่งไปยัง Home Agent",
   "HOME_AGENT_AUTO_NOTIFY": "แจ้งเตือนฉันเมื่อการทำงานของเอเจนต์เบื้องหลังล้มเหลวหรือต้องการฉัน",
-  "AGENT_SAVE_AS_DEFAULT": "บันทึกเป็นค่าเริ่มต้น",
-  "AGENT_RESET_TO_DEFAULT": "รีเซ็ตเป็นค่าเริ่มต้น",
   "AGENT_SAVED_AS_DEFAULT": "บันทึกเป็นค่าเริ่มต้นสำหรับเซสชัน Agent Maker ใหม่แล้ว",
   "AGENT_RESET_TO_DEFAULT_DONE": "รีเซ็ตเซสชันนี้เป็นการตั้งค่าเริ่มต้นแล้ว",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "บันทึกเป็นค่าเริ่มต้นสำหรับเซสชันใหม่แล้ว",

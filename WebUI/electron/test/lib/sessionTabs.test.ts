@@ -173,6 +173,10 @@ describe('settingsInTabs', () => {
     expect(settingsInTabs('chat')).toBe(true)
   })
 
+  it('puts Agent Preset settings in the Inferencing and Attributes tabs', () => {
+    expect(settingsInTabs('agent')).toBe(true)
+  })
+
   it('puts Image Gen, Image Edit and Video settings in the tabs', () => {
     for (const mode of ['imageGen', 'imageEdit', 'video'] as const) {
       expect(settingsInTabs(mode)).toBe(true)
@@ -181,11 +185,5 @@ describe('settingsInTabs', () => {
 
   it('puts Audio settings in the Inferencing and Attributes tabs', () => {
     expect(settingsInTabs('audio')).toBe(true)
-  })
-
-  it('keeps the modes not yet moved in the settings sidebar', () => {
-    for (const mode of ['agent'] as const) {
-      expect(settingsInTabs(mode)).toBe(false)
-    }
   })
 })

@@ -651,8 +651,6 @@
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_THREAD": "代理程式可以透過此頻道傳訊息給你。若要回答，請在它的討論串中回覆。一般訊息會傳送給 Home Agent。",
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_BUTTON": "代理程式可以透過此頻道傳訊息給你。若要回答，請點選 💬 回答。一般訊息會傳送給 Home Agent。",
   "HOME_AGENT_AUTO_NOTIFY": "背景代理程式執行失敗或需要我處理時通知我",
-  "AGENT_SAVE_AS_DEFAULT": "儲存為預設",
-  "AGENT_RESET_TO_DEFAULT": "重設為預設",
   "AGENT_SAVED_AS_DEFAULT": "已儲存為新 Agent Maker 工作階段的預設設定",
   "AGENT_RESET_TO_DEFAULT_DONE": "已將此工作階段重設為預設設定",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "已儲存為新工作階段的預設值",

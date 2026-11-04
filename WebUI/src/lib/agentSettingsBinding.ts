@@ -4,7 +4,7 @@ import type { SessionSettingsProblem } from '@/lib/sessionSettingsProblems'
 
 export type AgentSettingsChoice = { label: string; value: string; active: boolean }
 
-/** What `AgentSettingsForm` reads and writes: the open session's settings or a Task's draft. */
+/** What the Agent Preset settings tabs read and write. */
 export type AgentSettingsBinding = {
   backend: LlmBackend
   backendItems: AgentSettingsChoice[]

@@ -651,8 +651,6 @@
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_THREAD": "智能体可以通过此频道给你发消息。要回答，请在它的消息串中回复。普通消息会发送给 Home Agent。",
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_BUTTON": "智能体可以通过此频道给你发消息。要回答，请点击 💬 回答。普通消息会发送给 Home Agent。",
   "HOME_AGENT_AUTO_NOTIFY": "后台智能体运行失败或需要我处理时通知我",
-  "AGENT_SAVE_AS_DEFAULT": "保存为默认",
-  "AGENT_RESET_TO_DEFAULT": "重置为默认",
   "AGENT_SAVED_AS_DEFAULT": "已保存为新 Agent Maker 会话的默认设置",
   "AGENT_RESET_TO_DEFAULT_DONE": "已将此会话重置为默认设置",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "已保存为新会话的默认设置",

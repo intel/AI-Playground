@@ -651,8 +651,6 @@
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_THREAD": "에이전트가 이 채널로 메시지를 보낼 수 있습니다. 답하려면 해당 스레드에서 답장하세요. 일반 메시지는 Home Agent로 전달됩니다.",
   "HOME_AGENT_NOTIFICATION_ANSWERABLE_BUTTON": "에이전트가 이 채널로 메시지를 보낼 수 있습니다. 답하려면 💬 답변을 탭하세요. 일반 메시지는 Home Agent로 전달됩니다.",
   "HOME_AGENT_AUTO_NOTIFY": "백그라운드 에이전트 실행이 실패하거나 내 응답이 필요할 때 알림 받기",
-  "AGENT_SAVE_AS_DEFAULT": "기본값으로 저장",
-  "AGENT_RESET_TO_DEFAULT": "기본값으로 재설정",
   "AGENT_SAVED_AS_DEFAULT": "새 Agent Maker 세션의 기본값으로 저장했습니다",
   "AGENT_RESET_TO_DEFAULT_DONE": "이 세션을 기본 설정으로 재설정했습니다",
   "SESSION_SETTINGS_SAVED_AS_DEFAULT": "새 세션의 기본값으로 저장했습니다",
