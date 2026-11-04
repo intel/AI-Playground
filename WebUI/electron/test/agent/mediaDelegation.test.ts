@@ -155,11 +155,24 @@ describe('mediaDelegation (in-process media tool)', () => {
     const video = { id: 'v', type: 'video', videoUrl: 'aipg-media://media/clip.mp4' }
     const model = { id: 'm', type: 'model3d', model3dUrl: 'aipg-media://media/shape.glb' }
     runMediaAgentInMainMock.mockResolvedValueOnce(specialistResult([video, model]))
-    saveMediaMock.mockImplementationOnce(async (result) => ({
-      ...(result as object),
-      savedFiles: ['generated/clip.mp4'],
-    }))
-    const tool = (await buildDelegatedMediaTool(hostWith(), MEDIA_SPEC)) as unknown as {
+    const appMedia = fs.mkdtempSync(path.join(os.tmpdir(), 'app-media-'))
+    fs.writeFileSync(path.join(appMedia, 'clip.mp4'), 'mp4-bytes')
+    const filesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'session-files-'))
+    fs.writeFileSync(path.join(filesDir, 'clip.mp4'), 'earlier-clip')
+    const actual = await vi.importActual<typeof import('../../agent/piCustomTools.ts')>(
+      '../../agent/piCustomTools.ts',
+    )
+    actual.setAppMediaPathResolver((url) =>
+      path.join(appMedia, decodeURIComponent(new URL(url).pathname)),
+    )
+    saveMediaMock.mockImplementationOnce((result, dir) =>
+      actual.saveGeneratedMediaToWorkspace(result, dir, {
+        sessionRef: 'session-1',
+        workspace: 'files',
+      }),
+    )
+    const host = hostWith({ workspaceDir: filesDir })
+    const tool = (await buildDelegatedMediaTool(host, MEDIA_SPEC)) as unknown as {
       execute: (id: string, params: unknown, signal: AbortSignal) => Promise<unknown>
     }
 
@@ -170,9 +183,10 @@ describe('mediaDelegation (in-process media tool)', () => {
     )) as { details: { items: { workspacePath?: string }[] } }
 
     expect(result.details.items.map((item) => item.workspacePath)).toEqual([
-      'generated/clip.mp4',
+      'clip-1.mp4',
       undefined,
     ])
+    actual.setAppMediaPathResolver(null)
   })
 
   it('keeps the step lines of a run that produced nothing', async () => {

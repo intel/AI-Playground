@@ -5,6 +5,7 @@ import { jsonResult, jsonSchemaParameters, resolveWorkspaceFile } from '../piCus
 import { loadPi } from '../piRuntime.ts'
 import { askRenderer } from '../../chat/chatAsk.ts'
 import { saveGeneratedAudioFile } from '../../persist/audioFiles.ts'
+import { freeName } from '../../persist/sessionMediaFiles.ts'
 import { noteGeneratedMedia } from '../generatedMedia.ts'
 import { buildTtsAudioFileName } from '@/lib/ttsAudioFileName'
 import type { AgentMediaDetails } from '@/types/agentMediaDetails'
@@ -77,7 +78,7 @@ async function copyIntoSession(host: CapabilityHost, fullPath: string): Promise<
   if (host.sessionMedia?.workspace !== 'game') return []
   const { filesDir } = host.sessionMedia
   await fs.promises.mkdir(filesDir, { recursive: true })
-  const target = path.join(filesDir, path.basename(fullPath))
+  const target = path.join(filesDir, await freeName(filesDir, path.basename(fullPath)))
   await fs.promises.copyFile(fullPath, target)
   return [target]
 }

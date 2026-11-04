@@ -7,7 +7,7 @@ import type { AgentMediaDetails, AgentMediaItem } from '@/types/agentMediaDetail
 import { appLoggerInstance } from '../observability/logger.ts'
 import { emitAgentToolImage } from '../kernel/kernelBus.ts'
 import { typedSend } from '../kernel/typedIpc.ts'
-import { moveFile } from '../persist/sessionMediaFiles.ts'
+import { freeName, moveFile } from '../persist/sessionMediaFiles.ts'
 import { noteGeneratedMedia } from './generatedMedia.ts'
 import { sessionMediaUrl } from '@/lib/comfyWorkflow'
 import { agentTurns } from './piAgentState.ts'
@@ -57,7 +57,7 @@ function generatedItemsOf(value: unknown): AgentMediaItem[] {
   return record.images
     .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
     .map((item) => {
-      const saved = workspacePathForMediaUrl(mediaUrlOf(item))
+      const saved = workspacePaths.get(item)
       return {
         mode: 'imageGen',
         settings: {},
@@ -72,14 +72,8 @@ function mediaUrlOf(item: Record<string, unknown>): unknown {
   return item.imageUrl ?? item.videoUrl ?? item.model3dUrl
 }
 
-/** Where `saveGeneratedMediaToWorkspace` puts a media URL's file in the workspace. */
-function workspacePathForMediaUrl(url: unknown): string | undefined {
-  if (typeof url !== 'string' || !url.startsWith('aipg-media://')) return undefined
-  const parsed = new URL(url)
-  const filename = path.basename(decodeURIComponent(parsed.pathname))
-  if (!filename) return undefined
-  return parsed.host === 'sessions' ? filename : path.posix.join('generated', filename)
-}
+/** The workspace path each saved result entry landed at, which may differ from its URL's name. */
+const workspacePaths = new WeakMap<object, string>()
 
 /**
  * Pi types tool parameters as TypeBox but treats them as opaque schema metadata
@@ -325,28 +319,31 @@ async function saveOne(
   workspaceDir: string,
   sessionMedia: SessionMediaTarget | undefined,
 ): Promise<{ saved: string; sessionCopy?: string; entry: Record<string, unknown> }> {
+  const name = path.basename(decodeURIComponent(new URL(url).pathname)) || `media-${Date.now()}`
+  const generatedDir = path.join(workspaceDir, 'generated')
   if (!sessionMedia) {
     const bytes = await mediaBytes(url)
-    const saved =
-      workspacePathForMediaUrl(url) ?? path.posix.join('generated', `media-${Date.now()}`)
-    fs.mkdirSync(path.join(workspaceDir, 'generated'), { recursive: true })
+    fs.mkdirSync(generatedDir, { recursive: true })
+    const saved = path.posix.join('generated', await freeName(generatedDir, name))
     fs.writeFileSync(path.join(workspaceDir, saved), bytes)
     return { saved, entry }
   }
-  const name = path.basename(decodeURIComponent(new URL(url).pathname)) || `media-${Date.now()}`
   const filesDir = sessionMedia.workspace === 'game' ? sessionMedia.filesDir : workspaceDir
   fs.mkdirSync(filesDir, { recursive: true })
-  await moveIntoSession(url, path.join(filesDir, name))
-  const saved = sessionMedia.workspace === 'game' ? path.posix.join('generated', name) : name
+  const filesName = await freeName(filesDir, name)
+  const sessionCopy = path.join(filesDir, filesName)
+  await moveIntoSession(url, sessionCopy)
+  let saved = filesName
   if (sessionMedia.workspace === 'game') {
-    fs.mkdirSync(path.join(workspaceDir, 'generated'), { recursive: true })
-    fs.copyFileSync(path.join(filesDir, name), path.join(workspaceDir, saved))
+    fs.mkdirSync(generatedDir, { recursive: true })
+    saved = path.posix.join('generated', await freeName(generatedDir, name))
+    fs.copyFileSync(sessionCopy, path.join(workspaceDir, saved))
   }
   const key = MEDIA_URL_KEYS.find((candidate) => entry[candidate] === url) ?? 'imageUrl'
   return {
     saved,
-    sessionCopy: path.join(filesDir, name),
-    entry: { ...entry, [key]: sessionMediaUrl(sessionMedia.sessionRef, `files/${name}`) },
+    sessionCopy,
+    entry: { ...entry, [key]: sessionMediaUrl(sessionMedia.sessionRef, `files/${filesName}`) },
   }
 }
 
@@ -374,6 +371,7 @@ export async function saveGeneratedMediaToWorkspace(
     }
     try {
       const done = await saveOne(item as Record<string, unknown>, url, workspaceDir, sessionMedia)
+      workspacePaths.set(done.entry, done.saved)
       savedFiles.push(done.saved)
       if (done.sessionCopy) sessionCopies.push(done.sessionCopy)
       images.push(done.entry)

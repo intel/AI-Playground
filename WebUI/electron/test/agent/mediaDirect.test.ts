@@ -374,6 +374,45 @@ describe('mediaDirect (in-process generateImage / editImage)', () => {
     setAppMediaPathResolver(null)
   })
 
+  it("keeps a Session's earlier file when the agent's media has the same name", async () => {
+    const appMedia = fs.mkdtempSync(path.join(os.tmpdir(), 'app-media-'))
+    fs.writeFileSync(path.join(appMedia, 'ComfyUI_00001_.png'), 'agent-bytes')
+    setAppMediaPathResolver((url) => path.join(appMedia, decodeURIComponent(new URL(url).pathname)))
+    const filesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'session-files-'))
+    fs.writeFileSync(path.join(filesDir, 'ComfyUI_00001_.png'), 'chat-bytes')
+    submitArtifactRunMock.mockImplementationOnce(async () => ({
+      state: 'completed',
+      items: [
+        {
+          id: 'item-0',
+          type: 'image',
+          imageUrl: 'aipg-media://media/ComfyUI_00001_.png',
+          mode: 'imageGen',
+          state: 'done',
+          settings: {},
+        },
+      ] as ArtifactRunResult['items'],
+    }))
+    const tool = await buildTool(
+      GENERATE_SPEC,
+      hostWith({
+        workspaceDir: filesDir,
+        sessionMedia: { sessionRef: 'session-7', workspace: 'files' },
+      }),
+    )
+    const output = (await tool.execute(
+      'call-1',
+      { prompt: 'a castle' },
+      new AbortController().signal,
+    )) as { details: { items: Array<{ imageUrl: string }> } }
+
+    expect(fs.readFileSync(path.join(filesDir, 'ComfyUI_00001_.png'), 'utf8')).toBe('chat-bytes')
+    expect(output.details.items[0].imageUrl).not.toBe(
+      'aipg-media://sessions/session-7/files/ComfyUI_00001_.png',
+    )
+    setAppMediaPathResolver(null)
+  })
+
   it("puts a game's media in its game folder and the Session's files folder", async () => {
     const appMedia = fs.mkdtempSync(path.join(os.tmpdir(), 'app-media-'))
     fs.writeFileSync(path.join(appMedia, 'ship.png'), 'png-bytes')
