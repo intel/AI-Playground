@@ -197,12 +197,37 @@ describe('sessionSections', () => {
     ])
   })
 
-  it('renders every Group expanded', () => {
-    const result = sections([session('a1', { groupId: 'a' })], '', [
-      group('a', { expanded: false }),
-    ])
+  function expandedOf(result: SessionSection[]) {
     const groupsSection = result.find((section) => section.id === 'groups')
-    expect(groupsSection?.id === 'groups' && groupsSection.groups[0].expanded).toBe(true)
+    return groupsSection?.id === 'groups'
+      ? Object.fromEntries(groupsSection.groups.map((g) => [g.group.id, g.expanded]))
+      : {}
+  }
+
+  it('renders each Group as expanded or collapsed as it was stored', () => {
+    const sessions = [session('a1', { groupId: 'a' }), session('b1', { groupId: 'b' })]
+    const groups = [group('a', { expanded: false }), group('b', { expanded: true })]
+    expect(expandedOf(sections(sessions, '', groups))).toEqual({ a: false, b: true })
+  })
+
+  it('renders a collapsed Group expanded while the open Session is in it', () => {
+    const sessions = [session('a1', { groupId: 'a' }), session('b1', { groupId: 'b' })]
+    const groups = [group('a', { expanded: false }), group('b', { expanded: false })]
+    const result = sections(sessions, '', groups, { openSessionId: 'a1' })
+    expect(expandedOf(result)).toEqual({ a: true, b: false })
+  })
+
+  it('keeps a Group collapsed when its open Session is already shown under Pinned', () => {
+    const sessions = [session('a1', { groupId: 'a', pinned: true })]
+    const groups = [group('a', { expanded: false })]
+    const result = sections(sessions, '', groups, { openSessionId: 'a1' })
+    expect(expandedOf(result)).toEqual({ a: false })
+  })
+
+  it('renders matching Groups expanded while searching', () => {
+    const sessions = [session('a1', { title: 'Lisbon', groupId: 'a' })]
+    const groups = [group('a', { expanded: false })]
+    expect(expandedOf(sections(sessions, 'lisbon', groups))).toEqual({ a: true })
   })
 
   it('lists a Session whose Group cannot be found in Recent', () => {

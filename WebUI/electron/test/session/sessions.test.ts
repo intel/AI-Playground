@@ -20,6 +20,7 @@ const {
   createSession,
   createSessionGroup,
   deleteSession,
+  deleteSessionGroup,
   listSessionGroups,
   listSessions,
   moveSessionToGroup,
@@ -28,8 +29,10 @@ const {
   pinSession,
   readPinnedShowMore,
   renameSession,
+  renameSessionGroup,
   resetSessionsForTest,
   setPinnedShowMore,
+  setSessionGroupExpanded,
   setSessionDeps,
   wipeDemoSessions,
 } = await import('../../session/sessions')
@@ -428,6 +431,96 @@ describe('Session Groups', () => {
     await expect(moveSessionToGroup('session-missing', null)).rejects.toThrow()
     await expect(moveSessionToGroup(session.id, 'group-missing')).rejects.toThrow()
     expect((await listSessionGroups()).map((g) => g.name)).toEqual(['Lisbon'])
+  })
+
+  it('remembers whether a Group is expanded across a re-list', async () => {
+    const session = await createSession()
+    const { group } = await createSessionGroup(session.id, 'Lisbon')
+
+    expect(await setSessionGroupExpanded(group.id, false)).toMatchObject({ expanded: false })
+    expect(await listSessionGroups()).toEqual([{ ...group, expanded: false }])
+    await setSessionGroupExpanded(group.id, true)
+    expect(await listSessionGroups()).toEqual([group])
+  })
+
+  it('renames a Group, remembered across a re-list', async () => {
+    const session = await createSession()
+    const { group } = await createSessionGroup(session.id, 'Lisbon')
+
+    expect(await renameSessionGroup(group.id, '  Porto  ')).toEqual({ ...group, name: 'Porto' })
+    expect(await listSessionGroups()).toEqual([{ ...group, name: 'Porto' }])
+    expect((await listSessions())[0].groupId).toBe(group.id)
+  })
+
+  it('refuses renaming a Group to a blank, too long or taken name', async () => {
+    const a = await createSession()
+    const b = await createSession()
+    const { group } = await createSessionGroup(a.id, 'Lisbon')
+    await createSessionGroup(b.id, 'Porto')
+
+    await expect(renameSessionGroup(group.id, '   ')).rejects.toThrow()
+    await expect(renameSessionGroup(group.id, 'x'.repeat(501))).rejects.toThrow()
+    await expect(renameSessionGroup(group.id, 'porto')).rejects.toThrow(/already exists/)
+    expect((await listSessionGroups()).map((g) => g.name)).toEqual(['Lisbon', 'Porto'])
+  })
+
+  it('allows renaming a Group to its own name in another case', async () => {
+    const session = await createSession()
+    const { group } = await createSessionGroup(session.id, 'Lisbon')
+
+    await expect(renameSessionGroup(group.id, 'LISBON')).resolves.toMatchObject({ name: 'LISBON' })
+  })
+
+  it('deletes a Group, keeping its Sessions and taking them out of it', async () => {
+    const a = await createSession()
+    const b = await createSession()
+    const other = await createSession()
+    const { group } = await createSessionGroup(a.id, 'Lisbon')
+    await moveSessionToGroup(b.id, group.id)
+    const { group: porto } = await createSessionGroup(other.id, 'Porto')
+    await pinSession(b.id, true)
+
+    await deleteSessionGroup(group.id)
+
+    expect(await listSessionGroups()).toEqual([porto])
+    const listed = await listSessions()
+    expect(listed.map((s) => s.id).sort()).toEqual([a.id, b.id, other.id].sort())
+    expect(listed.find((s) => s.id === a.id)?.groupId).toBeUndefined()
+    expect(listed.find((s) => s.id === b.id)).toMatchObject({ pinned: true })
+    expect(listed.find((s) => s.id === b.id)?.groupId).toBeUndefined()
+    expect(listed.find((s) => s.id === other.id)?.groupId).toBe(porto.id)
+    expect((await sessionFile(a.id)).groupId).toBeUndefined()
+    expect(listed.find((s) => s.id === a.id)?.updatedAt).toBe(a.updatedAt)
+  })
+
+  it('creates a new Session already in a Group', async () => {
+    const first = await createSession()
+    const { group } = await createSessionGroup(first.id, 'Lisbon')
+
+    const created = await createSession(group.id)
+
+    expect(created.groupId).toBe(group.id)
+    expect((await sessionFile(created.id)).groupId).toBe(group.id)
+  })
+
+  it('fails Group operations on a missing Group', async () => {
+    await expect(renameSessionGroup('group-missing', 'Lisbon')).rejects.toThrow()
+    await expect(deleteSessionGroup('group-missing')).rejects.toThrow()
+    await expect(setSessionGroupExpanded('group-missing', false)).rejects.toThrow()
+    await expect(createSession('group-missing')).rejects.toThrow()
+    expect(await listSessions()).toEqual([])
+  })
+
+  it('leaves an unreadable Groups file alone when renaming, deleting or expanding', async () => {
+    const session = await createSession()
+    const { group } = await createSessionGroup(session.id, 'Lisbon')
+    await fs.writeFile(groupsFile(), '{not json')
+
+    await expect(renameSessionGroup(group.id, 'Porto')).rejects.toThrow()
+    await expect(deleteSessionGroup(group.id)).rejects.toThrow()
+    await expect(setSessionGroupExpanded(group.id, false)).rejects.toThrow()
+    expect(await fs.readFile(groupsFile(), 'utf8')).toBe('{not json')
+    expect((await sessionFile(session.id)).groupId).toBe(group.id)
   })
 
   it('deletes a grouped Session like any other', async () => {

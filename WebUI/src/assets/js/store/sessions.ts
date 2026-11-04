@@ -149,8 +149,11 @@ export const useSessions = defineStore('sessions', () => {
     else await create()
   }
 
-  async function create(): Promise<string | null> {
-    const result = await call('sessions/create-failed', () => window.electronAPI.sessions.create())
+  /** With `groupId` the new Session starts in that Session Group. */
+  async function create(groupId?: string): Promise<string | null> {
+    const result = await call('sessions/create-failed', () =>
+      window.electronAPI.sessions.create(groupId),
+    )
     if (!result) return null
     remember(result.session)
     openSessionId.value = result.session.id
@@ -201,6 +204,35 @@ export const useSessions = defineStore('sessions', () => {
       window.electronAPI.sessions.moveToGroup(id, groupId),
     )
     if (result) remember(result.session)
+  }
+
+  function rememberGroup(group: SessionGroup): void {
+    groups.value = groups.value.map((known) => (known.id === group.id ? group : known))
+  }
+
+  async function renameGroup(groupId: string, name: string): Promise<void> {
+    const result = await call('sessions/rename-group-failed', () =>
+      window.electronAPI.sessions.renameGroup(groupId, name),
+    )
+    if (result) rememberGroup(result.group)
+  }
+
+  /** Its Sessions stay; each arrives ungrouped as its own `session-changed`. */
+  async function deleteGroup(groupId: string): Promise<void> {
+    const result = await call('sessions/delete-group-failed', () =>
+      window.electronAPI.sessions.deleteGroup(groupId),
+    )
+    if (result) groups.value = groups.value.filter((group) => group.id !== groupId)
+  }
+
+  async function setGroupExpanded(groupId: string, expanded: boolean): Promise<void> {
+    const group = groups.value.find((known) => known.id === groupId)
+    if (!group) return
+    rememberGroup({ ...group, expanded })
+    const result = await call('sessions/expand-group-failed', () =>
+      window.electronAPI.sessions.setGroupExpanded(groupId, expanded),
+    )
+    rememberGroup(result ? result.group : group)
   }
 
   async function setPinnedShowMore(shown: boolean): Promise<void> {
@@ -262,6 +294,9 @@ export const useSessions = defineStore('sessions', () => {
     setPinned,
     createGroup,
     moveToGroup,
+    renameGroup,
+    deleteGroup,
+    setGroupExpanded,
     setPinnedShowMore,
     remove,
     saveTimelineMessages,

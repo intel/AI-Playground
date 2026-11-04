@@ -274,13 +274,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   sessions: {
     list: () => invoke('sessions:list'),
-    create: () => invoke('sessions:create'),
+    create: (groupId?: string) => invoke('sessions:create', groupId),
     open: (id: string) => invoke('sessions:open', id),
     rename: (id: string, title: string) => invoke('sessions:rename', id, title),
     pin: (id: string, pinned: boolean) => invoke('sessions:pin', id, pinned),
     createGroup: (id: string, name: string) => invoke('sessions:createGroup', id, name),
     moveToGroup: (id: string, groupId: string | null) =>
       invoke('sessions:moveToGroup', id, groupId),
+    renameGroup: (groupId: string, name: string) => invoke('sessions:renameGroup', groupId, name),
+    deleteGroup: (groupId: string) => invoke('sessions:deleteGroup', groupId),
+    setGroupExpanded: (groupId: string, expanded: boolean) =>
+      invoke('sessions:setGroupExpanded', groupId, expanded),
     setPinnedShowMore: (shown: boolean) => invoke('sessions:setPinnedShowMore', shown),
     delete: (id: string) => invoke('sessions:delete', id),
     harnessSession: (id: string, presetName: string, game?: HarnessGameWorkspace) =>

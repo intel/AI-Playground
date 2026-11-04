@@ -44,9 +44,9 @@ export const useSessionLifecycle = defineStore('sessionLifecycle', () => {
     })
   }
 
-  /** A new Session keeps whatever preset is active. */
-  async function newSession(): Promise<void> {
-    await sessions.create()
+  /** A new Session keeps whatever preset is active; with `groupId` it starts in that Group. */
+  async function newSession(groupId?: string): Promise<void> {
+    await sessions.create(groupId)
   }
 
   function downloadOf(group: string | undefined): SessionDownload | null {

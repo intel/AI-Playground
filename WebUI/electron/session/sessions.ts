@@ -81,7 +81,16 @@ export async function readSession(id: string): Promise<SessionFile> {
   )
 }
 
-export async function createSession(): Promise<SessionSummary> {
+/** With `groupId` the Session starts in that Session Group, which must exist. */
+export async function createSession(groupId?: string): Promise<SessionSummary> {
+  if (groupId === undefined) return createSessionFile(undefined)
+  return serializeSessionGroups(async () => {
+    requireGroup(await readGroupsForWrite(), groupId)
+    return createSessionFile(groupId)
+  })
+}
+
+async function createSessionFile(groupId: string | undefined): Promise<SessionSummary> {
   const now = Date.now()
   const file: SessionFile = {
     schemaVersion: 1,
@@ -89,6 +98,7 @@ export async function createSession(): Promise<SessionSummary> {
     title: '',
     renamed: false,
     pinned: false,
+    ...(groupId === undefined ? {} : { groupId }),
     createdAt: now,
     updatedAt: now,
     presetsUsed: [],
@@ -188,6 +198,12 @@ async function readGroupsForWrite(): Promise<SessionGroup[]> {
   throw new Error('Session Groups are unavailable: their file cannot be read')
 }
 
+function requireGroup(groups: SessionGroup[], groupId: string): SessionGroup {
+  const group = groups.find((candidate) => candidate.id === groupId)
+  if (!group) throw new Error(`no such session group: ${groupId}`)
+  return group
+}
+
 function validGroupName(name: string, groups: SessionGroup[], ownId?: string): string {
   const trimmed = name.trim()
   if (!trimmed) throw new Error('A Group needs a name')
@@ -235,11 +251,54 @@ export async function moveSessionToGroup(
   assertSessionId(sessionId)
   if (groupId === null) return setSessionGroup(sessionId, null)
   return serializeSessionGroups(async () => {
-    const groups = await readGroupsForWrite()
-    if (!groups.some((group) => group.id === groupId)) {
-      throw new Error(`no such session group: ${groupId}`)
-    }
+    requireGroup(await readGroupsForWrite(), groupId)
     return setSessionGroup(sessionId, groupId)
+  })
+}
+
+async function updateSessionGroup(
+  groupId: string,
+  update: (group: SessionGroup, groups: SessionGroup[]) => SessionGroup,
+): Promise<SessionGroup> {
+  return serializeSessionGroups(async () => {
+    const groups = await readGroupsForWrite()
+    const next = update(requireGroup(groups, groupId), groups)
+    await writeSessionGroups(groups.map((group) => (group.id === groupId ? next : group)))
+    return next
+  })
+}
+
+export async function renameSessionGroup(groupId: string, name: string): Promise<SessionGroup> {
+  return updateSessionGroup(groupId, (group, groups) => ({
+    ...group,
+    name: validGroupName(name, groups, groupId),
+  }))
+}
+
+export async function setSessionGroupExpanded(
+  groupId: string,
+  expanded: boolean,
+): Promise<SessionGroup> {
+  return updateSessionGroup(groupId, (group) => ({ ...group, expanded }))
+}
+
+/** The Group goes first, so a crash part-way leaves only ids that list as ungrouped. */
+export async function deleteSessionGroup(groupId: string): Promise<void> {
+  await serializeSessionGroups(async () => {
+    const groups = await readGroupsForWrite()
+    requireGroup(groups, groupId)
+    await writeSessionGroups(groups.filter((group) => group.id !== groupId))
+    const members = (await listSessions()).filter(
+      (session) => !session.unreadable && session.groupId === groupId,
+    )
+    for (const member of members) {
+      const file = await mutateSession(member.id, (current) => {
+        if (current.groupId !== groupId) return current
+        const { groupId: _removed, ...rest } = current
+        return rest
+      })
+      emitSessionChanged(sessionDocumentOf(file))
+    }
   })
 }
 

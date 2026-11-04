@@ -67,11 +67,14 @@ export function sessionSections({
   const recent = ordered.filter(
     (s) => (s.unreadable || (!s.pinned && groupOf(s) === null)) && matches(s),
   )
+  const openOutsidePinned = pinned.every((s) => s.id !== openSessionId)
+  const expanded = (group: SessionGroup, members: SessionSummary[]) =>
+    group.expanded || !!needle || (openOutsidePinned && members.some((s) => s.id === openSessionId))
   const listings = groups
     .map((group) => {
       const members = ordered.filter((s) => groupOf(s) === group.id)
       return {
-        listing: { group, sessions: members.filter(matches), expanded: true },
+        listing: { group, sessions: members.filter(matches), expanded: expanded(group, members) },
         newest: members[0],
       }
     })

@@ -224,11 +224,11 @@ export const CHANNELS = {
       pinnedShowMore: boolean
     }>,
   },
-  /** Create a Session and lay out its Session Folder. */
+  /** Create a Session and lay out its Session Folder, optionally already in a Session Group. */
   'sessions:create': {
     kind: 'invoke',
     owner: 'main',
-    args: [] as const,
+    args: [] as unknown as readonly [groupId?: string],
     result: null as unknown as IpcOkWith<{ session: SessionSummary }>,
   },
   /** One Session's row plus its display timeline, and the artifact URLs whose file is gone. */
@@ -269,6 +269,27 @@ export const CHANNELS = {
     owner: 'main',
     args: [] as unknown as readonly [string, string | null],
     result: null as unknown as IpcOkWith<{ session: SessionSummary }>,
+  },
+  /** Rename a Session Group; a name taken by another Group, ignoring case, fails. */
+  'sessions:renameGroup': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string, string],
+    result: null as unknown as IpcOkWith<{ group: SessionGroup }>,
+  },
+  /** Delete a Session Group; its Sessions stay and leave it, each pushing `session-changed`. */
+  'sessions:deleteGroup': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string],
+    result: null as unknown as IpcMutationResult,
+  },
+  /** Store whether a Session Group's header is expanded. */
+  'sessions:setGroupExpanded': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string, boolean],
+    result: null as unknown as IpcOkWith<{ group: SessionGroup }>,
   },
   /** Remember whether Pinned lists every pinned Session or the three most recent. */
   'sessions:setPinnedShowMore': {

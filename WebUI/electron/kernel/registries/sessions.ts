@@ -17,6 +17,7 @@ import type {
   createSession,
   createSessionGroup,
   deleteSession,
+  deleteSessionGroup,
   listSessionGroups,
   listSessions,
   moveSessionToGroup,
@@ -25,6 +26,8 @@ import type {
   setPinnedShowMore,
   pinSession,
   renameSession,
+  renameSessionGroup,
+  setSessionGroupExpanded,
 } from '../../session/sessions'
 import type {
   deleteArtifact,
@@ -48,6 +51,9 @@ export type SessionsDeps = {
   listSessionGroups: typeof listSessionGroups
   createSessionGroup: typeof createSessionGroup
   moveSessionToGroup: typeof moveSessionToGroup
+  renameSessionGroup: typeof renameSessionGroup
+  deleteSessionGroup: typeof deleteSessionGroup
+  setSessionGroupExpanded: typeof setSessionGroupExpanded
   readPinnedShowMore: typeof readPinnedShowMore
   setPinnedShowMore: typeof setPinnedShowMore
   deleteSession: typeof deleteSession
@@ -96,9 +102,12 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
         return ipcFail(e)
       }
     },
-    'sessions:create': async () => {
+    'sessions:create': async (_event, groupId) => {
       try {
-        return { success: true as const, session: await deps.createSession() }
+        const session = await deps.createSession(
+          groupId === undefined ? undefined : requireString(groupId, 'group id'),
+        )
+        return { success: true as const, session }
       } catch (e) {
         return ipcFail(e)
       }
@@ -154,6 +163,37 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
           groupId === null ? null : requireString(groupId, 'group id'),
         )
         return { success: true as const, session }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:renameGroup': async (_event, groupId, name) => {
+      try {
+        const group = await deps.renameSessionGroup(
+          requireString(groupId, 'group id'),
+          requireString(name, 'group name'),
+        )
+        return { success: true as const, group }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:deleteGroup': async (_event, groupId) => {
+      try {
+        await deps.deleteSessionGroup(requireString(groupId, 'group id'))
+        return { success: true as const }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:setGroupExpanded': async (_event, groupId, expanded) => {
+      try {
+        if (typeof expanded !== 'boolean') throw new Error('expanded must be a boolean')
+        const group = await deps.setSessionGroupExpanded(
+          requireString(groupId, 'group id'),
+          expanded,
+        )
+        return { success: true as const, group }
       } catch (e) {
         return ipcFail(e)
       }
