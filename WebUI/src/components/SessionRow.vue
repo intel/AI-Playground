@@ -116,7 +116,11 @@
         class="min-w-28"
         :onCloseAutoFocus="(event) => event.preventDefault?.()"
       >
-        <Dialog v-model:open="renameOpen" @update:open="(open) => !open && (menuOpen = false)">
+        <Dialog
+          v-if="!session.unreadable"
+          v-model:open="renameOpen"
+          @update:open="(open) => !open && (menuOpen = false)"
+        >
           <DialogTrigger as-child>
             <DropdownMenuItem
               @select="
@@ -147,13 +151,13 @@
               <Button variant="ghost" @click="renameOpen = false">{{
                 languages.COM_CANCEL
               }}</Button>
-              <Button :disabled="!canSaveRename" @click="saveRename">{{
+              <Button :disabled="!typedOrHasNameToClear" @click="saveRename">{{
                 clearsName ? languages.SESSIONS_REMOVE_NAME : languages.SESSIONS_SAVE
               }}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        <DropdownMenuItem @select="emit('pin', !session.pinned)">
+        <DropdownMenuItem v-if="!session.unreadable" @select="emit('pin', !session.pinned)">
           {{ session.pinned ? languages.SESSIONS_UNPIN : languages.SESSIONS_PIN }}
         </DropdownMenuItem>
         <AlertDialog>
@@ -262,10 +266,10 @@ const presetIcons = computed(() =>
 )
 
 const clearsName = computed(() => !renameTitle.value.trim())
-const canSaveRename = computed(() => !clearsName.value || props.session.renamed)
+const typedOrHasNameToClear = computed(() => !clearsName.value || props.session.renamed)
 
 function saveRename() {
-  if (!canSaveRename.value) return
+  if (!typedOrHasNameToClear.value) return
   emit('rename', renameTitle.value.trim())
   renameOpen.value = false
   menuOpen.value = false
