@@ -16,12 +16,20 @@ import {
   type SessionFileDeps,
   type SessionFolderPaths,
 } from '../persist/sessionFiles'
+import {
+  readSessionGroupsFile,
+  resetSessionGroupsFileForTest,
+  serializeSessionGroups,
+  writeSessionGroups,
+} from '../persist/sessionGroupsFile'
 import { readHistoryEntries } from './sessionHistory'
 import { autoTitle } from './sessionTitle'
 import {
+  SESSION_NAME_MAX_LENGTH,
   SessionTitleSchema,
   type SessionDocument,
   type SessionFile,
+  type SessionGroup,
   type SessionSummary,
 } from '@/types/sessionIpc'
 
@@ -51,8 +59,17 @@ export function sessionPaths(id: string): SessionFolderPaths {
 }
 
 function summaryOf(file: SessionFile): SessionSummary {
-  const { id, title, renamed, pinned, createdAt, updatedAt, presetsUsed } = file
-  return { id, title, renamed, pinned, createdAt, updatedAt, presetsUsed }
+  const { id, title, renamed, pinned, groupId, createdAt, updatedAt, presetsUsed } = file
+  return {
+    id,
+    title,
+    renamed,
+    pinned,
+    ...(groupId === undefined ? {} : { groupId }),
+    createdAt,
+    updatedAt,
+    presetsUsed,
+  }
 }
 
 export async function readSession(id: string): Promise<SessionFile> {
@@ -158,6 +175,73 @@ export async function pinSession(id: string, pinned: boolean): Promise<SessionSu
   return summaryOf(file)
 }
 
+/** The Session Groups of the active root; none while the Groups file cannot be read. */
+export async function listSessionGroups(): Promise<SessionGroup[]> {
+  const read = await readSessionGroupsFile()
+  return read.status === 'ok' ? read.file.groups : []
+}
+
+async function readGroupsForWrite(): Promise<SessionGroup[]> {
+  const read = await readSessionGroupsFile()
+  if (read.status === 'ok') return read.file.groups
+  throw new Error('Session Groups are unavailable: their file cannot be read')
+}
+
+function validGroupName(name: string, groups: SessionGroup[], ownId?: string): string {
+  const trimmed = name.trim()
+  if (!trimmed) throw new Error('A Group needs a name')
+  if (trimmed.length > SESSION_NAME_MAX_LENGTH) throw new Error('That Group name is too long')
+  const taken = trimmed.toLocaleLowerCase()
+  if (groups.some((group) => group.id !== ownId && group.name.toLocaleLowerCase() === taken)) {
+    throw new Error(`A Group named "${trimmed}" already exists`)
+  }
+  return trimmed
+}
+
+async function setSessionGroup(id: string, groupId: string | null): Promise<SessionSummary> {
+  const file = await mutateSession(id, ({ groupId: _previous, ...rest }) =>
+    groupId === null ? rest : { ...rest, groupId },
+  )
+  emitSessionChanged(sessionDocumentOf(file))
+  return summaryOf(file)
+}
+
+/** Names a new Session Group and moves the Session into it, the only way a Group is made. */
+export async function createSessionGroup(
+  sessionId: string,
+  name: string,
+): Promise<{ group: SessionGroup; session: SessionSummary }> {
+  assertSessionId(sessionId)
+  return serializeSessionGroups(async () => {
+    const groups = await readGroupsForWrite()
+    const group: SessionGroup = {
+      id: `group-${randomUUID()}`,
+      name: validGroupName(name, groups),
+      createdAt: Date.now(),
+      expanded: true,
+    }
+    const session = await setSessionGroup(sessionId, group.id)
+    await writeSessionGroups([...groups, group])
+    return { group, session }
+  })
+}
+
+/** `null` takes the Session out of its Group, back to Recent (or Pinned). */
+export async function moveSessionToGroup(
+  sessionId: string,
+  groupId: string | null,
+): Promise<SessionSummary> {
+  assertSessionId(sessionId)
+  if (groupId === null) return setSessionGroup(sessionId, null)
+  return serializeSessionGroups(async () => {
+    const groups = await readGroupsForWrite()
+    if (!groups.some((group) => group.id === groupId)) {
+      throw new Error(`no such session group: ${groupId}`)
+    }
+    return setSessionGroup(sessionId, groupId)
+  })
+}
+
 /** Removes the Session Folder, then lets owners of Session-bound data (Tasks, Harness Sessions) clean up. */
 export async function deleteSession(id: string): Promise<void> {
   assertSessionId(id)
@@ -181,4 +265,5 @@ export async function wipeDemoSessions(): Promise<void> {
 export function resetSessionsForTest(): void {
   deletedListeners.clear()
   resetSessionFilesForTest()
+  resetSessionGroupsFileForTest()
 }

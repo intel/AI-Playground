@@ -15,6 +15,8 @@ export const SessionFileSchema = z.object({
   /** Set once the user renames, so the first prompt no longer overwrites the title. */
   renamed: z.boolean().default(false),
   pinned: z.boolean().default(false),
+  /** The Session Group it is in; one that no longer resolves lists as ungrouped. */
+  groupId: z.string().optional(),
   createdAt: z.number().int().nonnegative(),
   updatedAt: z.number().int().nonnegative(),
   presetsUsed: z.array(z.string()).default([]),
@@ -38,13 +40,32 @@ export type SessionFile = z.infer<typeof SessionFileSchema>
 /** One row of the Sessions panel. */
 export type SessionSummary = Pick<
   SessionFile,
-  'id' | 'title' | 'renamed' | 'pinned' | 'createdAt' | 'updatedAt' | 'presetsUsed'
+  'id' | 'title' | 'renamed' | 'pinned' | 'groupId' | 'createdAt' | 'updatedAt' | 'presetsUsed'
 > & { unreadable?: boolean }
 
 /** What opening a Session hands the renderer: its row plus the display timeline. */
 export type SessionDocument = SessionSummary & { timeline: unknown[] }
 
-export const SessionTitleSchema = z.string().trim().min(1).max(500)
+export const SESSION_NAME_MAX_LENGTH = 500
+
+export const SessionTitleSchema = z.string().trim().min(1).max(SESSION_NAME_MAX_LENGTH)
+
+export const SessionGroupSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  createdAt: z.number().int().nonnegative(),
+  expanded: z.boolean().default(true),
+})
+
+export type SessionGroup = z.infer<typeof SessionGroupSchema>
+
+/** The one Session Groups file beside the Session Folders. */
+export const SessionGroupsFileSchema = z.object({
+  schemaVersion: z.literal(1),
+  groups: z.array(SessionGroupSchema).default([]),
+})
+
+export type SessionGroupsFile = z.infer<typeof SessionGroupsFileSchema>
 
 export const HistoryEntryKindSchema = z.enum([
   'chat',

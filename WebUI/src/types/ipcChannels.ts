@@ -43,6 +43,7 @@ import type {
   NewestArtifact,
   SessionArtifact,
   SessionDocument,
+  SessionGroup,
   SessionLastPreset,
   SessionSummary,
   SessionTurn,
@@ -212,12 +213,12 @@ export const CHANNELS = {
     args: [] as unknown as readonly [string[]],
     result: null as unknown as IpcMutationResult,
   },
-  /** Every Session of the active root (demo or real), newest first. */
+  /** Every Session of the active root (demo or real), newest first, and its Session Groups. */
   'sessions:list': {
     kind: 'invoke',
     owner: 'main',
     args: [] as const,
-    result: null as unknown as IpcOkWith<{ sessions: SessionSummary[] }>,
+    result: null as unknown as IpcOkWith<{ sessions: SessionSummary[]; groups: SessionGroup[] }>,
   },
   /** Create a Session and lay out its Session Folder. */
   'sessions:create': {
@@ -249,6 +250,20 @@ export const CHANNELS = {
     kind: 'invoke',
     owner: 'main',
     args: [] as unknown as readonly [string, boolean],
+    result: null as unknown as IpcOkWith<{ session: SessionSummary }>,
+  },
+  /** Name a new Session Group and move the Session into it; pushes `session-changed`. */
+  'sessions:createGroup': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string, string],
+    result: null as unknown as IpcOkWith<{ group: SessionGroup; session: SessionSummary }>,
+  },
+  /** Move a Session into a Session Group, or out of its own with `null`; pushes `session-changed`. */
+  'sessions:moveToGroup': {
+    kind: 'invoke',
+    owner: 'main',
+    args: [] as unknown as readonly [string, string | null],
     result: null as unknown as IpcOkWith<{ session: SessionSummary }>,
   },
   /** Delete a Session and its whole Session Folder. */

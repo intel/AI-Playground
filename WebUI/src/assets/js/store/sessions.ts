@@ -4,6 +4,7 @@ import { connectKernelEventStream } from '@/assets/js/projection/kernelProjectio
 import { useErrors } from '@/assets/js/store/errors'
 import type {
   SessionDocument,
+  SessionGroup,
   SessionLastPreset,
   SessionSummary,
   SessionTurn,
@@ -28,6 +29,7 @@ export const useSessions = defineStore('sessions', () => {
   const errors = useErrors()
 
   const sessions = ref<Record<string, SessionSummary>>({})
+  const groups = ref<SessionGroup[]>([])
   const openSessionId = ref<string | null>(null)
   const openTimeline = ref<unknown[]>([])
   /** Artifact URLs of the open Session whose file was deleted; their cards say so. */
@@ -135,6 +137,7 @@ export const useSessions = defineStore('sessions', () => {
     const result = await call('sessions/list-failed', () => window.electronAPI.sessions.list())
     if (!result) return
     sessions.value = Object.fromEntries(result.sessions.map((session) => [session.id, session]))
+    groups.value = result.groups
     await openNewestOrCreate()
   }
 
@@ -180,6 +183,24 @@ export const useSessions = defineStore('sessions', () => {
     if (result) remember(result.session)
   }
 
+  /** Names a new Session Group and moves the Session into it. */
+  async function createGroup(id: string, name: string): Promise<void> {
+    const result = await call('sessions/create-group-failed', () =>
+      window.electronAPI.sessions.createGroup(id, name),
+    )
+    if (!result) return
+    groups.value = [...groups.value, result.group]
+    remember(result.session)
+  }
+
+  /** `null` takes the Session out of its Session Group. */
+  async function moveToGroup(id: string, groupId: string | null): Promise<void> {
+    const result = await call('sessions/move-to-group-failed', () =>
+      window.electronAPI.sessions.moveToGroup(id, groupId),
+    )
+    if (result) remember(result.session)
+  }
+
   /** Saves settled display messages into a Session's timeline; one with a known id is replaced. */
   async function saveTimelineMessages(id: string, messages: { id: string }[]): Promise<void> {
     if (id === openSessionId.value) {
@@ -213,6 +234,7 @@ export const useSessions = defineStore('sessions', () => {
 
   return {
     sessions,
+    groups,
     openSessionId,
     openTimeline,
     openDeletedFiles,
@@ -227,6 +249,8 @@ export const useSessions = defineStore('sessions', () => {
     open,
     rename,
     setPinned,
+    createGroup,
+    moveToGroup,
     remove,
     saveTimelineMessages,
     ensureOpenSession,

@@ -160,6 +160,25 @@
         <DropdownMenuItem v-if="!session.unreadable" @select="emit('pin', !session.pinned)">
           {{ session.pinned ? languages.SESSIONS_UNPIN : languages.SESSIONS_PIN }}
         </DropdownMenuItem>
+        <DropdownMenuSub v-if="!session.unreadable">
+          <DropdownMenuSubTrigger>{{ languages.SESSIONS_MOVE_TO_GROUP }}</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent class="max-w-64">
+            <DropdownMenuItem
+              v-for="group in otherGroups"
+              :key="group.id"
+              @select="emit('moveToGroup', group.id)"
+            >
+              <span class="truncate">{{ group.name }}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator v-if="otherGroups.length > 0" />
+            <DropdownMenuItem @select="openNewGroup">
+              {{ languages.SESSIONS_NEW_GROUP }}
+            </DropdownMenuItem>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuItem v-if="ownGroup" @select="emit('moveToGroup', null)">
+          {{ languages.SESSIONS_REMOVE_FROM_GROUP }}
+        </DropdownMenuItem>
         <AlertDialog>
           <AlertDialogTrigger as-child>
             <DropdownMenuItem @select="(event: Event) => event.preventDefault()">
@@ -181,6 +200,35 @@
         </AlertDialog>
       </DropdownMenuContent>
     </DropdownMenu>
+
+    <Dialog v-model:open="newGroupOpen">
+      <DialogContent @click.stop>
+        <DialogHeader>
+          <DialogTitle>{{ languages.SESSIONS_NEW_GROUP_TITLE }}</DialogTitle>
+          <DialogDescription>{{ languages.SESSIONS_NEW_GROUP_DESCRIPTION }}</DialogDescription>
+        </DialogHeader>
+        <div class="mt-2 flex flex-col gap-1.5">
+          <Input
+            autofocus
+            type="text"
+            :maxlength="SESSION_NAME_MAX_LENGTH"
+            :placeholder="languages.SESSIONS_GROUP_NAME_PLACEHOLDER"
+            :aria-label="languages.SESSIONS_GROUP_NAME_PLACEHOLDER"
+            :aria-invalid="newGroupError ? 'true' : undefined"
+            aria-describedby="new-group-error"
+            v-model="newGroupName"
+            @keydown.enter.prevent="saveNewGroup"
+          />
+          <p id="new-group-error" class="text-sm text-destructive" role="alert">
+            {{ newGroupError }}
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" @click="newGroupOpen = false">{{ languages.COM_CANCEL }}</Button>
+          <Button @click="saveNewGroup">{{ languages.SESSIONS_CREATE_GROUP }}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
@@ -197,6 +245,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -227,10 +279,12 @@ import { useOemBranding } from '@/assets/js/store/oemBranding'
 import { usePresets } from '@/assets/js/store/presets'
 import { relativeTime } from '@/assets/js/store/recordRows'
 import { sessionRowMarker, type SessionRowStatus } from '@/lib/sessionRowStatus'
-import type { SessionSummary } from '@/types/sessionIpc'
+import { SESSION_NAME_MAX_LENGTH, type SessionGroup, type SessionSummary } from '@/types/sessionIpc'
 
 const props = defineProps<{
   session: SessionSummary
+  /** Every Session Group, for "Move to group" and the new Group's name check. */
+  groups: SessionGroup[]
   active: boolean
   status: SessionRowStatus
   /** One of the Session's Tasks has an enabled Schedule. */
@@ -241,6 +295,8 @@ const emit = defineEmits<{
   open: []
   rename: [title: string]
   pin: [pinned: boolean]
+  moveToGroup: [groupId: string | null]
+  createGroup: [name: string]
   delete: []
 }>()
 
@@ -252,6 +308,13 @@ const oemBranding = useOemBranding()
 const menuOpen = ref(false)
 const renameOpen = ref(false)
 const renameTitle = ref('')
+
+const newGroupOpen = ref(false)
+const newGroupName = ref('')
+const newGroupError = ref('')
+
+const ownGroup = computed(() => props.groups.find((group) => group.id === props.session.groupId))
+const otherGroups = computed(() => props.groups.filter((group) => group !== ownGroup.value))
 
 const title = computed(() => props.session.title || i18nState.SESSIONS_UNTITLED)
 
@@ -273,5 +336,23 @@ function saveRename() {
   emit('rename', renameTitle.value.trim())
   renameOpen.value = false
   menuOpen.value = false
+}
+
+function openNewGroup() {
+  newGroupName.value = ''
+  newGroupError.value = ''
+  newGroupOpen.value = true
+}
+
+function saveNewGroup() {
+  const name = newGroupName.value.trim()
+  const taken = name.toLocaleLowerCase()
+  if (!name) newGroupError.value = i18nState.SESSIONS_GROUP_NAME_BLANK
+  else if (props.groups.some((group) => group.name.toLocaleLowerCase() === taken)) {
+    newGroupError.value = i18nState.SESSIONS_GROUP_NAME_TAKEN
+  } else {
+    emit('createGroup', name)
+    newGroupOpen.value = false
+  }
 }
 </script>

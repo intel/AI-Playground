@@ -47,7 +47,10 @@ beforeEach(async () => {
       onKernelEvent: kernelBus.onKernelEvent,
       getKernelSnapshot: async () => kernelBus.getKernelSnapshot(),
       sessions: {
-        list: ok(async () => ({ sessions: await sessionModule.listSessions() })),
+        list: ok(async () => ({
+          sessions: await sessionModule.listSessions(),
+          groups: await sessionModule.listSessionGroups(),
+        })),
         create: ok(async () => ({ session: await sessionModule.createSession() })),
         open: (id: string) =>
           ok(async () => ({ session: await sessionModule.openSession(id), missingFiles: [] }))(),

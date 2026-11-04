@@ -18,8 +18,11 @@ vi.mock('../../kernel/kernelBus', () => ({ emitSessionChanged: vi.fn() }))
 
 const {
   createSession,
+  createSessionGroup,
   deleteSession,
+  listSessionGroups,
   listSessions,
+  moveSessionToGroup,
   onSessionDeleted,
   openSession,
   pinSession,
@@ -295,6 +298,147 @@ describe('Session module', () => {
   })
 })
 
+async function sessionFile(id: string, root = dirs.real) {
+  return JSON.parse(await fs.readFile(path.join(root, id, 'session.json'), 'utf8'))
+}
+
+function groupsFile(root = dirs.real) {
+  return path.join(root, 'session-groups.json')
+}
+
+describe('Session Groups', () => {
+  it('creates a Group with a Session in it, both surviving a re-list', async () => {
+    const session = await createSession()
+
+    const created = await createSessionGroup(session.id, '  Lisbon trip  ')
+
+    expect(created.session).toMatchObject({ id: session.id, groupId: created.group.id })
+    expect(created.group).toMatchObject({ name: 'Lisbon trip', expanded: true })
+    expect(await listSessionGroups()).toEqual([created.group])
+    expect((await listSessions())[0]).toMatchObject({ id: session.id, groupId: created.group.id })
+  })
+
+  it('moves a Session between Groups and out of one, remembered across a re-list', async () => {
+    const a = await createSession()
+    const b = await createSession()
+    const { group: lisbon } = await createSessionGroup(a.id, 'Lisbon')
+    const { group: porto } = await createSessionGroup(b.id, 'Porto')
+
+    expect(await moveSessionToGroup(a.id, porto.id)).toMatchObject({ groupId: porto.id })
+    expect((await listSessions()).find((s) => s.id === a.id)?.groupId).toBe(porto.id)
+
+    const removed = await moveSessionToGroup(a.id, null)
+    expect(removed.groupId).toBeUndefined()
+    expect((await listSessions()).find((s) => s.id === a.id)?.groupId).toBeUndefined()
+    expect((await sessionFile(a.id)).groupId).toBeUndefined()
+    expect((await listSessionGroups()).map((g) => g.id)).toEqual([lisbon.id, porto.id])
+  })
+
+  it('leaves the last-used time alone when moving a Session', async () => {
+    const session = await createSession()
+    const other = await createSession()
+    await new Promise((resolve) => setTimeout(resolve, 5))
+
+    const { group } = await createSessionGroup(session.id, 'Lisbon')
+    await createSessionGroup(other.id, 'Porto')
+    await moveSessionToGroup(other.id, group.id)
+    await moveSessionToGroup(session.id, null)
+
+    const listed = await listSessions()
+    expect(listed.find((s) => s.id === session.id)?.updatedAt).toBe(session.updatedAt)
+    expect(listed.find((s) => s.id === other.id)?.updatedAt).toBe(other.updatedAt)
+  })
+
+  it.each(['', '   '])('refuses a blank Group name (%j)', async (blank) => {
+    const session = await createSession()
+
+    await expect(createSessionGroup(session.id, blank)).rejects.toThrow()
+    expect(await listSessionGroups()).toEqual([])
+    expect((await listSessions())[0].groupId).toBeUndefined()
+  })
+
+  it('refuses a Group name longer than a Session Name may be', async () => {
+    const session = await createSession()
+
+    await expect(createSessionGroup(session.id, 'x'.repeat(501))).rejects.toThrow()
+    await expect(createSessionGroup(session.id, 'x'.repeat(500))).resolves.toBeTruthy()
+  })
+
+  it('refuses a Group name already taken in another case', async () => {
+    const a = await createSession()
+    const b = await createSession()
+    await createSessionGroup(a.id, 'Lisbon')
+
+    await expect(createSessionGroup(b.id, ' LISBON ')).rejects.toThrow(/already exists/)
+    expect(await listSessionGroups()).toHaveLength(1)
+    expect((await listSessions()).find((s) => s.id === b.id)?.groupId).toBeUndefined()
+  })
+
+  it('reads a Session file written before Groups existed as ungrouped', async () => {
+    const session = await createSession()
+
+    expect((await sessionFile(session.id)).groupId).toBeUndefined()
+    expect((await listSessions())[0].groupId).toBeUndefined()
+  })
+
+  it('keeps a groupId naming a missing Group on the file', async () => {
+    const session = await createSession()
+    const { group } = await createSessionGroup(session.id, 'Lisbon')
+    await fs.writeFile(groupsFile(), JSON.stringify({ schemaVersion: 1, groups: [] }))
+
+    expect(await listSessionGroups()).toEqual([])
+    expect((await listSessions())[0].groupId).toBe(group.id)
+    expect((await sessionFile(session.id)).groupId).toBe(group.id)
+  })
+
+  it('lists no Groups from an unreadable Groups file and touches no groupId', async () => {
+    const a = await createSession()
+    const b = await createSession()
+    const { group } = await createSessionGroup(a.id, 'Lisbon')
+    await fs.writeFile(groupsFile(), '{not json')
+
+    expect(await listSessionGroups()).toEqual([])
+    await expect(createSessionGroup(b.id, 'Porto')).rejects.toThrow()
+    await expect(moveSessionToGroup(b.id, group.id)).rejects.toThrow()
+    expect(await fs.readFile(groupsFile(), 'utf8')).toBe('{not json')
+    expect((await sessionFile(a.id)).groupId).toBe(group.id)
+    expect((await sessionFile(b.id)).groupId).toBeUndefined()
+  })
+
+  it('finds its Groups again once the Groups file reads again', async () => {
+    const session = await createSession()
+    const { group } = await createSessionGroup(session.id, 'Lisbon')
+    const saved = await fs.readFile(groupsFile(), 'utf8')
+    await fs.writeFile(groupsFile(), '{not json')
+    await listSessions()
+
+    await fs.writeFile(groupsFile(), saved)
+
+    expect(await listSessionGroups()).toEqual([group])
+    expect((await listSessions())[0].groupId).toBe(group.id)
+  })
+
+  it('fails on a missing Session or Group', async () => {
+    const session = await createSession()
+    await createSessionGroup(session.id, 'Lisbon')
+
+    await expect(createSessionGroup('session-missing', 'Porto')).rejects.toThrow()
+    await expect(moveSessionToGroup('session-missing', null)).rejects.toThrow()
+    await expect(moveSessionToGroup(session.id, 'group-missing')).rejects.toThrow()
+    expect((await listSessionGroups()).map((g) => g.name)).toEqual(['Lisbon'])
+  })
+
+  it('deletes a grouped Session like any other', async () => {
+    const session = await createSession()
+    const { group } = await createSessionGroup(session.id, 'Lisbon')
+
+    await deleteSession(session.id)
+
+    expect(await listSessions()).toEqual([])
+    expect(await listSessionGroups()).toEqual([group])
+  })
+})
+
 describe('demo mode', () => {
   it('keeps demo Sessions in their own root', async () => {
     const real = await createSession()
@@ -305,6 +449,19 @@ describe('demo mode', () => {
     expect((await listSessions()).map((session) => session.id)).toEqual([demoSession.id])
     demo = false
     expect((await listSessions()).map((session) => session.id)).toEqual([real.id])
+  })
+
+  it('keeps demo Groups in their own root', async () => {
+    const real = await createSession()
+    const { group } = await createSessionGroup(real.id, 'Lisbon')
+    demo = true
+    const demoSession = await createSession()
+
+    expect(await listSessionGroups()).toEqual([])
+    await createSessionGroup(demoSession.id, 'Lisbon')
+    expect(await fs.readFile(groupsFile(dirs.demo), 'utf8')).toContain('Lisbon')
+    demo = false
+    expect(await listSessionGroups()).toEqual([group])
   })
 
   it('wipes only the demo root', async () => {

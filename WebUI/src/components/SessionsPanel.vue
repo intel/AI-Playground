@@ -110,18 +110,51 @@
             >
               {{ sectionLabel(section.id) }}
             </h3>
-            <SessionRow
-              v-for="session in section.sessions"
-              :key="session.id"
-              :session="session"
-              :active="session.id === sessions.openSessionId"
-              :status="lifecycle.rowStatus(session.id)"
-              :scheduled="agentTasks.scheduledSessionIds.has(session.id)"
-              @open="lifecycle.openSession(session.id)"
-              @rename="(title) => sessions.rename(session.id, title)"
-              @pin="(pinned) => sessions.setPinned(session.id, pinned)"
-              @delete="sessions.remove(session.id)"
-            />
+            <template v-if="section.id === 'groups'">
+              <section
+                v-for="listing in section.groups"
+                :key="listing.group.id"
+                role="group"
+                :aria-label="listing.group.name"
+                class="flex flex-col gap-1.5"
+              >
+                <h4 class="px-1 truncate text-sm font-medium text-foreground">
+                  {{ listing.group.name }}
+                </h4>
+                <SessionRow
+                  v-for="session in listing.sessions"
+                  :key="session.id"
+                  :session="session"
+                  :groups="sessions.groups"
+                  :active="session.id === sessions.openSessionId"
+                  :status="lifecycle.rowStatus(session.id)"
+                  :scheduled="agentTasks.scheduledSessionIds.has(session.id)"
+                  @open="lifecycle.openSession(session.id)"
+                  @rename="(title) => sessions.rename(session.id, title)"
+                  @pin="(pinned) => sessions.setPinned(session.id, pinned)"
+                  @move-to-group="(groupId) => sessions.moveToGroup(session.id, groupId)"
+                  @create-group="(name) => sessions.createGroup(session.id, name)"
+                  @delete="sessions.remove(session.id)"
+                />
+              </section>
+            </template>
+            <template v-else>
+              <SessionRow
+                v-for="session in section.sessions"
+                :key="session.id"
+                :session="session"
+                :groups="sessions.groups"
+                :active="session.id === sessions.openSessionId"
+                :status="lifecycle.rowStatus(session.id)"
+                :scheduled="agentTasks.scheduledSessionIds.has(session.id)"
+                @open="lifecycle.openSession(session.id)"
+                @rename="(title) => sessions.rename(session.id, title)"
+                @pin="(pinned) => sessions.setPinned(session.id, pinned)"
+                @move-to-group="(groupId) => sessions.moveToGroup(session.id, groupId)"
+                @create-group="(name) => sessions.createGroup(session.id, name)"
+                @delete="sessions.remove(session.id)"
+              />
+            </template>
           </section>
         </div>
       </template>
@@ -164,12 +197,17 @@ const collapsed = computed(() => ui.sessionsPanelCollapsed)
 const query = ref('')
 
 const sections = computed(() =>
-  sessionSections(sessions.orderedSessions, query.value, i18nState.SESSIONS_UNTITLED),
+  sessionSections({
+    sessions: sessions.orderedSessions,
+    groups: sessions.groups,
+    query: query.value,
+    untitled: i18nState.SESSIONS_UNTITLED,
+  }),
 )
 
 const SECTION_LABELS: Record<SessionSectionId, string> = {
   pinned: 'SESSIONS_SECTION_PINNED',
-  named: 'SESSIONS_SECTION_NAMED',
+  groups: 'SESSIONS_SECTION_GROUPS',
   recent: 'SESSIONS_SECTION_RECENT',
 }
 

@@ -15,8 +15,11 @@ import {
 } from '@/types/sessionIpc'
 import type {
   createSession,
+  createSessionGroup,
   deleteSession,
+  listSessionGroups,
   listSessions,
+  moveSessionToGroup,
   openSession,
   pinSession,
   renameSession,
@@ -40,6 +43,9 @@ export type SessionsDeps = {
   openSession: typeof openSession
   renameSession: typeof renameSession
   pinSession: typeof pinSession
+  listSessionGroups: typeof listSessionGroups
+  createSessionGroup: typeof createSessionGroup
+  moveSessionToGroup: typeof moveSessionToGroup
   deleteSession: typeof deleteSession
   recordAudioTurn: typeof recordAudioTurn
   listAllArtifacts: typeof listAllArtifacts
@@ -76,7 +82,11 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
   return {
     'sessions:list': async () => {
       try {
-        return { success: true as const, sessions: await deps.listSessions() }
+        const [sessions, groups] = await Promise.all([
+          deps.listSessions(),
+          deps.listSessionGroups(),
+        ])
+        return { success: true as const, sessions, groups }
       } catch (e) {
         return ipcFail(e)
       }
@@ -116,6 +126,28 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
       try {
         if (typeof pinned !== 'boolean') throw new Error('pinned must be a boolean')
         const session = await deps.pinSession(requireString(id, 'session id'), pinned)
+        return { success: true as const, session }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:createGroup': async (_event, id, name) => {
+      try {
+        const created = await deps.createSessionGroup(
+          requireString(id, 'session id'),
+          requireString(name, 'group name'),
+        )
+        return { success: true as const, ...created }
+      } catch (e) {
+        return ipcFail(e)
+      }
+    },
+    'sessions:moveToGroup': async (_event, id, groupId) => {
+      try {
+        const session = await deps.moveSessionToGroup(
+          requireString(id, 'session id'),
+          groupId === null ? null : requireString(groupId, 'group id'),
+        )
         return { success: true as const, session }
       } catch (e) {
         return ipcFail(e)

@@ -226,8 +226,11 @@ import { buildSessionsRegistry } from './kernel/registries/sessions'
 import { recordAudioTurn } from './session/sessionAudioTurn'
 import {
   createSession,
+  createSessionGroup,
   deleteSession,
+  listSessionGroups,
   listSessions,
+  moveSessionToGroup,
   openSession,
   renameSession,
   pinSession,
@@ -1835,6 +1838,9 @@ function initEventHandle() {
       openSession,
       renameSession,
       pinSession,
+      listSessionGroups,
+      createSessionGroup,
+      moveSessionToGroup,
       deleteSession,
       harnessSessionFor,
       taskRunHarnessFor,
