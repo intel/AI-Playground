@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { storedSessionInference, type StoredInferenceCatalog } from '@/lib/storedSessionInference'
 
 // What a turn runs on when it is built from an Agent Session's stored settings
-// rather than from the live panel controls: the same model, backend, device,
-// window and sampling the session chose, resolved against today's catalogs.
+// rather than from the live panel controls: the same model, backend, window and
+// sampling the session chose, on the machine's selected device, resolved against today's catalogs.
 
 const catalog = (overrides: Partial<StoredInferenceCatalog> = {}): StoredInferenceCatalog => ({
   models: [
@@ -109,7 +109,7 @@ describe('storedSessionInference', () => {
     expect(inference.temperature).toBe(0.2)
   })
 
-  it('names the stored device even while another one is selected', () => {
+  it('runs on the selected device, ignoring one an older Session stored', () => {
     const { inference } = storedSessionInference(
       {
         backend: 'llamaCPP',
@@ -119,19 +119,25 @@ describe('storedSessionInference', () => {
       },
       catalog(),
     )
-    expect(inference.getCurrentDeviceId()).toBe('1')
-    expect(inference.getCurrentDeviceName()).toBe('Arc A770')
+    expect(inference.getCurrentDeviceId()).toBe('0')
+    expect(inference.getCurrentDeviceName()).toBe('Arc B580')
   })
 
-  it('caps the window for an OpenVINO session stored on the NPU', () => {
+  it('caps the window for an OpenVINO session while the NPU is selected', () => {
     const { inference } = storedSessionInference(
-      {
-        backend: 'openVINO',
-        selectedModels: { openVINO: 'Ov-8B' },
-        selectedDeviceId: 'NPU',
-        contextSize: 32768,
-      },
-      catalog(),
+      { backend: 'openVINO', selectedModels: { openVINO: 'Ov-8B' }, contextSize: 32768 },
+      catalog({
+        services: [
+          {
+            backend: 'openVINO',
+            baseUrl: 'http://127.0.0.1:29000',
+            devices: [
+              { id: 'GPU.0', name: 'Arc B580' },
+              { id: 'NPU', name: 'Intel NPU', selected: true },
+            ],
+          },
+        ],
+      }),
     )
     expect(inference.localBackendUrl).toBe('http://127.0.0.1:29000')
     expect(inference.contextSize).toBe(32768)

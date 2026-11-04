@@ -7,7 +7,6 @@ const available = (
   presetBackends: ['llamaCPP', 'openVINO'],
   cloudEnabled: false,
   runningBackends: [],
-  devices: () => [],
   models: [],
   ...overrides,
 })
@@ -46,55 +45,6 @@ describe('repairChatSettings: backend', () => {
 
   it('leaves the backend unset when the preset declares none', () => {
     expect(repairChatSettings({}, available({ presetBackends: [] })).backend).toBeUndefined()
-  })
-})
-
-describe('repairChatSettings: device', () => {
-  const devices = () => [
-    { id: 'CPU', uuid: 'u-cpu' },
-    { id: 'GPU.0', uuid: 'u-arc' },
-    { id: 'GPU.1', uuid: 'u-igpu' },
-  ]
-
-  it('re-binds to the same physical device by uuid when its id moved', () => {
-    const result = repairChatSettings(
-      { backend: 'llamaCPP', deviceId: 'GPU.0', deviceUuid: 'u-igpu' },
-      available({ devices }),
-    )
-    expect(result.deviceId).toBe('GPU.1')
-  })
-
-  it('falls back to the saved id when the uuid is unknown', () => {
-    const result = repairChatSettings(
-      { backend: 'llamaCPP', deviceId: 'CPU', deviceUuid: 'gone' },
-      available({ devices }),
-    )
-    expect(result.deviceId).toBe('CPU')
-  })
-
-  it('selects nothing when a saved device is no longer there', () => {
-    const result = repairChatSettings(
-      { backend: 'llamaCPP', deviceId: 'NPU', deviceUuid: null },
-      available({ devices }),
-    )
-    expect(result.deviceId).toBeUndefined()
-  })
-
-  it('defaults to a GPU when no device was saved', () => {
-    expect(repairChatSettings({ backend: 'llamaCPP' }, available({ devices })).deviceId).toBe(
-      'GPU.0',
-    )
-  })
-
-  it("looks the device up on the repaired backend's service", () => {
-    const result = repairChatSettings(
-      { backend: 'cloud' },
-      available({
-        presetBackends: ['openVINO'],
-        devices: (backend) => (backend === 'openVINO' ? [{ id: 'GPU.0' }] : [{ id: 'GPU.9' }]),
-      }),
-    )
-    expect(result.deviceId).toBe('GPU.0')
   })
 })
 

@@ -4,8 +4,6 @@ type LlmBackend = (typeof llmBackendTypes)[number]
 
 export type SavedChatSettings = {
   backend?: LlmBackend
-  deviceId?: string
-  deviceUuid?: string | null
   model?: string
 }
 
@@ -14,19 +12,16 @@ export type ChatSettingsAvailability = {
   presetPreferredModels?: Partial<Record<LlmBackend, string>>
   cloudEnabled: boolean
   runningBackends: readonly LlmBackend[]
-  devices: (backend: LlmBackend) => readonly { id: string; uuid?: string | null }[]
   models: readonly { name: string; type: string }[]
 }
 
 export type RepairedChatSettings = {
   backend: LlmBackend | undefined
-  /** Device to select; undefined leaves the current selection alone. */
-  deviceId: string | undefined
   /** Model to select; undefined leaves the choice to the model picker. */
   model: string | undefined
 }
 
-/** The silent repair a preset load applies to saved backend, device and model choices. */
+/** The silent repair a preset load applies to saved backend and model choices. */
 export function repairChatSettings(
   saved: SavedChatSettings,
   available: ChatSettingsAvailability,
@@ -34,7 +29,6 @@ export function repairChatSettings(
   const backend = repairBackend(saved.backend, available)
   return {
     backend,
-    deviceId: backend ? repairDevice(saved, available.devices(backend)) : undefined,
     model: backend ? repairModel(saved.model, backend, available) : undefined,
   }
 }
@@ -52,18 +46,6 @@ function repairBackend(
   if (backends.length === 0) return undefined
   if (backends.length === 1) return backends[0]
   return backends.find((b) => available.runningBackends.includes(b)) ?? backends[0]
-}
-
-function repairDevice(
-  saved: SavedChatSettings,
-  devices: readonly { id: string; uuid?: string | null }[],
-): string | undefined {
-  if (saved.deviceId === undefined) return devices.find((d) => d.id.includes('GPU'))?.id
-  const byUuid = saved.deviceUuid
-    ? devices.find((d) => d.uuid != null && d.uuid === saved.deviceUuid)
-    : undefined
-  if (byUuid) return byUuid.id
-  return devices.some((d) => d.id === saved.deviceId) ? saved.deviceId : undefined
 }
 
 function repairModel(

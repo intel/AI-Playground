@@ -59,8 +59,6 @@ describe('Session Settings ↔ settings bag', () => {
       withoutSessionOwnedKeys({
         backend: 'llamaCPP',
         selectedModels: { llamaCPP: 'X' },
-        selectedDeviceId: 'GPU.0',
-        selectedDeviceUuid: 'u-arc',
         selectedEmbeddingModels: { llamaCPP: 'bge' },
         contextSize: 4096,
         requestedContextSize: 4096,
@@ -74,6 +72,12 @@ describe('Session Settings ↔ settings bag', () => {
         temperature: 0.7,
       }),
     ).toEqual({ temperature: 0.7 })
+  })
+
+  it('does not count the device among the keys a Session owns', () => {
+    expect(
+      withoutSessionOwnedKeys({ selectedDeviceId: 'GPU.0', selectedDeviceUuid: 'u-arc' }),
+    ).toEqual({ selectedDeviceId: 'GPU.0', selectedDeviceUuid: 'u-arc' })
   })
 
   it('clears a model that no longer matches the backend after a backend change', () => {
@@ -104,7 +108,6 @@ describe('Session Settings ↔ settings bag', () => {
   const fullSettings = {
     backend: 'llamaCPP',
     model: 'Qwen3-9B',
-    device: { id: 'GPU.1', uuid: 'u-igpu' },
     embeddingModel: 'bge-small',
     contextSize: 65536,
     contextSizeEdited: true,
@@ -133,8 +136,6 @@ describe('Session Settings ↔ settings bag', () => {
     )
     expect(bag).toMatchObject({
       backend: 'llamaCPP',
-      selectedDeviceId: 'GPU.1',
-      selectedDeviceUuid: 'u-igpu',
       selectedEmbeddingModels: { llamaCPP: 'bge-small', openVINO: 'bge-ov' },
       contextSize: 65536,
       requestedContextSize: 65536,
@@ -145,6 +146,28 @@ describe('Session Settings ↔ settings bag', () => {
       cloudProviderId: 'zai',
       temperature: 0.2,
     })
+  })
+
+  it('ignores a device in the bag, since the device is a Machine Setting', () => {
+    expect(
+      sessionSettingsFromBag({ backend: 'llamaCPP', selectedDeviceId: 'GPU.1' }, 'llamaCPP'),
+    ).toEqual({ backend: 'llamaCPP' })
+  })
+
+  it('ignores the device an older Session stored, so loading it never picks a device', () => {
+    const bag = sessionSettingsToBag(
+      { backend: 'llamaCPP', device: { id: 'NPU', uuid: 'u-npu' } },
+      { selectedDeviceId: 'GPU.0' },
+    )
+    expect(bag).toEqual({ backend: 'llamaCPP', selectedDeviceId: 'GPU.0' })
+  })
+
+  it('keeps the device an older Session stored when the bag changes', () => {
+    const next = updateSessionSettingsFromBag(
+      { backend: 'llamaCPP', device: { id: 'NPU', uuid: 'u-npu' } },
+      { backend: 'openVINO', selectedDeviceId: 'GPU.0' },
+    )
+    expect(next).toEqual({ backend: 'openVINO', device: { id: 'NPU', uuid: 'u-npu' } })
   })
 
   it('round-trips: what is laid into the bag reads back unchanged', () => {

@@ -13,8 +13,8 @@ const available = (
   ],
   embeddingModels: [{ name: 'bge-small', type: 'llamaCPP' }],
   services: [
-    { backend: 'llamaCPP', isSetUp: true, devices: [{ id: 'GPU.0', uuid: 'u-arc' }] },
-    { backend: 'openVINO', isSetUp: true, devices: [{ id: 'NPU' }] },
+    { backend: 'llamaCPP', isSetUp: true },
+    { backend: 'openVINO', isSetUp: true },
   ],
   cloudEnabled: true,
   cloudProviderIds: ['zai'],
@@ -53,24 +53,16 @@ describe('sessionSettingsProblems', () => {
     const problems = sessionSettingsProblems(
       { backend: 'openVINO', model: 'Phi-4' },
       available({
-        services: [{ backend: 'openVINO', isSetUp: false, devices: [{ id: 'NPU' }] }],
+        services: [{ backend: 'openVINO', isSetUp: false }],
       }),
     )
     expect(fields(problems)).toEqual(['backend'])
   })
 
-  it('names a device that is gone, matching by uuid before id', () => {
+  it('never blocks on a device an older Session stored, since the device is machine-wide', () => {
     expect(
-      sessionSettingsProblems(
-        { backend: 'llamaCPP', device: { id: 'GPU.1', uuid: 'u-arc' } },
-        available(),
-      ),
+      sessionSettingsProblems({ backend: 'llamaCPP', device: { id: 'GPU.7' } }, available()),
     ).toEqual([])
-    expect(
-      fields(
-        sessionSettingsProblems({ backend: 'llamaCPP', device: { id: 'GPU.7' } }, available()),
-      ),
-    ).toEqual(['device'])
   })
 
   it('names cloud when Cloud Mode is off, and a removed provider', () => {
@@ -108,7 +100,7 @@ describe('sessionSettingsProblems', () => {
     const unloaded = available({
       models: [],
       embeddingModels: [],
-      services: [{ backend: 'llamaCPP', isSetUp: true, devices: [] }],
+      services: [{ backend: 'llamaCPP', isSetUp: true }],
       mcpServerIds: null,
     })
     expect(sessionSettingsProblems(settings, unloaded)).toEqual([])

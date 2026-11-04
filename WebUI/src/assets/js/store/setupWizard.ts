@@ -243,37 +243,14 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       : null
   }
 
-  /** Backend service a chat preset should target: its already-persisted backend
-   *  choice if any, else the first non-cloud backend it declares. null when the
-   *  preset is cloud-only (no local device). */
-  function chatPresetServiceName(preset: ChatPreset): BackendServiceName | null {
-    const saved = presetsStore.settingsPerPreset[preset.name]
-    const savedBackend = typeof saved?.backend === 'string' ? saved.backend : undefined
-    const backendKey =
-      savedBackend ?? preset.backends.find((b) => b !== 'cloud') ?? preset.backends[0]
-    return backendServiceName(backendKey)
-  }
-
-  /** Overwrite EVERY chat preset's device pick with the chosen preferred device
-   *  (not only presets the user has already opened). The backend-local id is
-   *  matched from the backend's own device list; the preferred UUID is always
-   *  persisted so the preset still re-binds to the right device on next load even
-   *  when the backend can't be matched right now. The active preset's running
-   *  backend is switched live so the change applies immediately. Image-generation
-   *  (ComfyUI) presets use a separate store and are intentionally not touched. */
-  async function overwritePresetDeviceSelections(pref: PreferredDevice) {
-    const prefUuid = pref.uuid ?? null
+  /** Select the preferred device on every local backend a chat preset uses, restarting
+   *  the running ones so it binds immediately (mirrors DeviceSelector). The device is a
+   *  Machine Setting, so no preset or Session stores it. */
+  async function applyPreferredDevice(pref: PreferredDevice) {
     const chatPresets = presetsStore.presets.filter((p): p is ChatPreset => p.type === 'chat')
 
     // At wizard-commit time an installed backend may report no devices yet,
-    // which would make every match below a silent no-op. Refresh detection
-    // (best-effort) for the backends actually referenced by the presets.
-    //
-    // Collect EVERY candidate backend of each preset, not just the primary one
-    // (`chatPresetServiceName`): a preset like "Assistant" lists both llama.cpp and
-    // OpenVINO, and the per-backend device re-point below must reach OpenVINO too —
-    // otherwise it keeps its prior device (this is how OVMS stayed on NPU after a
-    // "default GPU" override). Cloud has no local service (maps to null) and is skipped.
+    // which would make every match below a silent no-op.
     const services = new Set<BackendServiceName>()
     for (const p of chatPresets) {
       for (const backendKey of p.backends) {
@@ -287,35 +264,11 @@ export const useSetupWizard = defineStore('setupWizard', () => {
         try {
           await backendServices.detectDevices(s)
         } catch {
-          /* best-effort; fall back to the UUID-only write below */
+          /* best-effort; a backend still without devices keeps its own selection */
         }
       }
     }
 
-    for (const preset of chatPresets) {
-      const serviceName = chatPresetServiceName(preset)
-      if (!serviceName) continue
-      const device = matchDeviceForService(serviceName, pref)
-      if (device) {
-        presetsStore.saveSettingsForPreset(preset.name, {
-          selectedDeviceId: device.id,
-          selectedDeviceUuid: device.uuid ?? prefUuid,
-        })
-      } else if (prefUuid) {
-        // No usable device list for this backend right now — persist the
-        // preferred UUID; textInference resolves it to the backend's current id
-        // the next time this preset loads with the backend running.
-        presetsStore.saveSettingsForPreset(preset.name, { selectedDeviceUuid: prefUuid })
-      }
-    }
-
-    // Re-point each chat backend's OWN device selection (lastSelectedDevicePerBackend),
-    // not only the presets'. A multi-backend preset (e.g. "Assistant" on llama.cpp OR
-    // OpenVINO) stores a single device pick tied to `chatPresetServiceName`'s primary
-    // backend, so the secondary backend keeps whatever it had — which is how OVMS ended
-    // up stuck on NPU after a "default GPU" override. Match the preferred device against
-    // each referenced backend's own device list and select it, restarting any that are
-    // running so the change binds immediately (mirrors DeviceSelector).
     for (const serviceName of services) {
       const device = matchDeviceForService(serviceName, pref)
       if (!device) continue
@@ -957,7 +910,7 @@ export const useSetupWizard = defineStore('setupWizard', () => {
       // Optionally push the chosen default onto every preset that already has
       // its own device pick, discarding the prior per-preset selections.
       if (overrideExistingDeviceSelection.value) {
-        await overwritePresetDeviceSelections(preferredDevice)
+        await applyPreferredDevice(preferredDevice)
       }
     }
 

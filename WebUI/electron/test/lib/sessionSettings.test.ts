@@ -12,9 +12,7 @@ import {
 const available = {
   models: [{ name: 'Qwen3-9B', type: 'llamaCPP' }],
   embeddingModels: [],
-  services: [
-    { backend: 'llamaCPP' as const, isSetUp: true, devices: [{ id: 'GPU.0', uuid: 'u0' }] },
-  ],
+  services: [{ backend: 'llamaCPP' as const, isSetUp: true }],
   cloudEnabled: false,
   cloudProviderIds: [],
   embeddingBackend: 'llamaCPP' as const,
@@ -23,7 +21,6 @@ const available = {
 const gone = {
   backend: 'llamaCPP',
   selectedModels: { llamaCPP: 'Removed-Model' },
-  selectedDeviceId: 'GPU.0',
 }
 
 describe('Session Settings repair rules', () => {
@@ -55,23 +52,19 @@ describe('Session Settings repair rules', () => {
   })
 
   it('keeps what the Session stored for every key the user did not change since loading', () => {
-    const stored = { selectedDeviceId: 'GPU.1', temperature: 0.7 }
-    const baseline = { selectedDeviceId: 'GPU.0', temperature: 0.7 }
+    const stored = { seed: 7, temperature: 0.7 }
+    const baseline = { seed: 1, temperature: 0.7 }
 
-    const first = keepUneditedValues(
-      stored,
-      { selectedDeviceId: 'GPU.0', temperature: 0.2 },
-      baseline,
-    )
-    expect(first.values).toEqual({ selectedDeviceId: 'GPU.1', temperature: 0.2 })
+    const first = keepUneditedValues(stored, { seed: 1, temperature: 0.2 }, baseline)
+    expect(first.values).toEqual({ seed: 7, temperature: 0.2 })
 
     const back = keepUneditedValues(
       first.values,
-      { selectedDeviceId: 'GPU.0', temperature: 0.7 },
+      { seed: 1, temperature: 0.7 },
       baseline,
       first.edited,
     )
-    expect(back.values).toEqual({ selectedDeviceId: 'GPU.1', temperature: 0.7 })
+    expect(back.values).toEqual({ seed: 7, temperature: 0.7 })
   })
 
   it('drops a reset bag and leaves the preset’s other bags and variant', () => {

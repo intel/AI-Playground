@@ -462,15 +462,6 @@ export const useTextInference = defineStore(
     const getDeviceNameForBackend = (which: LlmBackend): string | null =>
       selectedDeviceFor(which)?.name ?? null
 
-    // Stable UUID of the currently selected device, when the backend exposes one.
-    // Persisted alongside the id so a preset re-binds to the same physical device
-    // even if its backend-local id shifts (driver update / enumeration reorder).
-    const getCurrentDeviceUuid = (): string | null => {
-      const serviceName = backendToService[backend.value] as BackendServiceName
-      const serviceInfo = backendServices.info.find((s) => s.serviceName === serviceName)
-      return serviceInfo?.devices.find((d) => d.selected)?.uuid ?? null
-    }
-
     const backendToAipgModelType = {
       openVINO: 'openvinoLLM',
       llamaCPP: 'ggufLLM',
@@ -1535,19 +1526,11 @@ export const useTextInference = defineStore(
       console.log('Loading settings for preset', settingsKey, savedSettings)
       const preset = activePreset.value
 
-      // Backend, device and preferred model go through the shared silent repair:
-      // an unavailable choice is replaced rather than restored. A preset with no
-      // saved backend never inherits the previously active preset's backend.
-      const savedDeviceId = savedSettings.selectedDeviceId as string | undefined
+      // Backend and preferred model go through the shared silent repair: an unavailable
+      // choice is replaced rather than restored. A preset with no saved backend never
+      // inherits the previously active preset's backend. The device is a Machine Setting.
       const repaired = repairChatSettings(
-        {
-          backend: savedSettings.backend as LlmBackend | undefined,
-          deviceId: savedDeviceId,
-          deviceUuid:
-            typeof savedSettings.selectedDeviceUuid === 'string'
-              ? savedSettings.selectedDeviceUuid
-              : null,
-        },
+        { backend: savedSettings.backend as LlmBackend | undefined },
         {
           presetBackends: pinnedBackend ? [pinnedBackend] : (preset.backends ?? []),
           presetPreferredModels: preset.preferredModels,
@@ -1556,19 +1539,10 @@ export const useTextInference = defineStore(
             const info = backendServices.info.find((s) => s.serviceName === backendToService[b])
             return info?.status === 'running'
           }),
-          devices: (b) =>
-            backendServices.info.find((s) => s.serviceName === backendToService[b])?.devices ?? [],
           models: llmModels.value,
         },
       )
       if (repaired.backend) backend.value = repaired.backend
-
-      const serviceName = backendToService[backend.value] as BackendServiceName
-      const serviceInfo = backendServices.info.find((s) => s.serviceName === serviceName)
-      const targetDevice = serviceInfo?.devices.find((d) => d.id === repaired.deviceId)
-      if (targetDevice && (savedDeviceId !== undefined || !targetDevice.selected)) {
-        backendServices.selectDevice(serviceName, targetDevice.id)
-      }
 
       // Load selected models (per backend)
       if (savedSettings.selectedModels !== undefined) {
@@ -1919,8 +1893,6 @@ export const useTextInference = defineStore(
         backend: backend.value,
         selectedModels: { ...selectedModels.value },
         selectedEmbeddingModels: { ...selectedEmbeddingModels.value },
-        selectedDeviceId: getCurrentDeviceId(),
-        selectedDeviceUuid: getCurrentDeviceUuid(),
         maxTokens: maxTokens.value,
         contextSize: contextSize.value,
         requestedContextSize: requestedContextSize.value,
@@ -2119,31 +2091,6 @@ export const useTextInference = defineStore(
           return
         }
         settingsPerPreset.value[settingsKey] = { ...settingsPerPreset.value[settingsKey], ...bag }
-      },
-      { deep: true },
-    )
-
-    // Watch for device changes to save per-preset
-    watch(
-      () => backendServices.info,
-      () => {
-        // Don't save if we're loading settings (prevents overwriting during preset switch)
-        if (isLoadingSettings) return
-
-        const settingsKey = getSettingsKey()
-        if (!settingsKey) return
-
-        const currentDeviceId = getCurrentDeviceId()
-        const binding = activeSettingsBinding()
-        if (currentDeviceId && binding) {
-          binding.save(sessionSettingsBag(), embeddingBackend.value)
-        } else if (currentDeviceId) {
-          settingsPerPreset.value[settingsKey] = {
-            ...settingsPerPreset.value[settingsKey],
-            selectedDeviceId: currentDeviceId,
-            selectedDeviceUuid: getCurrentDeviceUuid(),
-          }
-        }
       },
       { deep: true },
     )

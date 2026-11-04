@@ -17,6 +17,7 @@ import { llmBackendTypes } from './shared'
 export const AgentSessionSettingsSchema = z.object({
   backend: z.enum(llmBackendTypes).optional(),
   cloudProviderId: z.string().optional(),
+  /** Stored before the device became a Machine Setting; ignored on read. */
   device: z.object({ id: z.string(), uuid: z.string().nullable().optional() }).optional(),
   model: z.string().optional(),
   contextSize: z.number().optional(),

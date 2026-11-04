@@ -50,7 +50,7 @@ export function blockingProblems(
 
 /**
  * Keep the stored value of every key the user did not change since the bag loaded: a
- * value substituted while loading (an unavailable device or model) equals the post-load
+ * value substituted while loading (an unavailable model) equals the post-load
  * baseline and must not replace what the Session chose. A key once changed stays edited.
  */
 export function keepUneditedValues(

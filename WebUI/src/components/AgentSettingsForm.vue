@@ -2,7 +2,7 @@
   <SettingsSection
     :title="i18n.AGENT_SECTION_INFERENCING"
     :summary="binding.currentModel?.name"
-    :attention="hasProblem('backend', 'cloudProvider', 'device', 'model')"
+    :attention="hasProblem('backend', 'cloudProvider', 'model')"
   >
     <!-- A fieldset, so every control below (Reka triggers are buttons too) is disabled natively. -->
     <fieldset
@@ -28,11 +28,7 @@
         <Label class="whitespace-nowrap">{{ i18n.AGENT_SETTING_PROVIDER }}</Label>
         <slot name="provider" />
       </div>
-      <div
-        v-else
-        class="grid grid-cols-[120px_1fr] items-center gap-4"
-        :class="problemClass('device')"
-      >
+      <div v-else class="grid grid-cols-[120px_1fr] items-center gap-4">
         <Label class="whitespace-nowrap">{{ i18n.DEVICE }}</Label>
         <slot name="device" />
       </div>

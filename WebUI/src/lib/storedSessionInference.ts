@@ -156,14 +156,7 @@ export function storedSessionInference(
       : undefined
   const cloudCaps = cloudModel && provider ? provider.capabilitiesFor(cloudModel) : undefined
 
-  const devices = service?.devices ?? []
-  const storedDeviceId = typeof bag.selectedDeviceId === 'string' ? bag.selectedDeviceId : null
-  const storedDeviceUuid =
-    typeof bag.selectedDeviceUuid === 'string' ? bag.selectedDeviceUuid : null
-  const device =
-    devices.find((entry) => entry.id === storedDeviceId) ??
-    (storedDeviceUuid ? devices.find((entry) => entry.uuid === storedDeviceUuid) : undefined) ??
-    devices.find((entry) => entry.selected)
+  const device = service?.devices.find((entry) => entry.selected)
   const onNpu = backend === 'openVINO' && !!device?.id.includes('NPU')
 
   const maxContextSize = backend === 'cloud' ? cloudCaps?.contextLength : model?.maxContextSize
