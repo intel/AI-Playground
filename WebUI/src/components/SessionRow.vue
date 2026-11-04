@@ -171,7 +171,7 @@
               <span class="truncate">{{ group.name }}</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator v-if="otherGroups.length > 0" />
-            <DropdownMenuItem @select="openNewGroup">
+            <DropdownMenuItem @select="newGroupOpen = true">
               {{ languages.SESSIONS_NEW_GROUP }}
             </DropdownMenuItem>
           </DropdownMenuSubContent>
@@ -201,34 +201,15 @@
       </DropdownMenuContent>
     </DropdownMenu>
 
-    <Dialog v-model:open="newGroupOpen">
-      <DialogContent @click.stop>
-        <DialogHeader>
-          <DialogTitle>{{ languages.SESSIONS_NEW_GROUP_TITLE }}</DialogTitle>
-          <DialogDescription>{{ languages.SESSIONS_NEW_GROUP_DESCRIPTION }}</DialogDescription>
-        </DialogHeader>
-        <div class="mt-2 flex flex-col gap-1.5">
-          <Input
-            autofocus
-            type="text"
-            :maxlength="SESSION_NAME_MAX_LENGTH"
-            :placeholder="languages.SESSIONS_GROUP_NAME_PLACEHOLDER"
-            :aria-label="languages.SESSIONS_GROUP_NAME_PLACEHOLDER"
-            :aria-invalid="newGroupError ? 'true' : undefined"
-            aria-describedby="new-group-error"
-            v-model="newGroupName"
-            @keydown.enter.prevent="saveNewGroup"
-          />
-          <p id="new-group-error" class="text-sm text-destructive" role="alert">
-            {{ newGroupError }}
-          </p>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" @click="newGroupOpen = false">{{ languages.COM_CANCEL }}</Button>
-          <Button @click="saveNewGroup">{{ languages.SESSIONS_CREATE_GROUP }}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <SessionGroupNameDialog
+      v-model:open="newGroupOpen"
+      :title="languages.SESSIONS_NEW_GROUP_TITLE"
+      :description="languages.SESSIONS_NEW_GROUP_DESCRIPTION"
+      :submit-label="languages.SESSIONS_CREATE_GROUP"
+      initial-name=""
+      :groups
+      :save="createGroup"
+    />
   </div>
 </template>
 
@@ -272,14 +253,16 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import SessionGroupNameDialog from '@/components/SessionGroupNameDialog.vue'
 import { Spinner } from '@/components/ui/spinner'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useOemBranding } from '@/assets/js/store/oemBranding'
 import { usePresets } from '@/assets/js/store/presets'
 import { relativeTime } from '@/assets/js/store/recordRows'
+import type { GroupNameRefusal } from '@/assets/js/store/sessions'
 import { sessionRowMarker, type SessionRowStatus } from '@/lib/sessionRowStatus'
-import { SESSION_NAME_MAX_LENGTH, type SessionGroup, type SessionSummary } from '@/types/sessionIpc'
+import type { SessionGroup, SessionSummary } from '@/types/sessionIpc'
 
 const props = defineProps<{
   session: SessionSummary
@@ -289,6 +272,7 @@ const props = defineProps<{
   status: SessionRowStatus
   /** One of the Session's Tasks has an enabled Schedule. */
   scheduled?: boolean
+  createGroup: (name: string) => Promise<GroupNameRefusal | null>
 }>()
 
 const emit = defineEmits<{
@@ -296,7 +280,6 @@ const emit = defineEmits<{
   rename: [title: string]
   pin: [pinned: boolean]
   moveToGroup: [groupId: string | null]
-  createGroup: [name: string]
   delete: []
 }>()
 
@@ -310,8 +293,6 @@ const renameOpen = ref(false)
 const renameTitle = ref('')
 
 const newGroupOpen = ref(false)
-const newGroupName = ref('')
-const newGroupError = ref('')
 
 const ownGroup = computed(() => props.groups.find((group) => group.id === props.session.groupId))
 const otherGroups = computed(() => props.groups.filter((group) => group !== ownGroup.value))
@@ -336,23 +317,5 @@ function saveRename() {
   emit('rename', renameTitle.value.trim())
   renameOpen.value = false
   menuOpen.value = false
-}
-
-function openNewGroup() {
-  newGroupName.value = ''
-  newGroupError.value = ''
-  newGroupOpen.value = true
-}
-
-function saveNewGroup() {
-  const name = newGroupName.value.trim()
-  const taken = name.toLocaleLowerCase()
-  if (!name) newGroupError.value = i18nState.SESSIONS_GROUP_NAME_BLANK
-  else if (props.groups.some((group) => group.name.toLocaleLowerCase() === taken)) {
-    newGroupError.value = i18nState.SESSIONS_GROUP_NAME_TAKEN
-  } else {
-    emit('createGroup', name)
-    newGroupOpen.value = false
-  }
 }
 </script>

@@ -124,7 +124,7 @@
                   :expanded="listing.expanded"
                   :controls="`session-group-${listing.group.id}`"
                   @toggle="(expanded) => sessions.setGroupExpanded(listing.group.id, expanded)"
-                  @rename="(name) => sessions.renameGroup(listing.group.id, name)"
+                  :rename="(name) => sessions.renameGroup(listing.group.id, name)"
                   @delete="sessions.deleteGroup(listing.group.id)"
                   @new-session="lifecycle.newSession(listing.group.id)"
                 />
@@ -133,12 +133,12 @@
                   :id="`session-group-${listing.group.id}`"
                   class="flex flex-col gap-1.5"
                 >
-                  <BoundRow v-for="session in listing.sessions" :key="session.id" :session />
+                  <SessionPanelRow v-for="session in listing.sessions" :key="session.id" :session />
                 </div>
               </section>
             </template>
             <template v-else>
-              <BoundRow v-for="session in section.sessions" :key="session.id" :session />
+              <SessionPanelRow v-for="session in section.sessions" :key="session.id" :session />
               <Button
                 v-if="section.id === 'pinned' && section.toggle"
                 variant="ghost"
@@ -162,7 +162,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, ref } from 'vue'
+import { computed, ref } from 'vue'
 import {
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
@@ -170,21 +170,18 @@ import {
   PlusIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
-import { useAgentTasks } from '@/assets/js/store/agentTasks'
 import { useI18N } from '@/assets/js/store/i18n'
 import { useSessions } from '@/assets/js/store/sessions'
 import { useSessionLifecycle } from '@/assets/js/store/sessionLifecycle'
 import { useUIStore } from '@/assets/js/store/ui'
 import SessionGroupHeader from '@/components/SessionGroupHeader.vue'
-import SessionRow from '@/components/SessionRow.vue'
+import SessionPanelRow from '@/components/SessionPanelRow.vue'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { sessionSections, type PinnedToggle, type SessionSectionId } from '@/lib/sessionSections'
-import type { SessionSummary } from '@/types/sessionIpc'
 
 const sessions = useSessions()
-const agentTasks = useAgentTasks()
 const lifecycle = useSessionLifecycle()
 const ui = useUIStore()
 const i18nState = useI18N().state
@@ -202,24 +199,6 @@ const sections = computed(() =>
     pinnedShowMore: sessions.pinnedShowMore,
   }),
 )
-
-/** Every listing of a Session, including its second row when pinned and grouped. */
-function BoundRow({ session }: { session: SessionSummary }) {
-  return h(SessionRow, {
-    session,
-    groups: sessions.groups,
-    active: session.id === sessions.openSessionId,
-    status: lifecycle.rowStatus(session.id),
-    scheduled: agentTasks.scheduledSessionIds.has(session.id),
-    onOpen: () => lifecycle.openSession(session.id),
-    onRename: (title: string) => sessions.rename(session.id, title),
-    onPin: (pinned: boolean) => sessions.setPinned(session.id, pinned),
-    onMoveToGroup: (groupId: string | null) => sessions.moveToGroup(session.id, groupId),
-    onCreateGroup: (name: string) => sessions.createGroup(session.id, name),
-    onDelete: () => sessions.remove(session.id),
-  })
-}
-BoundRow.props = ['session']
 
 const SECTION_LABELS: Record<SessionSectionId, string> = {
   pinned: 'SESSIONS_SECTION_PINNED',

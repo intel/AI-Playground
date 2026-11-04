@@ -21,7 +21,7 @@ import type {
   KernelSnapshot,
   KernelStoredEvent,
 } from '@/types/kernelEvents'
-import type { SessionDocument, SessionTurns } from '@/types/sessionIpc'
+import type { SessionDocument, SessionGroupsState, SessionTurns } from '@/types/sessionIpc'
 import type { MediaItem } from '@/types/mediaItem'
 import type { UIMessageChunk } from 'ai'
 import {
@@ -421,6 +421,10 @@ export function emitStored(
 
 export function emitSessionChanged(session: SessionDocument): void {
   emit({ type: 'session-changed', session }, { kind: 'global' })
+}
+
+export function emitSessionGroupsChanged(state: SessionGroupsState): void {
+  emit({ type: 'session-groups-changed', state }, { kind: 'global' })
 }
 
 let sessionTurns: SessionTurns = {}

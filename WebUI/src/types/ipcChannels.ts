@@ -21,6 +21,7 @@ import type { ChatAnswerPayload, ChatAskPayload } from './chatRequests'
 import type { ComfyUICustomNodeRepoId } from './comfyuiIpc'
 import type { ComputeSnapshot, ProbeReport } from './computeMetrics'
 import type { LlamaCppVramInputs } from '../lib/vram/types'
+import type { GroupNameProblem } from '../lib/sessionGroupName'
 import type { ConversationBootstrap, ConversationSaveRequest } from './conversationIpc'
 import type { DemoConfigSaveResult, DemoConfigUpdate } from './demoModeIpc'
 import type { HomeAgentInboundMessage } from './homeAgentIpc'
@@ -105,6 +106,9 @@ export type IpcMutationResult = IpcOk | IpcFail
 export type IpcDataResult<T> = { success: true; data: T } | IpcFail
 /** Success carries named fields beyond `success` itself (e.g. `{ url: string }`, `{ filepath: string }`). */
 export type IpcOkWith<Fields> = ({ success: true } & Fields) | IpcFail
+/** Like `IpcOkWith`, but a refused Session Group name says which rule it broke. */
+export type IpcGroupNameResult<Fields> =
+  ({ success: true } & Fields) | (IpcFail & { nameProblem?: GroupNameProblem })
 export type IpcStatusError = { status: 'error'; error: string }
 /** `GET /v1/models` from main. A failure keeps the provider status and body. */
 export type CloudModelListResult =
@@ -256,12 +260,15 @@ export const CHANNELS = {
     args: [] as unknown as readonly [string, boolean],
     result: null as unknown as IpcOkWith<{ session: SessionSummary }>,
   },
-  /** Name a new Session Group and move the Session into it; pushes `session-changed`. */
+  /** Name a new Session Group and move the Session into it; pushes `session-changed` and `session-groups-changed`. */
   'sessions:createGroup': {
     kind: 'invoke',
     owner: 'main',
     args: [] as unknown as readonly [string, string],
-    result: null as unknown as IpcOkWith<{ group: SessionGroup; session: SessionSummary }>,
+    result: null as unknown as IpcGroupNameResult<{
+      group: SessionGroup
+      session: SessionSummary
+    }>,
   },
   /** Move a Session into a Session Group, or out of its own with `null`; pushes `session-changed`. */
   'sessions:moveToGroup': {
@@ -270,28 +277,28 @@ export const CHANNELS = {
     args: [] as unknown as readonly [string, string | null],
     result: null as unknown as IpcOkWith<{ session: SessionSummary }>,
   },
-  /** Rename a Session Group; a name taken by another Group, ignoring case, fails. */
+  /** Rename a Session Group; a name taken by another Group, ignoring case, fails. Pushes `session-groups-changed`. */
   'sessions:renameGroup': {
     kind: 'invoke',
     owner: 'main',
     args: [] as unknown as readonly [string, string],
-    result: null as unknown as IpcOkWith<{ group: SessionGroup }>,
+    result: null as unknown as IpcGroupNameResult<{ group: SessionGroup }>,
   },
-  /** Delete a Session Group; its Sessions stay and leave it, each pushing `session-changed`. */
+  /** Delete a Session Group; its Sessions stay and leave it, each pushing `session-changed`. Pushes `session-groups-changed`. */
   'sessions:deleteGroup': {
     kind: 'invoke',
     owner: 'main',
     args: [] as unknown as readonly [string],
     result: null as unknown as IpcMutationResult,
   },
-  /** Store whether a Session Group's header is expanded. */
+  /** Expand or collapse a Session Group's header; pushes `session-groups-changed`. */
   'sessions:setGroupExpanded': {
     kind: 'invoke',
     owner: 'main',
     args: [] as unknown as readonly [string, boolean],
     result: null as unknown as IpcOkWith<{ group: SessionGroup }>,
   },
-  /** Remember whether Pinned lists every pinned Session or the three most recent. */
+  /** Remember whether Pinned lists every pinned Session or the three most recent; pushes `session-groups-changed`. */
   'sessions:setPinnedShowMore': {
     kind: 'invoke',
     owner: 'main',

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { emitSessionChanged } from '../kernel/kernelBus'
+import { emitSessionChanged, emitSessionGroupsChanged } from '../kernel/kernelBus'
 import {
   assertSessionId,
   createSessionFolder,
@@ -20,17 +20,17 @@ import {
   readSessionGroupsFile,
   resetSessionGroupsFileForTest,
   serializeSessionGroups,
-  writeSessionGroups,
   writeSessionGroupsFile,
 } from '../persist/sessionGroupsFile'
 import { readHistoryEntries } from './sessionHistory'
 import { autoTitle } from './sessionTitle'
+import { checkGroupName, groupNameRefusal } from '@/lib/sessionGroupName'
 import {
-  SESSION_NAME_MAX_LENGTH,
   SessionTitleSchema,
   type SessionDocument,
   type SessionFile,
   type SessionGroup,
+  type SessionGroupsFile,
   type SessionSummary,
 } from '@/types/sessionIpc'
 
@@ -81,11 +81,10 @@ export async function readSession(id: string): Promise<SessionFile> {
   )
 }
 
-/** With `groupId` the Session starts in that Session Group, which must exist. */
 export async function createSession(groupId?: string): Promise<SessionSummary> {
   if (groupId === undefined) return createSessionFile(undefined)
   return serializeSessionGroups(async () => {
-    requireGroup(await readGroupsForWrite(), groupId)
+    requireGroup((await readGroupsForWrite()).groups, groupId)
     return createSessionFile(groupId)
   })
 }
@@ -98,7 +97,7 @@ async function createSessionFile(groupId: string | undefined): Promise<SessionSu
     title: '',
     renamed: false,
     pinned: false,
-    ...(groupId === undefined ? {} : { groupId }),
+    groupId,
     createdAt: now,
     updatedAt: now,
     presetsUsed: [],
@@ -186,16 +185,25 @@ export async function pinSession(id: string, pinned: boolean): Promise<SessionSu
   return summaryOf(file)
 }
 
-/** The Session Groups of the active root; none while the Groups file cannot be read. */
-export async function listSessionGroups(): Promise<SessionGroup[]> {
+async function readGroupsFile(): Promise<SessionGroupsFile | null> {
   const read = await readSessionGroupsFile()
-  return read.status === 'ok' ? read.file.groups : []
+  return read.status === 'ok' ? read.file : null
 }
 
-async function readGroupsForWrite(): Promise<SessionGroup[]> {
-  const read = await readSessionGroupsFile()
-  if (read.status === 'ok') return read.file.groups
+/** The Session Groups of the active root; none while the Groups file cannot be read. */
+export async function listSessionGroups(): Promise<SessionGroup[]> {
+  return (await readGroupsFile())?.groups ?? []
+}
+
+async function readGroupsForWrite(): Promise<SessionGroupsFile> {
+  const file = await readGroupsFile()
+  if (file) return file
   throw new Error('Session Groups are unavailable: their file cannot be read')
+}
+
+async function saveGroupsFile(file: SessionGroupsFile): Promise<void> {
+  await writeSessionGroupsFile(file)
+  emitSessionGroupsChanged({ groups: file.groups, pinnedShowMore: file.pinnedShowMore })
 }
 
 function requireGroup(groups: SessionGroup[], groupId: string): SessionGroup {
@@ -205,14 +213,9 @@ function requireGroup(groups: SessionGroup[], groupId: string): SessionGroup {
 }
 
 function validGroupName(name: string, groups: SessionGroup[], ownId?: string): string {
-  const trimmed = name.trim()
-  if (!trimmed) throw new Error('A Group needs a name')
-  if (trimmed.length > SESSION_NAME_MAX_LENGTH) throw new Error('That Group name is too long')
-  const taken = trimmed.toLocaleLowerCase()
-  if (groups.some((group) => group.id !== ownId && group.name.toLocaleLowerCase() === taken)) {
-    throw new Error(`A Group named "${trimmed}" already exists`)
-  }
-  return trimmed
+  const check = checkGroupName(name, groups, ownId)
+  if ('name' in check) return check.name
+  throw groupNameRefusal(check.problem)
 }
 
 async function setSessionGroup(id: string, groupId: string | null): Promise<SessionSummary> {
@@ -223,22 +226,21 @@ async function setSessionGroup(id: string, groupId: string | null): Promise<Sess
   return summaryOf(file)
 }
 
-/** Names a new Session Group and moves the Session into it, the only way a Group is made. */
 export async function createSessionGroup(
   sessionId: string,
   name: string,
 ): Promise<{ group: SessionGroup; session: SessionSummary }> {
   assertSessionId(sessionId)
   return serializeSessionGroups(async () => {
-    const groups = await readGroupsForWrite()
+    const file = await readGroupsForWrite()
     const group: SessionGroup = {
       id: `group-${randomUUID()}`,
-      name: validGroupName(name, groups),
+      name: validGroupName(name, file.groups),
       createdAt: Date.now(),
       expanded: true,
     }
     const session = await setSessionGroup(sessionId, group.id)
-    await writeSessionGroups([...groups, group])
+    await saveGroupsFile({ ...file, groups: [...file.groups, group] })
     return { group, session }
   })
 }
@@ -251,7 +253,7 @@ export async function moveSessionToGroup(
   assertSessionId(sessionId)
   if (groupId === null) return setSessionGroup(sessionId, null)
   return serializeSessionGroups(async () => {
-    requireGroup(await readGroupsForWrite(), groupId)
+    requireGroup((await readGroupsForWrite()).groups, groupId)
     return setSessionGroup(sessionId, groupId)
   })
 }
@@ -261,9 +263,10 @@ async function updateSessionGroup(
   update: (group: SessionGroup, groups: SessionGroup[]) => SessionGroup,
 ): Promise<SessionGroup> {
   return serializeSessionGroups(async () => {
-    const groups = await readGroupsForWrite()
-    const next = update(requireGroup(groups, groupId), groups)
-    await writeSessionGroups(groups.map((group) => (group.id === groupId ? next : group)))
+    const file = await readGroupsForWrite()
+    const next = update(requireGroup(file.groups, groupId), file.groups)
+    const groups = file.groups.map((group) => (group.id === groupId ? next : group))
+    await saveGroupsFile({ ...file, groups })
     return next
   })
 }
@@ -285,9 +288,9 @@ export async function setSessionGroupExpanded(
 /** The Group goes first, so a crash part-way leaves only ids that list as ungrouped. */
 export async function deleteSessionGroup(groupId: string): Promise<void> {
   await serializeSessionGroups(async () => {
-    const groups = await readGroupsForWrite()
-    requireGroup(groups, groupId)
-    await writeSessionGroups(groups.filter((group) => group.id !== groupId))
+    const file = await readGroupsForWrite()
+    requireGroup(file.groups, groupId)
+    await saveGroupsFile({ ...file, groups: file.groups.filter((group) => group.id !== groupId) })
     const members = (await listSessions()).filter(
       (session) => !session.unreadable && session.groupId === groupId,
     )
@@ -304,15 +307,12 @@ export async function deleteSessionGroup(groupId: string): Promise<void> {
 
 /** Whether Pinned lists every pinned Session; off while the Groups file cannot be read. */
 export async function readPinnedShowMore(): Promise<boolean> {
-  const read = await readSessionGroupsFile()
-  return read.status === 'ok' && read.file.pinnedShowMore
+  return (await readGroupsFile())?.pinnedShowMore ?? false
 }
 
 export async function setPinnedShowMore(shown: boolean): Promise<void> {
   await serializeSessionGroups(async () => {
-    const read = await readSessionGroupsFile()
-    if (read.status !== 'ok') throw new Error('Session Groups file cannot be read')
-    await writeSessionGroupsFile({ ...read.file, pinnedShowMore: shown })
+    await saveGroupsFile({ ...(await readGroupsForWrite()), pinnedShowMore: shown })
   })
 }
 

@@ -425,7 +425,8 @@ The folders above are layers, not just grouping. Put a new module where its job 
 
 - Capability logic → `chat/`, `agent/`, `artifact/`, `permissions/`
 - Anything a Session owns (its timeline, History Entries, Session Update, Harness Sessions) →
-  `session/`; it reaches disk only through `persist/sessionFiles.ts` / `persist/sessionMediaFiles.ts`
+  `session/`; it reaches disk only through `persist/sessionFiles.ts` /
+  `persist/sessionMediaFiles.ts` / `persist/sessionGroupsFile.ts`
 - Anything that writes a user-data file → `persist/`
 - Child processes, HTTP clients, OS probing, git → `adapters/`
 - Bus, GPU queue, install roots, machine-level settings schema → `kernel/`

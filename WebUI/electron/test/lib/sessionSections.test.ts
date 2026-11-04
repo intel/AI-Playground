@@ -275,9 +275,10 @@ describe('sessionSections', () => {
     ])
   })
 
-  it('hides an empty Group while searching, even when its name matches', () => {
-    const groups = [group('trip', { name: 'Lisbon' })]
+  it('shows an empty Group whose name matches while searching, hiding the empty ones that do not', () => {
+    const groups = [group('trip', { name: 'Lisbon' }), group('other', { name: 'Porto' })]
     expect(ids(sections([session('a', { title: 'Lisbon notes' })], 'lisbon', groups))).toEqual([
+      ['groups', [['trip', []]]],
       ['recent', ['a']],
     ])
   })

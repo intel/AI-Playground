@@ -40,6 +40,7 @@ import type { taskRunHarnessFor } from '../../session/sessionTaskRuns'
 import type { upsertTimelineMessages } from '../../session/sessionTimeline'
 import type { ChatTranscriptMessage, saveChatTranscript } from '../../session/sessionChatTurn'
 import type { readSessionSettings, writePresetSettings } from '../../session/sessionSettings'
+import { groupNameProblemOf } from '@/lib/sessionGroupName'
 import { PresetSessionSettingsSchema } from '@/types/sessionSettings'
 
 export type SessionsDeps = {
@@ -86,6 +87,11 @@ function timelineMessages(value: unknown): { id: string }[] {
 function requireString(value: unknown, what: string): string {
   if (typeof value !== 'string') throw new Error(`${what} must be a string`)
   return value
+}
+
+function groupNameFail(e: unknown) {
+  const nameProblem = groupNameProblemOf(e)
+  return nameProblem ? { ...ipcFail(e), nameProblem } : ipcFail(e)
 }
 
 export function buildSessionsRegistry(deps: SessionsDeps) {
@@ -153,7 +159,7 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
         )
         return { success: true as const, ...created }
       } catch (e) {
-        return ipcFail(e)
+        return groupNameFail(e)
       }
     },
     'sessions:moveToGroup': async (_event, id, groupId) => {
@@ -175,7 +181,7 @@ export function buildSessionsRegistry(deps: SessionsDeps) {
         )
         return { success: true as const, group }
       } catch (e) {
-        return ipcFail(e)
+        return groupNameFail(e)
       }
     },
     'sessions:deleteGroup': async (_event, groupId) => {

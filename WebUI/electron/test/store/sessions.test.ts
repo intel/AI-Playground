@@ -30,6 +30,11 @@ const kernelBus = await import('../../kernel/kernelBus')
 const { recordMediaTurn } = await import('../../session/sessionMediaTurn')
 const { useSessions } = await import('@/assets/js/store/sessions')
 const ledger = await import('../../session/sessionTurns')
+const { buildSessionsRegistry } = await import('../../kernel/registries/sessions')
+type SessionsDeps = import('../../kernel/registries/sessions').SessionsDeps
+
+const registry = buildSessionsRegistry(sessionModule as unknown as SessionsDeps)
+const noEvent = {} as never
 
 function ok<T extends object>(run: () => Promise<T>) {
   return async () => ({ success: true as const, ...(await run()) })
@@ -58,6 +63,10 @@ beforeEach(async () => {
         rename: (id: string, title: string) =>
           ok(async () => ({ session: await sessionModule.renameSession(id, title) }))(),
         delete: (id: string) => ok(async () => sessionModule.deleteSession(id).then(() => ({})))(),
+        createGroup: (id: string, name: string) =>
+          registry['sessions:createGroup'](noEvent, id, name),
+        renameGroup: (groupId: string, name: string) =>
+          registry['sessions:renameGroup'](noEvent, groupId, name),
       },
     },
   })
@@ -212,5 +221,46 @@ describe('Sessions store', () => {
     await store.init()
 
     await vi.waitFor(() => expect(store.openTurn?.kind).toBe('chat'))
+  })
+
+  it('sees Groups renamed, collapsed, deleted and Pinned "show more" through the Groups push', async () => {
+    const store = useSessions()
+    await store.init()
+    const { group } = await sessionModule.createSessionGroup(store.openSessionId!, 'Lisbon')
+    await vi.waitFor(() => expect(store.groups).toEqual([group]))
+
+    await sessionModule.renameSessionGroup(group.id, 'Porto')
+    await sessionModule.setSessionGroupExpanded(group.id, false)
+    await vi.waitFor(() =>
+      expect(store.groups).toEqual([{ ...group, name: 'Porto', expanded: false }]),
+    )
+
+    await sessionModule.setPinnedShowMore(true)
+    await sessionModule.deleteSessionGroup(group.id)
+    await vi.waitFor(() => expect(store.groups).toEqual([]))
+    expect(store.pinnedShowMore).toBe(true)
+  })
+
+  it("refuses a Group name main finds taken, though this store's list had not seen it", async () => {
+    const store = useSessions()
+    await store.init()
+    const id = store.openSessionId!
+    const other = await sessionModule.createSession()
+    await sessionModule.createSessionGroup(other.id, 'Lisbon')
+    store.groups = []
+
+    expect(await store.createGroup(id, 'lisbon')).toMatchObject({ problem: 'taken' })
+    expect(store.sessions[id]?.groupId).toBeUndefined()
+  })
+
+  it('refuses renaming a Group to a name main finds taken', async () => {
+    const store = useSessions()
+    await store.init()
+    const { group } = await sessionModule.createSessionGroup(store.openSessionId!, 'Lisbon')
+    const other = await sessionModule.createSession()
+    await sessionModule.createSessionGroup(other.id, 'Porto')
+
+    expect(await store.renameGroup(group.id, 'PORTO')).toMatchObject({ problem: 'taken' })
+    expect(await store.renameGroup(group.id, 'Faro')).toBeNull()
   })
 })

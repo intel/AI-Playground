@@ -14,7 +14,10 @@ vi.mock('../../observability/logger', () => ({
   appLoggerInstance: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-vi.mock('../../kernel/kernelBus', () => ({ emitSessionChanged: vi.fn() }))
+vi.mock('../../kernel/kernelBus', () => ({
+  emitSessionChanged: vi.fn(),
+  emitSessionGroupsChanged: vi.fn(),
+}))
 
 const {
   createSession,
@@ -37,6 +40,8 @@ const {
   wipeDemoSessions,
 } = await import('../../session/sessions')
 const { appendHistoryEntry } = await import('../../session/sessionHistory')
+const { emitSessionGroupsChanged } = await import('../../kernel/kernelBus')
+const { groupNameProblemOf } = await import('@/lib/sessionGroupName')
 const { trackAgentTurnInSession } = await import('../../session/sessionAgentTurns')
 
 function entry(prompt: string) {
@@ -374,7 +379,8 @@ describe('Session Groups', () => {
     const b = await createSession()
     await createSessionGroup(a.id, 'Lisbon')
 
-    await expect(createSessionGroup(b.id, ' LISBON ')).rejects.toThrow(/already exists/)
+    const refusal = await createSessionGroup(b.id, ' LISBON ').catch((e: unknown) => e)
+    expect(groupNameProblemOf(refusal)).toBe('taken')
     expect(await listSessionGroups()).toHaveLength(1)
     expect((await listSessions()).find((s) => s.id === b.id)?.groupId).toBeUndefined()
   })
@@ -458,9 +464,10 @@ describe('Session Groups', () => {
     const { group } = await createSessionGroup(a.id, 'Lisbon')
     await createSessionGroup(b.id, 'Porto')
 
-    await expect(renameSessionGroup(group.id, '   ')).rejects.toThrow()
-    await expect(renameSessionGroup(group.id, 'x'.repeat(501))).rejects.toThrow()
-    await expect(renameSessionGroup(group.id, 'porto')).rejects.toThrow(/already exists/)
+    const refusal = (name: string) => renameSessionGroup(group.id, name).catch((e: unknown) => e)
+    expect(groupNameProblemOf(await refusal('   '))).toBe('blank')
+    expect(groupNameProblemOf(await refusal('x'.repeat(501)))).toBe('tooLong')
+    expect(groupNameProblemOf(await refusal('porto'))).toBe('taken')
     expect((await listSessionGroups()).map((g) => g.name)).toEqual(['Lisbon', 'Porto'])
   })
 
@@ -531,6 +538,41 @@ describe('Session Groups', () => {
 
     expect(await listSessions()).toEqual([])
     expect(await listSessionGroups()).toEqual([group])
+  })
+})
+
+describe('Session Groups push', () => {
+  const pushes = () => vi.mocked(emitSessionGroupsChanged).mock.calls.map(([state]) => state)
+
+  beforeEach(() => vi.mocked(emitSessionGroupsChanged).mockClear())
+
+  it('pushes the whole Groups state after every Groups-file write', async () => {
+    const session = await createSession()
+    const { group } = await createSessionGroup(session.id, 'Lisbon')
+    await renameSessionGroup(group.id, 'Porto')
+    await setSessionGroupExpanded(group.id, false)
+    await setPinnedShowMore(true)
+    await deleteSessionGroup(group.id)
+
+    const renamed = { ...group, name: 'Porto' }
+    expect(pushes()).toEqual([
+      { groups: [group], pinnedShowMore: false },
+      { groups: [renamed], pinnedShowMore: false },
+      { groups: [{ ...renamed, expanded: false }], pinnedShowMore: false },
+      { groups: [{ ...renamed, expanded: false }], pinnedShowMore: true },
+      { groups: [], pinnedShowMore: true },
+    ])
+  })
+
+  it('pushes nothing when a write is refused', async () => {
+    const session = await createSession()
+    const { group } = await createSessionGroup(session.id, 'Lisbon')
+    vi.mocked(emitSessionGroupsChanged).mockClear()
+
+    await expect(renameSessionGroup(group.id, '  ')).rejects.toThrow()
+    await expect(deleteSessionGroup('group-missing')).rejects.toThrow()
+
+    expect(pushes()).toEqual([])
   })
 })
 

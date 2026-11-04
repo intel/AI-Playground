@@ -73,13 +73,15 @@ export function sessionSections({
   const listings = groups
     .map((group) => {
       const members = ordered.filter((s) => groupOf(s) === group.id)
-      const shown = needle && contains(group.name) ? members : members.filter(matches)
+      const nameMatches = !!needle && contains(group.name)
+      const shown = nameMatches ? members : members.filter(matches)
       return {
         listing: { group, sessions: shown, expanded: expanded(group, members) },
         newest: members[0],
+        listed: !needle || nameMatches || shown.length > 0,
       }
     })
-    .filter(({ listing }) => !needle || listing.sessions.length > 0)
+    .filter(({ listed }) => listed)
     .sort((a, b) => {
       if (a.newest && b.newest) return newestFirst(a.newest, b.newest)
       if (a.newest || b.newest) return a.newest ? -1 : 1

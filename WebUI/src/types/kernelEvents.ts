@@ -8,7 +8,7 @@ import type { UIMessageChunk } from 'ai'
 import type { MediaItem } from './mediaItem'
 import type { ActivityCategory, ActivityScope, ActivityState } from '@/assets/js/activities/types'
 import type { SerializedAppError } from '@/assets/js/errors/types'
-import type { SessionDocument, SessionTurns } from './sessionIpc'
+import type { SessionDocument, SessionGroupsState, SessionTurns } from './sessionIpc'
 
 export type KernelEventScope =
   { kind: 'global' } | { kind: 'chat'; conversationKey: string } | { kind: 'run'; runId: string }
@@ -259,6 +259,12 @@ export type KernelSessionChangedEvent = {
   session: SessionDocument
 }
 
+/** The Session Groups file changed in main: every Group and Pinned "show more". */
+export type KernelSessionGroupsChangedEvent = {
+  type: 'session-groups-changed'
+  state: SessionGroupsState
+}
+
 /** Which Sessions have a turn in flight: the whole ledger on every change. */
 export type KernelSessionTurnsEvent = {
   type: 'session-turns'
@@ -294,6 +300,7 @@ export type KernelEventPayload =
   | KernelErrorEvent
   | KernelStoredEvent
   | KernelSessionChangedEvent
+  | KernelSessionGroupsChangedEvent
   | KernelSessionTurnsEvent
 
 export type KernelEvent = KernelEventPayload & KernelEventEnvelope

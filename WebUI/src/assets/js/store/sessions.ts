@@ -5,12 +5,14 @@ import { useErrors } from '@/assets/js/store/errors'
 import type {
   SessionDocument,
   SessionGroup,
+  SessionGroupsState,
   SessionLastPreset,
   SessionSummary,
   SessionTurn,
   SessionTurns,
 } from '@/types/sessionIpc'
 import { cloneForIpc } from '@/lib/cloneForIpc'
+import type { GroupNameProblem } from '@/lib/sessionGroupName'
 import type { MediaTurnData } from '@/types/sessionTimeline'
 
 /** A panel run submitted in a Session whose turn has not settled into its timeline yet. */
@@ -23,6 +25,9 @@ export type PendingMediaTurn = {
 }
 
 type IpcResult<T> = ({ success: true } & T) | { success: false; error: string }
+
+/** Why main would not take a Group name; `problem` is set when a name rule was broken. */
+export type GroupNameRefusal = { problem?: GroupNameProblem; error: string }
 
 /** The renderer's projection of the Session module: the Sessions panel rows and the open Session. */
 export const useSessions = defineStore('sessions', () => {
@@ -71,6 +76,11 @@ export const useSessions = defineStore('sessions', () => {
     if (openSessionId.value === document.id) openTimeline.value = timeline
   }
 
+  function applyGroups(state: SessionGroupsState): void {
+    groups.value = state.groups
+    pinnedShowMore.value = state.pinnedShowMore
+  }
+
   /** Each Session's turn in flight, as main's ledger has it. */
   const turns = ref<SessionTurns>({})
   /** Sessions whose turn ended while another was open; cleared when opened. */
@@ -88,6 +98,7 @@ export const useSessions = defineStore('sessions', () => {
   const projection = connectKernelEventStream(
     (event) => {
       if (event.type === 'session-changed') applyChanged(event.session)
+      if (event.type === 'session-groups-changed') applyGroups(event.state)
       if (event.type === 'session-turns') applyTurns(event.turns)
     },
     (snapshot) => {
@@ -138,8 +149,7 @@ export const useSessions = defineStore('sessions', () => {
     const result = await call('sessions/list-failed', () => window.electronAPI.sessions.list())
     if (!result) return
     sessions.value = Object.fromEntries(result.sessions.map((session) => [session.id, session]))
-    groups.value = result.groups
-    pinnedShowMore.value = result.pinnedShowMore
+    applyGroups(result)
     await openNewestOrCreate()
   }
 
@@ -149,7 +159,6 @@ export const useSessions = defineStore('sessions', () => {
     else await create()
   }
 
-  /** With `groupId` the new Session starts in that Session Group. */
   async function create(groupId?: string): Promise<string | null> {
     const result = await call('sessions/create-failed', () =>
       window.electronAPI.sessions.create(groupId),
@@ -188,14 +197,36 @@ export const useSessions = defineStore('sessions', () => {
     if (result) remember(result.session)
   }
 
-  /** Names a new Session Group and moves the Session into it. */
-  async function createGroup(id: string, name: string): Promise<void> {
-    const result = await call('sessions/create-group-failed', () =>
+  /** A refused name is the caller's to show, so it is reported but not toasted. */
+  async function nameCall<T>(
+    code: string,
+    run: () => Promise<
+      IpcResult<T> | { success: false; error: string; nameProblem?: GroupNameProblem }
+    >,
+  ): Promise<({ success: true } & T) | GroupNameRefusal> {
+    try {
+      const result = await run()
+      if (result.success) return result
+      errors.report(new Error(result.error), { code, category: 'backend', surface: 'inline' })
+      return 'nameProblem' in result && result.nameProblem
+        ? { problem: result.nameProblem, error: result.error }
+        : { error: result.error }
+    } catch (error) {
+      errors.report(error, { code, category: 'backend', surface: 'inline' })
+      return { error: error instanceof Error ? error.message : String(error) }
+    }
+  }
+
+  async function createGroup(id: string, name: string): Promise<GroupNameRefusal | null> {
+    const result = await nameCall('sessions/create-group-failed', () =>
       window.electronAPI.sessions.createGroup(id, name),
     )
-    if (!result) return
-    groups.value = [...groups.value, result.group]
+    if (!('success' in result)) return result
+    if (!groups.value.some((group) => group.id === result.group.id)) {
+      groups.value = [...groups.value, result.group]
+    }
     remember(result.session)
+    return null
   }
 
   /** `null` takes the Session out of its Session Group. */
@@ -210,11 +241,13 @@ export const useSessions = defineStore('sessions', () => {
     groups.value = groups.value.map((known) => (known.id === group.id ? group : known))
   }
 
-  async function renameGroup(groupId: string, name: string): Promise<void> {
-    const result = await call('sessions/rename-group-failed', () =>
+  async function renameGroup(groupId: string, name: string): Promise<GroupNameRefusal | null> {
+    const result = await nameCall('sessions/rename-group-failed', () =>
       window.electronAPI.sessions.renameGroup(groupId, name),
     )
-    if (result) rememberGroup(result.group)
+    if (!('success' in result)) return result
+    rememberGroup(result.group)
+    return null
   }
 
   /** Its Sessions stay; each arrives ungrouped as its own `session-changed`. */

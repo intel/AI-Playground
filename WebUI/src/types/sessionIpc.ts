@@ -69,6 +69,8 @@ export const SessionGroupsFileSchema = z.object({
 
 export type SessionGroupsFile = z.infer<typeof SessionGroupsFileSchema>
 
+export type SessionGroupsState = Pick<SessionGroupsFile, 'groups' | 'pinnedShowMore'>
+
 export const HistoryEntryKindSchema = z.enum([
   'chat',
   'agent',

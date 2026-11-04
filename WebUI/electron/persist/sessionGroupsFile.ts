@@ -2,11 +2,7 @@ import path from 'node:path'
 import { appLoggerInstance } from '../observability/logger'
 import { atomicWriteJson, makeWriteChains, readJson } from './fsJsonStore'
 import { sessionsRoot } from './sessionFiles'
-import {
-  SessionGroupsFileSchema,
-  type SessionGroup,
-  type SessionGroupsFile,
-} from '@/types/sessionIpc'
+import { SessionGroupsFileSchema, type SessionGroupsFile } from '@/types/sessionIpc'
 
 const LOG_SCOPE = 'sessions'
 
@@ -39,13 +35,6 @@ export async function readSessionGroupsFile(): Promise<SessionGroupsRead> {
 
 export async function writeSessionGroupsFile(file: SessionGroupsFile): Promise<void> {
   await atomicWriteJson(groupsFilePath(), file)
-}
-
-/** Replaces the Groups, keeping the rest of the file; callers already hold the chain. */
-export async function writeSessionGroups(groups: SessionGroup[]): Promise<void> {
-  const read = await readSessionGroupsFile()
-  const pinnedShowMore = read.status === 'ok' && read.file.pinnedShowMore
-  await writeSessionGroupsFile({ schemaVersion: 1, groups, pinnedShowMore })
 }
 
 export function resetSessionGroupsFileForTest(): void {
