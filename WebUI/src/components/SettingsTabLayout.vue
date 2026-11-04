@@ -8,30 +8,30 @@
     >
       {{ readOnlyNote }}
     </p>
-    <!-- A fieldset, so every control below (Reka triggers are buttons too) is disabled natively. -->
-    <fieldset
-      :disabled="readOnly"
-      :aria-describedby="readOnly && readOnlyNote ? readOnlyNoteId : undefined"
-      class="flex flex-col gap-6 min-w-0 m-0 p-0 border-0"
-    >
-      <template v-if="!machineOnly">
+    <template v-if="!machineOnly">
+      <!-- A fieldset, so every control in it (Reka triggers are buttons too) is disabled natively. -->
+      <fieldset
+        :disabled="readOnly"
+        :aria-describedby="readOnly && readOnlyNote ? readOnlyNoteId : undefined"
+        class="flex flex-col gap-6 min-w-0 m-0 p-0 border-0"
+      >
         <div v-if="$slots.default" class="flex flex-col gap-4">
           <slot />
         </div>
         <SessionSettingsActions @reset="emit('reset')">
           <slot name="reset-fallback" />
         </SessionSettingsActions>
-        <MachineSettingsGroup v-if="$slots.machine" :note="machineNote">
-          <slot name="machine" />
-        </MachineSettingsGroup>
-      </template>
-      <!-- Nothing here is the Session's, so the default buttons have nothing to act on. -->
-      <MachineSettingsGroup v-else :note="machineNote">
-        <slot />
+      </fieldset>
+      <MachineSettingsGroup v-if="$slots.machine" :note="machineNote">
         <slot name="machine" />
-        <slot name="reset-fallback" />
       </MachineSettingsGroup>
-    </fieldset>
+    </template>
+    <!-- Nothing here is the Session's, so the default buttons have nothing to act on. -->
+    <MachineSettingsGroup v-else :note="machineNote">
+      <slot />
+      <slot name="machine" />
+      <slot name="reset-fallback" />
+    </MachineSettingsGroup>
     <slot name="after" />
   </div>
 </template>
@@ -42,10 +42,10 @@ import MachineSettingsGroup from '@/components/MachineSettingsGroup.vue'
 import SessionSettingsActions from '@/components/SessionSettingsActions.vue'
 
 defineProps<{
-  /** Every setting in the tab applies to all sessions (the Home Agent preset, speech engines). */
+  /** Every setting in the tab applies to all sessions (the Home Agent preset). */
   machineOnly?: boolean
   machineNote?: string
-  /** Locks everything below the picker, e.g. while an Agent Run holds the Session. */
+  /** Locks the Session Settings and their default buttons, e.g. while an Agent Run holds the Session. */
   readOnly?: boolean
   readOnlyNote?: string
 }>()
