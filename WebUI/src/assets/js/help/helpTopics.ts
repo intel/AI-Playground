@@ -52,7 +52,7 @@ export const HELP_TOPICS: Record<HelpTopicId, HelpTopic> = {
   },
   'mode-button-audio': {
     title: 'Audio mode',
-    body: 'Turn text into spoken audio, or an audio recording into text. Pick Text to Speech or Speech to Text in the Inferencing tab, where the voice and engine live too.',
+    body: 'Turn text into spoken audio, or an audio recording into text. Pick Text to Speech or Speech to Text and its engine in the Inferencing tab, and the voice in the Attributes tab.',
   },
   'mode-button-imageGen': {
     title: 'Image Gen mode',

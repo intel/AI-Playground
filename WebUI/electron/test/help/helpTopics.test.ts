@@ -44,6 +44,13 @@ describe('help topic registry', () => {
     }
   })
 
+  it('places the audio voice in the Attributes tab and the engine in Inferencing', () => {
+    const body = getHelpTopic('mode-button-audio')?.body ?? ''
+    expect(body).toMatch(/engine[^.]*Inferencing/)
+    expect(body).toMatch(/voice[^.]*Attributes/)
+    expect(body).not.toMatch(/Inferencing tab, where the voice/)
+  })
+
   it('does not resolve inherited Object properties as topics', () => {
     expect(getHelpTopic('constructor')).toBeUndefined()
     expect(getHelpTopic('toString')).toBeUndefined()
