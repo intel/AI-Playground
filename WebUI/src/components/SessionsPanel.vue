@@ -15,7 +15,7 @@
           {{ languages.COM_SESSIONS }}
         </h2>
         <div class="flex items-center gap-1" :class="{ 'flex-col': collapsed }">
-          <Tooltip>
+          <Tooltip v-if="collapsed">
             <TooltipTrigger as-child>
               <Button
                 variant="ghost"
@@ -51,21 +51,84 @@
       </div>
     </TooltipProvider>
 
-    <TooltipProvider v-if="!collapsed" :delay-duration="200">
-      <div class="flex-1 min-h-0 overflow-y-auto px-2 pb-2 flex flex-col gap-1.5">
-        <SessionRow
-          v-for="session in sessions.orderedSessions"
-          :key="session.id"
-          :session="session"
-          :active="session.id === sessions.openSessionId"
-          :status="lifecycle.rowStatus(session.id)"
-          :scheduled="agentTasks.scheduledSessionIds.has(session.id)"
-          @open="lifecycle.openSession(session.id)"
-          @rename="(title) => sessions.rename(session.id, title)"
-          @delete="sessions.remove(session.id)"
-        />
+    <template v-if="!collapsed">
+      <div class="flex-none flex flex-col gap-2 px-2 pb-2">
+        <div class="relative">
+          <MagnifyingGlassIcon
+            class="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <Input
+            v-model="query"
+            type="search"
+            class="pl-8 pr-8 [&::-webkit-search-cancel-button]:hidden"
+            :aria-label="languages.SESSIONS_SEARCH"
+            :placeholder="languages.SESSIONS_SEARCH"
+            @keydown.esc.stop="query = ''"
+          />
+          <TooltipProvider v-if="query" :delay-duration="200">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2"
+                  :aria-label="languages.SESSIONS_SEARCH_CLEAR"
+                  @click="query = ''"
+                >
+                  <XMarkIcon class="size-4" aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{{ languages.SESSIONS_SEARCH_CLEAR }}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <Button
+          variant="outline"
+          class="w-full justify-start gap-2"
+          @click="lifecycle.newSession()"
+        >
+          <PlusIcon class="size-4" aria-hidden="true" />
+          {{ languages.SESSIONS_NEW }}
+        </Button>
       </div>
-    </TooltipProvider>
+
+      <TooltipProvider :delay-duration="200">
+        <div class="flex-1 min-h-0 overflow-y-auto px-2 pb-2 flex flex-col gap-3">
+          <p
+            v-if="query.trim() && sections.length === 0"
+            class="px-1 text-sm text-muted-foreground"
+          >
+            {{ languages.SESSIONS_NO_MATCH }}
+          </p>
+          <section
+            v-for="section in sections"
+            :key="section.id"
+            role="group"
+            :aria-label="sectionLabel(section.id)"
+            class="flex flex-col gap-1.5"
+          >
+            <h3
+              v-if="sections.length > 1"
+              class="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+            >
+              {{ sectionLabel(section.id) }}
+            </h3>
+            <SessionRow
+              v-for="session in section.sessions"
+              :key="session.id"
+              :session="session"
+              :active="session.id === sessions.openSessionId"
+              :status="lifecycle.rowStatus(session.id)"
+              :scheduled="agentTasks.scheduledSessionIds.has(session.id)"
+              @open="lifecycle.openSession(session.id)"
+              @rename="(title) => sessions.rename(session.id, title)"
+              @delete="sessions.remove(session.id)"
+            />
+          </section>
+        </div>
+      </TooltipProvider>
+    </template>
     <div v-else class="flex-1"></div>
 
     <div class="flex-none flex items-center gap-3 px-3 py-3" :class="{ 'flex-col': collapsed }">
@@ -75,20 +138,43 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon, PlusIcon } from '@heroicons/vue/24/outline'
+import { computed, ref } from 'vue'
+import {
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  XMarkIcon,
+} from '@heroicons/vue/24/outline'
 import { useAgentTasks } from '@/assets/js/store/agentTasks'
+import { useI18N } from '@/assets/js/store/i18n'
 import { useSessions } from '@/assets/js/store/sessions'
 import { useSessionLifecycle } from '@/assets/js/store/sessionLifecycle'
 import { useUIStore } from '@/assets/js/store/ui'
 import SessionRow from '@/components/SessionRow.vue'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { sessionSections, type SessionSectionId } from '@/lib/sessionSections'
 
 const sessions = useSessions()
 const agentTasks = useAgentTasks()
 const lifecycle = useSessionLifecycle()
 const ui = useUIStore()
+const i18nState = useI18N().state
 
 const collapsed = computed(() => ui.sessionsPanelCollapsed)
+const query = ref('')
+
+const sections = computed(() =>
+  sessionSections(sessions.orderedSessions, query.value, i18nState.SESSIONS_UNTITLED),
+)
+
+const SECTION_LABELS: Record<SessionSectionId, string> = {
+  recent: 'SESSIONS_SECTION_RECENT',
+}
+
+function sectionLabel(id: SessionSectionId) {
+  return i18nState[SECTION_LABELS[id]]
+}
 </script>
