@@ -5,10 +5,12 @@ export type SessionSectionId = 'pinned' | 'named' | 'recent'
 export type SessionSection = { id: SessionSectionId; sessions: SessionSummary[] }
 
 const SECTION_ORDER: { id: SessionSectionId; holds: (session: SessionSummary) => boolean }[] = [
-  { id: 'pinned', holds: (session) => session.pinned && !session.unreadable },
-  { id: 'named', holds: (session) => session.renamed && !session.unreadable },
+  { id: 'pinned', holds: (session) => session.pinned },
+  { id: 'named', holds: (session) => session.renamed },
   { id: 'recent', holds: () => true },
 ]
+
+const RECENT = SECTION_ORDER.length - 1
 
 export function sessionSections(
   summaries: SessionSummary[],
@@ -24,7 +26,9 @@ export function sessionSections(
   )
   const sections = SECTION_ORDER.map(({ id }) => ({ id, sessions: [] as SessionSummary[] }))
   for (const session of ordered) {
-    const index = SECTION_ORDER.findIndex((section) => section.holds(session))
+    const index = session.unreadable
+      ? RECENT
+      : SECTION_ORDER.findIndex((section) => section.holds(session))
     sections[index].sessions.push(session)
   }
   return sections.filter((section) => section.sessions.length > 0)
