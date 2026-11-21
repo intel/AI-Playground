@@ -366,6 +366,7 @@ function getFunctionTip(type: string): string {
 
 function download() {
   downloding = true
+  etaEstimator.reset()
   const accessableDownloadList = downloadModelRender.value.filter(
     (item) => item.accessGranted === true,
   )

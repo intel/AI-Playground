@@ -39,11 +39,17 @@ export class EtaEstimator {
       return null
     }
 
-    if (currentValue <= this.lastValue) {
+    if (currentValue < this.lastValue) {
       this.reset()
       this.lastValue = currentValue
       this.lastTime = now
       return null
+    }
+
+    // No progress since the last report: keep that point so the next rate spans the gap.
+    if (currentValue === this.lastValue) {
+      this.pruneOldSamples(now)
+      return this.estimate(currentValue)
     }
 
     const valueChange = currentValue - this.lastValue
@@ -59,6 +65,10 @@ export class EtaEstimator {
     this.addSample(now, valueChange / timeElapsedSeconds)
     this.pruneOldSamples(now)
 
+    return this.estimate(currentValue)
+  }
+
+  private estimate(currentValue: number): number | null {
     const rate = this.calculateAverageRate()
     if (rate === null) {
       return null
