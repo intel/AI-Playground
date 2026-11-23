@@ -323,9 +323,9 @@ textarea {
       auto;
   }
 
-  &.easer {
+  &.eraser {
     cursor:
-      url('@/assets/svg/easer.svg') 4 16,
+      url('@/assets/svg/eraser.svg') 4 16,
       auto;
   }
 }

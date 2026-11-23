@@ -66,7 +66,7 @@ try:
     import logging
     import traceback
 
-    import model_download_adpater
+    import model_download_adapter
     import utils
     from aipg_loopback_auth import (
         evaluate_loopback_auth,
@@ -314,15 +314,15 @@ try:
         arg_name="download_request_data",
     )
     def download_model(download_request_data: DownloadModelRequestBody):
-        if model_download_adpater._adapter is not None:
-            model_download_adpater._adapter.stop_download()
+        if model_download_adapter._adapter is not None:
+            model_download_adapter._adapter.stop_download()
         try:
-            model_download_adpater._adapter = (
-                model_download_adpater.Model_Downloader_Adapter(
+            model_download_adapter._adapter = (
+                model_download_adapter.Model_Downloader_Adapter(
                     hf_token=get_bearer_token(request)
                 )
             )
-            iterator = model_download_adpater._adapter.download(
+            iterator = model_download_adapter._adapter.download(
                 download_request_data.data
             )
             return Response(
@@ -331,7 +331,7 @@ try:
         except Exception as e:
             traceback.print_exc()
 
-            model_download_adpater._adapter.stop_download()
+            model_download_adapter._adapter.stop_download()
             ex_str = f'{{"type": "error", "err_type": "{e}"}}'
             return Response(
                 stream_with_context([ex_str]), content_type="text/event-stream"
@@ -339,8 +339,8 @@ try:
 
     @app.get("/api/stopDownloadModel")
     def stop_download_model():
-        if model_download_adpater._adapter is not None:
-            model_download_adpater._adapter.stop_download()
+        if model_download_adapter._adapter is not None:
+            model_download_adapter._adapter.stop_download()
         return jsonify({"code": 0, "message": "success"})
 
     if __name__ == "__main__":
